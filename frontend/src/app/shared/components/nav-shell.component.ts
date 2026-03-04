@@ -120,6 +120,13 @@ import { AuthService } from '../../core/services/auth.service';
             <span class="icon">📊</span> Progresso
           </a>
 
+          <a routerLink="/clinical" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">🩺</span> Clínico
+          </a>
+          <a routerLink="/diet" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">🍽️</span> Dieta
+          </a>
+
           <span class="nav-section">Configurações</span>
           <a routerLink="/profile" routerLinkActive="active-link" class="nav-item">
             <span class="icon">👤</span> Perfil
@@ -147,8 +154,8 @@ import { AuthService } from '../../core/services/auth.service';
     <!-- Mobile bottom nav -->
     <nav class="bottom-nav">
       <a routerLink="/dashboard" routerLinkActive="active-link"><span class="bn-icon">📅</span>Agenda</a>
-      <a routerLink="/water"     routerLinkActive="active-link"><span class="bn-icon">💧</span>Água</a>
-      <a routerLink="/hormones"  routerLinkActive="active-link"><span class="bn-icon">💉</span>Hormônios</a>
+      <a routerLink="/diet"      routerLinkActive="active-link"><span class="bn-icon">🍽️</span>Dieta</a>
+      <a routerLink="/clinical"  routerLinkActive="active-link"><span class="bn-icon">🩺</span>Clínico</a>
       <a routerLink="/progress"  routerLinkActive="active-link"><span class="bn-icon">📊</span>Progresso</a>
       <a routerLink="/profile"   routerLinkActive="active-link"><span class="bn-icon">👤</span>Perfil</a>
     </nav>

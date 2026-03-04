@@ -140,6 +140,27 @@ export class BloodTest {
   })
   tshMiuL?: number;
 
+  // ── Hormones (blood-test results, not dose logs) ────────────────────────────
+  /** Total Testosterone (ng/dL) – relevant for TRT monitoring */
+  @Column({
+    name: "testosterone_total_ng_dl",
+    type: "numeric",
+    precision: 7,
+    scale: 2,
+    nullable: true,
+  })
+  testosteroneTotalNgDl?: number;
+
+  /** Estradiol (pg/mL) */
+  @Column({
+    name: "estradiol_pg_ml",
+    type: "numeric",
+    precision: 7,
+    scale: 2,
+    nullable: true,
+  })
+  estradiolPgMl?: number;
+
   // ── Inflammation ───────────────────────────────────────────────────────────
   /** C-reactive protein – high-sensitivity (mg/L) */
   @Column({

@@ -28,6 +28,12 @@ export class User {
   @Column({ default: true, name: "is_active", type: "boolean" })
   isActive!: boolean;
 
+  @Column({ name: "avatar_url", type: "text", nullable: true })
+  avatarUrl?: string;
+
+  @Column({ type: "int", default: 0 })
+  xp!: number;
+
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
 

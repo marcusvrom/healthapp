@@ -1,8 +1,10 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { ProfileService } from '../../core/services/profile.service';
+import { UserService } from '../../core/services/user.service';
 import { HealthProfile, ActivityFactor, Gender, Exercise, BloodTest } from '../../core/models';
+import { environment } from '../../../../environments/environment';
 
 const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
   sedentary:         '🪑 Sedentário',
@@ -60,12 +62,69 @@ const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
     /* Blood test */
     .bt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .875rem; }
     .success-msg { color: var(--color-primary); font-size: .875rem; font-weight: 600; padding: .5rem 0; }
+
+    /* Avatar */
+    .avatar-section {
+      display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.75rem;
+      padding: 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+
+      .avatar-wrap {
+        position: relative; cursor: pointer; flex-shrink: 0;
+        width: 80px; height: 80px;
+
+        .avatar-img {
+          width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
+          border: 3px solid var(--color-primary-light);
+        }
+        .avatar-placeholder {
+          width: 80px; height: 80px; border-radius: 50%;
+          background: var(--color-primary-light); display: flex; align-items: center;
+          justify-content: center; font-size: 2rem; border: 3px solid var(--color-primary-light);
+        }
+        .edit-overlay {
+          position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,.45);
+          display: flex; align-items: center; justify-content: center; opacity: 0;
+          transition: opacity .2s; color: #fff; font-size: .875rem; font-weight: 600;
+        }
+        &:hover .edit-overlay { opacity: 1; }
+      }
+
+      .avatar-info {
+        .avatar-hint { font-size: .8rem; color: var(--color-text-muted); margin-top: .25rem; }
+      }
+    }
   `],
   template: `
+    <!-- Hidden file input for avatar upload -->
+    <input #fileInput type="file" accept="image/*" style="display:none" (change)="onFileSelected($event)" />
+
     <div class="profile-page">
       <div class="page-header">
         <h2>👤 Perfil de Saúde</h2>
         <p>Mantenha suas informações atualizadas para cálculos precisos.</p>
+      </div>
+
+      <!-- Avatar section -->
+      <div class="avatar-section">
+        <div class="avatar-wrap" (click)="fileInput.click()">
+          @if (avatarUrl()) {
+            <img class="avatar-img" [src]="avatarUrl()" alt="Avatar" />
+          } @else {
+            <div class="avatar-placeholder">👤</div>
+          }
+          <div class="edit-overlay">✏️ Editar</div>
+        </div>
+        <div class="avatar-info">
+          <strong>Foto de Perfil</strong>
+          <div class="avatar-hint">Clique para alterar · JPG/PNG, máx 5 MB</div>
+          @if (uploadingAvatar()) {
+            <div style="font-size:.8rem;color:var(--color-primary);margin-top:.25rem">⏳ Enviando...</div>
+          }
+          @if (avatarError()) {
+            <div style="font-size:.8rem;color:var(--color-danger);margin-top:.25rem">{{ avatarError() }}</div>
+          }
+        </div>
       </div>
 
       <!-- Metabolic summary -->
@@ -185,13 +244,19 @@ const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
 })
 export class ProfileComponent implements OnInit {
   private profileSvc = inject(ProfileService);
+  private userSvc    = inject(UserService);
 
-  metabolic  = this.profileSvc.metabolic;
-  saving     = signal(false);
-  saveSuccess= signal(false);
-  saveError  = signal('');
-  savingBt   = signal(false);
-  exercises  = signal<Exercise[]>([]);
+  readonly apiBase = environment.apiUrl.replace('/api/v1', '');
+
+  metabolic       = this.profileSvc.metabolic;
+  saving          = signal(false);
+  saveSuccess     = signal(false);
+  saveError       = signal('');
+  savingBt        = signal(false);
+  exercises       = signal<Exercise[]>([]);
+  uploadingAvatar = signal(false);
+  avatarError     = signal('');
+  avatarUrl       = signal<string | null>(null);
 
   form: Partial<HealthProfile> = {
     age: undefined, gender: 'male', weight: undefined, height: undefined,
@@ -214,6 +279,27 @@ export class ProfileComponent implements OnInit {
     this.profileSvc.getExercises().subscribe({
       next: ex => this.exercises.set(ex),
       error: () => {},
+    });
+    this.userSvc.loadMe().subscribe({
+      next: u => this.avatarUrl.set(u.avatarUrl ? `${this.apiBase}${u.avatarUrl}` : null),
+      error: () => {},
+    });
+  }
+
+  onFileSelected(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    this.uploadingAvatar.set(true);
+    this.avatarError.set('');
+    this.userSvc.uploadAvatar(file).subscribe({
+      next: r => {
+        this.avatarUrl.set(`${this.apiBase}${r.avatarUrl}`);
+        this.uploadingAvatar.set(false);
+      },
+      error: () => {
+        this.avatarError.set('Erro ao enviar imagem. Verifique o formato e tamanho.');
+        this.uploadingAvatar.set(false);
+      },
     });
   }
 

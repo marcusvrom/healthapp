@@ -1,6 +1,17 @@
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export interface AuthResponse { token: string; userId: string; }
 
+// ── Current User (from /users/me) ─────────────────────────────────────────────
+export interface UserLevel { level: number; title: string; nextLevelXp: number; }
+export interface CurrentUser {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl: string | null;
+  xp: number;
+  level: UserLevel;
+}
+
 // ── User / Profile ────────────────────────────────────────────────────────────
 export type Gender = 'male' | 'female' | 'other';
 export type ActivityFactor =
@@ -168,4 +179,76 @@ export interface DailySummary {
   totalFat: number;
   totalFiber: number;
   byMeal: Array<{ mealType: MealType; calories: number; protein: number; carbs: number; fat: number }>;
+}
+
+// ── Clinical ───────────────────────────────────────────────────────────────────
+export interface BloodTestFull {
+  id: string;
+  userId: string;
+  collectedAt: string;
+  glucoseMgDl?: number;
+  insulinUiuMl?: number;
+  hba1cPct?: number;
+  cholesterolTotalMgDl?: number;
+  ldlMgDl?: number;
+  hdlMgDl?: number;
+  triglyceridesMgDl?: number;
+  vitaminDNgMl?: number;
+  vitaminB12PgMl?: number;
+  ferritinNgMl?: number;
+  testosteroneTotalNgDl?: number;
+  estradiolPgMl?: number;
+  tshMiuL?: number;
+  crpMgL?: number;
+  notes?: string;
+}
+
+export interface HormoneLog {
+  id: string;
+  userId: string;
+  category: 'TRT' | 'Female_Hormones' | 'Sleep' | 'Other';
+  name: string;
+  dosage: number;
+  unit: string;
+  administeredAt: string;
+  notes?: string;
+}
+
+export interface ClinicalHistory {
+  bloodTests: BloodTestFull[];
+  hormoneLogs: HormoneLog[];
+}
+
+// ── Scheduled Meals ───────────────────────────────────────────────────────────
+export interface ScheduledFoodItem {
+  name: string;
+  quantityG: number;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}
+
+export interface ScheduledMeal {
+  id: string;
+  userId: string;
+  scheduledDate: string;
+  name: string;
+  scheduledTime: string;
+  caloricTarget?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+  foods?: ScheduledFoodItem[];
+  isConsumed: boolean;
+  consumedAt?: string;
+  xpAwarded: boolean;
+  notes?: string;
+}
+
+export interface ToggleResult {
+  meal: ScheduledMeal;
+  xpGained: number;
+  totalXp: number;
+  level: UserLevel;
 }

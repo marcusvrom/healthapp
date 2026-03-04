@@ -31,6 +31,8 @@ export const routes: Routes = [
       { path: 'hormones',  loadComponent: () => import('./features/hormones/hormones.component').then(m => m.HormonesComponent) },
       { path: 'progress',  loadComponent: () => import('./features/progress/progress.component').then(m => m.ProgressComponent) },
       { path: 'profile',   loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent) },
+      { path: 'clinical',  loadComponent: () => import('./features/clinical/clinical-dashboard.component').then(m => m.ClinicalDashboardComponent) },
+      { path: 'diet',      loadComponent: () => import('./features/diet-plan/diet-plan.component').then(m => m.DietPlanComponent) },
     ],
   },
 

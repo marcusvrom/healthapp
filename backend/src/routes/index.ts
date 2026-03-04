@@ -9,6 +9,9 @@ import { MealController } from "../controllers/MealController";
 import { WaterController } from "../controllers/WaterController";
 import { HormoneController } from "../controllers/HormoneController";
 import { MetricsController } from "../controllers/MetricsController";
+import { ClinicalController } from "../controllers/ClinicalController";
+import { ScheduledMealController } from "../controllers/ScheduledMealController";
+import { UserController } from "../controllers/UserController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -83,5 +86,21 @@ router.get("/metrics/weight",   ...auth(MetricsController.weightHistory));
 router.post("/metrics/weight",  ...auth(MetricsController.logWeight));
 router.get("/metrics/water",    ...auth(MetricsController.waterConsistency));
 router.get("/metrics/streaks",  ...auth(MetricsController.streaks));
+
+// ── Clinical Dashboard ────────────────────────────────────────────────────────
+router.get("/clinical/history", ...auth(ClinicalController.history));
+
+// ── Scheduled Meals ───────────────────────────────────────────────────────────
+// NOTE: /scheduled-meals/generate must come before /scheduled-meals/:id
+router.post("/scheduled-meals/generate",    ...auth(ScheduledMealController.generate));
+router.get("/scheduled-meals",              ...auth(ScheduledMealController.list));
+router.post("/scheduled-meals",             ...auth(ScheduledMealController.create));
+router.patch("/scheduled-meals/:id/toggle", ...auth(ScheduledMealController.toggle));
+router.delete("/scheduled-meals/:id",       ...auth(ScheduledMealController.remove));
+
+// ── User Profile & Avatar ─────────────────────────────────────────────────────
+router.get("/users/me",     ...auth(UserController.me));
+router.post("/users/avatar", authMiddleware, (req: Request, res: Response, next: NextFunction) =>
+  UserController.uploadAvatar(req as AuthenticatedRequest, res, next));
 
 export default router;
