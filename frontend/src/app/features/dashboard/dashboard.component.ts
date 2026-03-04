@@ -1,45 +1,45 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ProfileService } from '../../core/services/profile.service';
 import { RoutineService } from '../../core/services/routine.service';
 import { FoodService } from '../../core/services/food.service';
 import { UserService } from '../../core/services/user.service';
-import { RoutineBlock, BlockType, DailySummary, MetabolicResult } from '../../core/models';
-import { WaterTrackerComponent } from '../water/water-tracker.component';
 import { WaterService } from '../../core/services/water.service';
-
-const HOUR_PX = 64; // px per hour in timeline
-const DAY_START_H = 0; // midnight
+import { ClinicalProtocolService } from '../../core/services/clinical-protocol.service';
+import { RoutineBlock, BlockType, DailySummary, ClinicalProtocolWithLog } from '../../core/models';
+import { WaterTrackerComponent } from '../water/water-tracker.component';
 
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
 }
+function pad2(n: number): string { return String(n).padStart(2, '0'); }
 
-const BLOCK_COLORS: Record<BlockType, string> = {
-  sleep:        '#4f46e5',
-  work:         '#6b7280',
-  exercise:     '#10b981',
-  meal:         '#f59e0b',
-  water:        '#0ea5e9',
-  sun_exposure: '#eab308',
-  free:         '#d1d5db',
-  custom:       '#8b5cf6',
-  medication:   '#7c3aed',
+const BLOCK_META: Record<BlockType, { icon: string; color: string; bg: string; label: string }> = {
+  sleep:        { icon: '😴', color: '#4f46e5', bg: '#eef2ff', label: 'Sono' },
+  work:         { icon: '💼', color: '#6b7280', bg: '#f3f4f6', label: 'Trabalho' },
+  exercise:     { icon: '💪', color: '#10b981', bg: '#d1fae5', label: 'Exercício' },
+  meal:         { icon: '🍽️', color: '#f59e0b', bg: '#fef3c7', label: 'Refeição' },
+  water:        { icon: '💧', color: '#0ea5e9', bg: '#e0f2fe', label: 'Água' },
+  sun_exposure: { icon: '☀️', color: '#eab308', bg: '#fef9c3', label: 'Sol' },
+  free:         { icon: '⬜', color: '#9ca3af', bg: '#f9fafb', label: 'Livre' },
+  custom:       { icon: '📌', color: '#8b5cf6', bg: '#ede9fe', label: 'Custom' },
+  medication:   { icon: '💊', color: '#7c3aed', bg: '#f5f3ff', label: 'Protocolo' },
 };
 
-const BLOCK_LABELS: Record<BlockType, string> = {
-  sleep:        '😴 Sono',
-  work:         '💼 Trabalho',
-  exercise:     '💪 Exercício',
-  meal:         '🍽️ Refeição',
-  water:        '💧 Água',
-  sun_exposure: '☀️ Sol',
-  free:         '⬜ Livre',
-  custom:       '📌 Custom',
-  medication:   '💊 Protocolo',
+const PROTOCOL_ICON: Record<string, string> = {
+  SUPLEMENTO:         '🧴',
+  REMEDIO_CONTROLADO: '💊',
+  TRT:                '💉',
+  HORMONIO_FEMININO:  '🌸',
+  SONO:               '😴',
 };
+
+interface TimeGroup {
+  time: string; minuteOfDay: number; blocks: RoutineBlock[];
+  isPast: boolean; isCurrent: boolean;
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -47,285 +47,165 @@ const BLOCK_LABELS: Record<BlockType, string> = {
   imports: [DecimalPipe, DatePipe, RouterLink, WaterTrackerComponent],
   styles: [`
     .dashboard { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 1.5rem;
-      @media (max-width: 900px) { grid-template-columns: 1fr; }
-    }
-
-    /* Header */
-    .dash-header {
-      grid-column: 1/-1;
-      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
-
-      .greeting { h2 { font-size: 1.5rem; } p { font-size: .9rem; } }
-
-      .date-nav {
-        display: flex; align-items: center; gap: .75rem;
-        .date-label { font-weight: 600; font-size: .95rem; min-width: 120px; text-align: center; }
-        button { background: var(--color-surface); border: 1px solid var(--color-border);
-          border-radius: var(--radius-sm); padding: .4rem .75rem; cursor: pointer; font-size: 1rem;
-          &:hover { background: var(--color-border); }
-        }
+      @media (max-width: 960px) { grid-template-columns: 1fr; } }
+    .dash-header { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+      .greeting { h2 { font-size: 1.5rem; } p { font-size: .875rem; } }
+      .date-nav { display: flex; align-items: center; gap: .625rem;
+        .date-label { font-weight: 600; font-size: .9rem; min-width: 110px; text-align: center; color: var(--color-text); }
+        .nav-btn { width: 32px; height: 32px; border-radius: 50%; background: var(--color-surface); border: 1.5px solid var(--color-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: .15s; &:hover { background: var(--color-border); } }
+        .today-btn { font-size: .75rem; padding: .25rem .625rem; border-radius: 99px; background: var(--color-primary-light); color: var(--color-primary-dark); border: none; cursor: pointer; font-weight: 600; transition: .15s; &:hover { background: var(--color-primary); color: #fff; } }
       }
     }
-
-    /* Generate routine button */
-    .generate-bar {
-      grid-column: 1/-1;
-      display: flex; align-items: center; justify-content: space-between;
-      background: linear-gradient(135deg, #059669, #10b981);
-      color: #fff; border-radius: var(--radius-md); padding: 1rem 1.5rem;
-
-      .text h3 { font-size: 1rem; color: #fff; }
-      .text p  { font-size: .82rem; color: rgba(255,255,255,.8); }
-
-      button { background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.4);
-        color: #fff; padding: .5rem 1.25rem; border-radius: var(--radius-sm);
-        cursor: pointer; font-weight: 600; font-size: .875rem; backdrop-filter: blur(4px);
-        &:hover { background: rgba(255,255,255,.35); }
-        &:disabled { opacity: .6; cursor: wait; }
+    .generate-bar { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: linear-gradient(135deg, #059669, #10b981); color: #fff; border-radius: var(--radius-md); padding: .875rem 1.5rem;
+      .gb-text { h3 { font-size: .95rem; color: #fff; } p { font-size: .78rem; color: rgba(255,255,255,.8); } }
+      button { background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.4); color: #fff; padding: .4rem 1rem; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: .8rem; white-space: nowrap; &:hover { background: rgba(255,255,255,.35); } &:disabled { opacity: .6; cursor: wait; } }
+    }
+    .timeline-panel { min-width: 0; .panel-title { font-size: .95rem; font-weight: 700; margin-bottom: 1rem; } }
+    .timeline-feed { display: flex; flex-direction: column; position: relative; padding-bottom: 1rem;
+      &::before { content: ''; position: absolute; left: 46px; top: 0; bottom: 0; width: 2px; background: var(--color-border); border-radius: 99px; }
+    }
+    .tg { display: flex; &.past { opacity: .6; } }
+    .tg-time { width: 44px; padding-top: 1rem; font-size: .68rem; font-weight: 700; color: var(--color-text-subtle); text-align: right; flex-shrink: 0; line-height: 1; }
+    .tg-rail { width: 4px; margin: 0 10px; display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+    .tg-dot { width: 12px; height: 12px; border-radius: 50%; margin-top: .95rem; background: var(--color-border); border: 2px solid var(--color-surface); flex-shrink: 0; }
+    .tg-cards { flex: 1; min-width: 0; padding: .5rem 0; display: flex; flex-direction: column; gap: .45rem; }
+    .block-card { border-radius: var(--radius-sm); border: 1px solid var(--color-border); border-left-width: 3px; padding: .575rem .875rem; background: var(--color-surface); cursor: default; transition: box-shadow .15s, transform .1s;
+      &:hover { box-shadow: var(--shadow-sm); transform: translateX(2px); }
+      &.done  { opacity: .65; }
+      .bc-row { display: flex; align-items: center; gap: .625rem; }
+      .bc-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .9rem; flex-shrink: 0; }
+      .bc-body { flex: 1; min-width: 0;
+        .bc-label { font-size: .8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-text); }
+        .bc-sub   { font-size: .68rem; color: var(--color-text-subtle); margin-top: .1rem; }
+      }
+      .bc-right { display: flex; align-items: center; gap: .375rem; flex-shrink: 0; }
+      .bc-pill  { font-size: .66rem; font-weight: 700; padding: .1rem .4rem; border-radius: 99px; }
+      .bc-check { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--color-border); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .8rem; transition: .15s; flex-shrink: 0;
+        &.checked { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+        &:hover:not(.checked) { border-color: #7c3aed; background: #f5f3ff; }
       }
     }
-
-    /* Timeline */
-    .timeline-panel { .panel-title { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; } }
-
-    .timeline {
-      position: relative;
-      background: var(--color-surface);
-      border-radius: var(--radius-md);
-      border: 1px solid var(--color-border);
-      overflow: hidden;
-
-      .hours {
-        position: relative;
-        height: calc(24 * 64px);
-
-        .hour-row {
-          position: absolute; left: 0; right: 0;
-          height: 64px;
-          border-top: 1px solid var(--color-border);
-          display: flex; align-items: flex-start; padding: .25rem .5rem;
-
-          .hour-label { font-size: .7rem; color: var(--color-text-subtle); width: 36px; flex-shrink: 0; }
-        }
-
-        .current-time-line {
-          position: absolute; left: 0; right: 0; height: 2px;
-          background: var(--color-danger); z-index: 5;
-          &::before {
-            content: ''; position: absolute; left: -4px; top: -4px;
-            width: 10px; height: 10px; border-radius: 50%; background: var(--color-danger);
-          }
-        }
-      }
-
-      /* Blocks overlay */
-      .blocks-overlay {
-        position: absolute; top: 0; left: 44px; right: 0; bottom: 0; pointer-events: none;
-
-        .block {
-          position: absolute;
-          left: 4px; right: 4px;
-          border-radius: 6px;
-          padding: .25rem .5rem;
-          overflow: hidden;
-          cursor: pointer;
-          pointer-events: all;
-          transition: filter .15s;
-
-          &:hover { filter: brightness(1.1); }
-
-          .b-label { font-size: .72rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-          .b-time  { font-size: .65rem; color: rgba(255,255,255,.8); }
-          .b-extra { font-size: .65rem; color: rgba(255,255,255,.9); margin-top: .1rem; }
-        }
-      }
+    .now-line { display: flex; align-items: center; margin: .25rem 0;
+      .now-time { width: 44px; font-size: .68rem; font-weight: 800; color: var(--color-danger); text-align: right; flex-shrink: 0; }
+      .now-dot  { width: 12px; height: 12px; border-radius: 50%; background: var(--color-danger); margin: 0 10px; box-shadow: 0 0 0 4px rgba(239,68,68,.15); flex-shrink: 0; }
+      .now-bar  { flex: 1; height: 2px; background: var(--color-danger); border-radius: 99px; opacity: .5; }
     }
-
-    /* Right panel */
     .right-panel { display: flex; flex-direction: column; gap: 1.25rem; }
-
-    /* Macro card */
-    .macro-card {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      padding: 1.25rem;
-
-      .card-title { font-size: .9rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
-
-      .calorie-row {
-        display: flex; align-items: baseline; gap: .5rem; margin-bottom: 1rem;
-        .cal-value { font-size: 2rem; font-weight: 800; color: var(--color-primary); }
-        .cal-label { font-size: .8rem; color: var(--color-text-muted); }
-        .cal-target{ font-size: .8rem; color: var(--color-text-subtle); margin-left: auto; }
+    .macro-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem;
+      .card-title { font-size: .875rem; font-weight: 700; margin-bottom: .875rem; }
+      .calorie-row { display: flex; align-items: baseline; gap: .375rem; margin-bottom: .875rem;
+        .cal-value { font-size: 1.875rem; font-weight: 800; color: var(--color-primary); }
+        .cal-label { font-size: .78rem; color: var(--color-text-muted); }
+        .cal-target { font-size: .78rem; color: var(--color-text-subtle); margin-left: auto; }
       }
-
-      .macro-bars { display: flex; flex-direction: column; gap: .625rem; }
-      .macro-bar-row {
-        .mb-header { display: flex; justify-content: space-between; font-size: .78rem; margin-bottom: .25rem;
-          .name  { font-weight: 600; }
-          .value { color: var(--color-text-muted); }
-        }
-        .bar-track { height: 6px; background: var(--color-border); border-radius: 99px; overflow: hidden;
-          .bar-fill  { height: 100%; border-radius: 99px; transition: width .6s ease; }
-        }
-      }
+      .macro-bars { display: flex; flex-direction: column; gap: .55rem; }
+      .macro-bar-row { .mb-header { display: flex; justify-content: space-between; font-size: .75rem; margin-bottom: .2rem; .name { font-weight: 600; } .value { color: var(--color-text-muted); } } .bar-track { height: 5px; background: var(--color-border); border-radius: 99px; overflow: hidden; .bar-fill { height: 100%; border-radius: 99px; transition: width .6s ease; } } }
     }
-
-    /* Water card */
-    .water-card {
-      background: linear-gradient(135deg, #e0f2fe, #bae6fd);
-      border: 1px solid #7dd3fc;
-      border-radius: var(--radius-md);
-      padding: 1.25rem;
-
-      .card-title { font-size: .9rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
-      .water-progress { display: flex; align-items: baseline; gap: .375rem; margin-bottom: .75rem;
-        .current { font-size: 1.75rem; font-weight: 800; color: #0369a1; }
-        .sep     { font-size: 1rem; color: #7dd3fc; }
-        .total   { font-size: 1rem; color: #0369a1; }
-        .unit    { font-size: .75rem; color: #0ea5e9; }
-      }
-      .water-bar { height: 8px; background: rgba(255,255,255,.5); border-radius: 99px; overflow: hidden;
-        .fill { height: 100%; background: #0284c7; border-radius: 99px; transition: width .6s; }
-      }
-      .water-hint { font-size: .75rem; color: #0369a1; margin-top: .5rem; }
+    .water-card { background: linear-gradient(135deg, #e0f2fe, #bae6fd); border: 1px solid #7dd3fc; border-radius: var(--radius-md); padding: 1.25rem;
+      .card-title { font-size: .875rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; margin-bottom: .625rem; color: #0c4a6e; }
+      .water-progress { display: flex; align-items: baseline; gap: .3rem; margin-bottom: .625rem; .cur { font-size: 1.625rem; font-weight: 800; color: #0369a1; } .sep { color: #7dd3fc; } .tot { font-size: .95rem; color: #0369a1; } .unit { font-size: .72rem; color: #0ea5e9; } }
+      .water-bar { height: 7px; background: rgba(255,255,255,.5); border-radius: 99px; overflow: hidden; .fill { height: 100%; background: #0284c7; border-radius: 99px; transition: width .6s; } }
+      .water-hint { font-size: .72rem; color: #0369a1; margin-top: .4rem; }
     }
-
-    /* Stats row */
-    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
-    .stat-mini {
-      background: var(--color-surface); border: 1px solid var(--color-border);
-      border-radius: var(--radius-md); padding: 1rem; text-align: center;
-      .val { font-size: 1.4rem; font-weight: 800; }
-      .lbl { font-size: .72rem; color: var(--color-text-muted); margin-top: .2rem; }
-    }
-
-    /* Block detail tooltip */
-    .block-detail {
-      grid-column: 1/-1;
-      background: var(--color-surface); border: 1px solid var(--color-border);
-      border-radius: var(--radius-md); padding: 1rem 1.5rem;
-      display: flex; align-items: center; gap: 1rem; animation: fadeIn .2s ease;
-
-      .detail-icon { font-size: 1.75rem; }
-      .detail-info { flex: 1;
-        h4 { font-size: .95rem; }
-        p  { font-size: .8rem; }
-      }
-      button { background: none; border: none; cursor: pointer; font-size: 1.25rem; color: var(--color-text-subtle); }
-    }
+    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: .625rem; }
+    .stat-mini { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .875rem; text-align: center; .val { font-size: 1.3rem; font-weight: 800; } .lbl { font-size: .68rem; color: var(--color-text-muted); margin-top: .15rem; } }
+    @keyframes xpPop { 0% { transform:scale(1);opacity:1; } 50% { transform:scale(1.5) translateY(-12px);opacity:1; } 100% { transform:scale(1) translateY(-28px);opacity:0; } }
+    .xp-pop { position:fixed;pointer-events:none;z-index:999;font-size:1.1rem;font-weight:800;color:#7c3aed;animation:xpPop .9s ease forwards; }
   `],
   template: `
     <div class="dashboard">
-
-      <!-- Header -->
       <div class="dash-header">
         <div class="greeting">
           <h2>{{ greeting() }}, {{ firstName() }}! 🌿</h2>
           <p class="text-muted">{{ todayFormatted() }}</p>
         </div>
         <div class="date-nav">
-          <button (click)="changeDate(-1)">‹</button>
+          <button class="nav-btn" (click)="changeDate(-1)">‹</button>
           <span class="date-label">{{ selectedDate() === todayStr ? 'Hoje' : selectedDate() }}</span>
-          <button (click)="changeDate(1)">›</button>
+          <button class="nav-btn" (click)="changeDate(1)">›</button>
           @if (selectedDate() !== todayStr) {
-            <button (click)="goToday()">Hoje</button>
+            <button class="today-btn" (click)="goToday()">Hoje</button>
           }
         </div>
       </div>
 
-      <!-- Generate bar (shown when no blocks) -->
       @if (blocks().length === 0 && !loading()) {
         <div class="generate-bar">
-          <div class="text">
-            <h3>Nenhuma rotina para hoje</h3>
-            <p>Gere sua rotina personalizada com base no seu perfil e exercícios.</p>
-          </div>
-          <button (click)="generateRoutine()" [disabled]="generating()">
-            {{ generating() ? 'Gerando...' : '✨ Gerar rotina' }}
-          </button>
+          <div class="gb-text"><h3>Nenhuma rotina para este dia</h3><p>Gere sua agenda personalizada com exercícios, refeições e protocolos clínicos.</p></div>
+          <button (click)="generateRoutine()" [disabled]="generating()">{{ generating() ? '⏳ Gerando...' : '✨ Gerar Rotina' }}</button>
         </div>
       } @else if (blocks().length > 0) {
-        <div class="generate-bar" style="padding: .75rem 1.5rem">
-          <div class="text">
-            <h3>Rotina do dia</h3>
-            <p>{{ blocks().length }} blocos · {{ waterReminders().length }} lembretes de água</p>
-          </div>
-          <button (click)="generateRoutine()" [disabled]="generating()">
-            {{ generating() ? 'Atualizando...' : '🔄 Regenerar' }}
-          </button>
+        <div class="generate-bar" style="padding:.625rem 1.5rem">
+          <div class="gb-text"><h3>Rotina do dia · {{ blocks().length }} blocos</h3><p>{{ doneProtocols() }}/{{ totalProtocols() }} protocolos · {{ waterBlocks() }} lembretes de água</p></div>
+          <button (click)="generateRoutine()" [disabled]="generating()">{{ generating() ? '⏳...' : '🔄 Regenerar' }}</button>
         </div>
       }
 
-      <!-- Block detail -->
-      @if (selected()) {
-        <div class="block-detail animate-fade">
-          <span class="detail-icon">{{ blockEmoji(selected()!.type) }}</span>
-          <div class="detail-info">
-            <h4>{{ selected()!.label }}</h4>
-            <p>{{ selected()!.startTime }} – {{ selected()!.endTime }}
-              @if (selected()!.caloricTarget) { · {{ selected()!.caloricTarget | number:'1.0-0' }} kcal }
-              @if (selected()!.waterMl)       { · {{ selected()!.waterMl | number:'1.0-0' }} ml }
-            </p>
-          </div>
-          <button (click)="selected.set(null)">✕</button>
-        </div>
-      }
-
-      <!-- Timeline -->
       <div class="timeline-panel">
         <div class="panel-title">📅 Agenda do Dia</div>
-        <div class="timeline" #timelineEl>
-          <div class="hours">
-            @for (h of hours; track h) {
-              <div class="hour-row" [style.top.px]="h * HOUR_PX">
-                <span class="hour-label">{{ h.toString().padStart(2,'0') }}h</span>
+        @if (loading()) {
+          <div style="text-align:center;padding:3rem;color:var(--color-text-muted)"><div class="spinner" style="margin:0 auto 1rem"></div>Carregando...</div>
+        } @else if (timeGroups().length === 0) {
+          <div style="text-align:center;padding:3rem;color:var(--color-text-muted);font-size:.875rem">Nenhum bloco.<br>Clique em <strong>✨ Gerar Rotina</strong> para começar.</div>
+        } @else {
+          <div class="timeline-feed">
+            @for (grp of timeGroups(); track grp.time; let i = $index) {
+              @if (showNowLine() && grp.minuteOfDay > nowMinutes() && (i === 0 || timeGroups()[i-1].minuteOfDay <= nowMinutes())) {
+                <div class="now-line"><span class="now-time">{{ nowLabel() }}</span><span class="now-dot"></span><span class="now-bar"></span></div>
+              }
+              <div class="tg" [class.past]="grp.isPast">
+                <div class="tg-time">{{ grp.time }}</div>
+                <div class="tg-rail">
+                  <div class="tg-dot"
+                    [style.background]="grp.isCurrent ? 'var(--color-danger)' : dotColor(grp.blocks[0].type)"
+                    [style.box-shadow]="grp.isCurrent ? '0 0 0 4px rgba(239,68,68,.2)' : 'none'">
+                  </div>
+                </div>
+                <div class="tg-cards">
+                  @for (b of grp.blocks; track b.id) {
+                    <div class="block-card" [class.done]="isDone(b)" [style.border-left-color]="blockMeta(b.type).color">
+                      <div class="bc-row">
+                        <div class="bc-icon" [style.background]="blockMeta(b.type).bg" [style.color]="blockMeta(b.type).color">{{ protocolIcon(b) }}</div>
+                        <div class="bc-body">
+                          <div class="bc-label">{{ b.label }}</div>
+                          <div class="bc-sub">{{ b.startTime }}–{{ b.endTime }}
+                            @if (b.caloricTarget) { &nbsp;· {{ b.caloricTarget | number:'1.0-0' }} kcal }
+                            @if (b.waterMl)       { &nbsp;· {{ b.waterMl | number:'1.0-0' }} ml }
+                          </div>
+                        </div>
+                        <div class="bc-right">
+                          @if (b.type === 'medication') {
+                            <span class="bc-pill" style="background:#ede9fe;color:#6b21a8">+5 XP</span>
+                            <button class="bc-check" [class.checked]="isDone(b)" (click)="toggleProtocol(b, $event)" [disabled]="toggling() === b.id">{{ isDone(b) ? '✓' : '○' }}</button>
+                          } @else if (b.type === 'meal') {
+                            <span class="bc-pill" style="background:#fef3c7;color:#92400e">+10 XP</span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  }
+                </div>
               </div>
             }
-            <!-- Current time indicator -->
-            <div class="current-time-line" [style.top.px]="currentTimePx()"></div>
-          </div>
-
-          <!-- Block overlays -->
-          <div class="blocks-overlay">
-            @for (b of blocks(); track b.id) {
-              <div class="block"
-                [style.top.px]="blockTop(b)"
-                [style.height.px]="blockHeight(b)"
-                [style.background]="blockColor(b.type)"
-                [style.opacity]="b.type === 'water' ? 0.7 : 0.9"
-                (click)="selected.set(b)">
-                <div class="b-label">{{ b.label }}</div>
-                <div class="b-time">{{ b.startTime }} – {{ b.endTime }}</div>
-                @if (b.caloricTarget) {
-                  <div class="b-extra">{{ b.caloricTarget | number:'1.0-0' }} kcal</div>
-                }
-                @if (b.waterMl) {
-                  <div class="b-extra">{{ b.waterMl | number:'1.0-0' }} ml</div>
-                }
-              </div>
+            @if (showNowLine() && allBlocksPast()) {
+              <div class="now-line"><span class="now-time">{{ nowLabel() }}</span><span class="now-dot"></span><span class="now-bar"></span></div>
             }
           </div>
-        </div>
+        }
       </div>
 
-      <!-- Right panel: metrics -->
       <div class="right-panel">
-
-        <!-- Macros -->
         <div class="macro-card">
           <div class="card-title">🎯 Macronutrientes</div>
           @if (metabolic()) {
             <div class="calorie-row">
               <span class="cal-value">{{ consumedKcal() | number:'1.0-0' }}</span>
-              <span class="cal-label">kcal consumidas</span>
+              <span class="cal-label">kcal</span>
               <span class="cal-target">/ {{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }}</span>
             </div>
-            <!-- Progress bar overall -->
-            <div class="macro-bar-row" style="margin-bottom:.875rem">
-              <div class="bar-track" style="height:10px">
-                <div class="bar-fill" [style.width.%]="caloriesPct()" style="background:var(--color-primary)"></div>
+            <div class="macro-bar-row" style="margin-bottom:.75rem">
+              <div class="bar-track" style="height:8px">
+                <div class="bar-fill" [style.width.%]="caloriesPct()" [style.background]="caloriesPct() > 105 ? 'var(--color-danger)' : 'var(--color-primary)'"></div>
               </div>
             </div>
             <div class="macro-bars">
@@ -343,194 +223,168 @@ const BLOCK_LABELS: Record<BlockType, string> = {
               </div>
             </div>
           } @else {
-            <p class="text-muted text-center" style="padding:1rem">Complete seu perfil para ver os macros.</p>
+            <p class="text-muted" style="padding:1rem;font-size:.875rem;text-align:center">Complete seu perfil para ver os macros.</p>
           }
         </div>
 
-        <!-- Water -->
         <div class="water-card">
           <div class="card-title">💧 Hidratação</div>
           @if (metabolic()) {
             <div class="water-progress">
-              <span class="current">{{ waterConsumed() }}</span>
-              <span class="sep">/</span>
-              <span class="total">{{ metabolic()!.waterMlTotal | number:'1.0-0' }}</span>
-              <span class="unit">ml</span>
+              <span class="cur">{{ waterSvc.todayTotal() }}</span><span class="sep">/</span>
+              <span class="tot">{{ metabolic()!.waterMlTotal | number:'1.0-0' }}</span><span class="unit">ml</span>
             </div>
-            <div class="water-bar">
-              <div class="fill" [style.width.%]="waterPct()"></div>
-            </div>
-            <p class="water-hint">{{ waterReminders().length }} lembretes ao longo do dia</p>
+            <div class="water-bar"><div class="fill" [style.width.%]="waterPct()"></div></div>
+            <p class="water-hint">{{ waterBlocks() }} lembretes distribuídos no dia</p>
           } @else {
-            <p style="font-size:.85rem;color:#0369a1">Configure seu perfil para ver a meta de água.</p>
+            <p style="font-size:.82rem;color:#0369a1">Configure o perfil para ver a meta de água.</p>
           }
         </div>
 
-        <!-- Stats mini -->
         @if (metabolic()) {
           <div class="stats-row">
-            <div class="stat-mini">
-              <div class="val" style="color:var(--color-primary)">{{ metabolic()!.bmr | number:'1.0-0' }}</div>
-              <div class="lbl">TMB (kcal/dia)</div>
-            </div>
-            <div class="stat-mini">
-              <div class="val" style="color:#6366f1">{{ metabolic()!.tee | number:'1.0-0' }}</div>
-              <div class="lbl">GET (kcal/dia)</div>
-            </div>
-            <div class="stat-mini">
-              <div class="val" style="color:#f59e0b">{{ metabolic()!.exerciseCalories | number:'1.0-0' }}</div>
-              <div class="lbl">Kcal exercício</div>
-            </div>
-            <div class="stat-mini">
-              <div class="val" style="color:#0ea5e9">{{ metabolic()!.hypertrophyScore }}/10</div>
-              <div class="lbl">Score hipertrofia</div>
-            </div>
+            <div class="stat-mini"><div class="val" style="color:var(--color-primary)">{{ metabolic()!.bmr | number:'1.0-0' }}</div><div class="lbl">TMB (kcal/dia)</div></div>
+            <div class="stat-mini"><div class="val" style="color:#6366f1">{{ metabolic()!.tee | number:'1.0-0' }}</div><div class="lbl">GET (kcal/dia)</div></div>
+            <div class="stat-mini"><div class="val" style="color:#f59e0b">{{ metabolic()!.exerciseCalories | number:'1.0-0' }}</div><div class="lbl">Kcal exercício</div></div>
+            <div class="stat-mini"><div class="val" style="color:#0ea5e9">{{ metabolic()!.hypertrophyScore }}/10</div><div class="lbl">Score hipertrofia</div></div>
           </div>
         }
 
-        <!-- Water tracker widget -->
         <app-water-tracker [showLogs]="showWaterLogs" />
 
-        <!-- Quick links -->
-        <div class="card" style="display:flex;flex-direction:column;gap:.625rem">
-          <div style="font-size:.85rem;font-weight:700;margin-bottom:.25rem">⚡ Ações rápidas</div>
+        <div class="card" style="display:flex;flex-direction:column;gap:.5rem">
+          <div style="font-size:.82rem;font-weight:700;margin-bottom:.125rem">⚡ Ações rápidas</div>
           <a routerLink="/nutrition" class="btn btn-secondary w-full">🍽️ Registrar refeição</a>
-          <a routerLink="/hormones"  class="btn btn-secondary w-full">💉 Log hormonal</a>
+          <a routerLink="/protocols" class="btn btn-secondary w-full">💊 Protocolos clínicos</a>
+          <a routerLink="/recipes"   class="btn btn-secondary w-full">📖 Receitas da comunidade</a>
           <a routerLink="/progress"  class="btn btn-secondary w-full">📊 Ver progresso</a>
-          <a routerLink="/profile"   class="btn btn-secondary w-full">👤 Atualizar perfil</a>
         </div>
       </div>
     </div>
+
+    @if (xpPopVisible()) {
+      <div class="xp-pop" [style.left]="xpPopX + 'px'" [style.top]="xpPopY + 'px'">+{{ lastXp() }} XP ⚡</div>
+    }
   `,
 })
-export class DashboardComponent implements OnInit {
-  private profileSvc = inject(ProfileService);
-  private routineSvc = inject(RoutineService);
-  private foodSvc    = inject(FoodService);
-  private waterSvc   = inject(WaterService);
-  private userSvc    = inject(UserService);
+export class DashboardComponent implements OnInit, OnDestroy {
+  private profileSvc  = inject(ProfileService);
+  private routineSvc  = inject(RoutineService);
+  private foodSvc     = inject(FoodService);
+  readonly waterSvc   = inject(WaterService);
+  private userSvc     = inject(UserService);
+  private protocolSvc = inject(ClinicalProtocolService);
 
-  readonly HOUR_PX = HOUR_PX;
-  readonly hours   = Array.from({ length: 24 }, (_, i) => i);
-  readonly todayStr = new Date().toISOString().slice(0, 10);
+  readonly todayStr      = new Date().toISOString().slice(0, 10);
+  readonly showWaterLogs = signal(false);
 
   blocks       = this.routineSvc.blocks;
   selectedDate = this.routineSvc.selectedDate;
   metabolic    = this.profileSvc.metabolic;
-  selected     = signal<RoutineBlock | null>(null);
-  /** Passed to water widget – hides the log list in compact dashboard mode */
-  readonly showWaterLogs = signal(false);
+
   loading    = signal(true);
   generating = signal(false);
+  toggling   = signal<string | null>(null);
   summary    = signal<DailySummary | null>(null);
-  userName = signal<string>('usuário');
+  userName   = signal<string>('usuário');
+  protocols  = signal<ClinicalProtocolWithLog[]>([]);
 
-  readonly firstName = computed(() => {
-    return this.userName().split(' ')[0] || 'usuário';
+  xpPopVisible = signal(false);
+  lastXp       = signal(0);
+  xpPopX = 0; xpPopY = 0;
+
+  private clockInterval: ReturnType<typeof setInterval> | null = null;
+  private clockMinute = signal(this.currentMinuteOfDay());
+
+  readonly firstName      = computed(() => this.userName().split(' ')[0] || 'usuário');
+  readonly greeting       = computed(() => { const h = new Date().getHours(); if (h < 12) return 'Bom dia'; if (h < 18) return 'Boa tarde'; return 'Boa noite'; });
+  readonly todayFormatted = computed(() => new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }));
+  readonly nowMinutes     = computed(() => this.clockMinute());
+  readonly nowLabel       = computed(() => { const n = new Date(); return `${pad2(n.getHours())}:${pad2(n.getMinutes())}`; });
+  readonly showNowLine    = computed(() => this.selectedDate() === this.todayStr);
+
+  readonly timeGroups = computed((): TimeGroup[] => {
+    const now = this.nowMinutes(); const isToday = this.selectedDate() === this.todayStr;
+    const map = new Map<string, RoutineBlock[]>();
+    for (const b of this.blocks()) { if (!map.has(b.startTime)) map.set(b.startTime, []); map.get(b.startTime)!.push(b); }
+    return Array.from(map.entries())
+      .sort((a, b) => timeToMinutes(a[0]) - timeToMinutes(b[0]))
+      .map(([time, blks]) => {
+        const min = timeToMinutes(time);
+        return { time, minuteOfDay: min, blocks: blks, isPast: isToday && (min + 30) < now, isCurrent: isToday && min <= now && now < min + 60 };
+      });
   });
 
-  readonly waterReminders = computed(() =>
-    this.blocks().filter(b => b.type === 'water')
-  );
-
-  readonly consumedKcal = computed(() => this.summary()?.totalCalories ?? 0);
-  readonly waterConsumed = computed(() => String(this.waterSvc.todayTotal()));
-
-  readonly caloriesPct = computed(() => {
-    const m = this.metabolic();
-    if (!m) return 0;
-    return Math.min(100, (this.consumedKcal() / m.dailyCaloricTarget) * 100);
-  });
-
-  readonly waterPct = computed(() => {
-    const m = this.metabolic();
-    if (!m) return 0;
-    return Math.min(100, (this.waterSvc.todayTotal() / m.waterMlTotal) * 100);
-  });
-
-  readonly greeting = computed(() => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Bom dia';
-    if (h < 18) return 'Boa tarde';
-    return 'Boa noite';
-  });
-
-  readonly todayFormatted = computed(() => {
-    return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
-  });
+  readonly allBlocksPast  = computed(() => this.timeGroups().length > 0 && this.timeGroups().every(g => g.isPast));
+  readonly consumedKcal   = computed(() => this.summary()?.totalCalories ?? 0);
+  readonly caloriesPct    = computed(() => { const m = this.metabolic(); return m ? Math.min(110, (this.consumedKcal() / m.dailyCaloricTarget) * 100) : 0; });
+  readonly waterPct       = computed(() => { const m = this.metabolic(); return m ? Math.min(100, (this.waterSvc.todayTotal() / m.waterMlTotal) * 100) : 0; });
+  readonly waterBlocks    = computed(() => this.blocks().filter(b => b.type === 'water').length);
+  readonly totalProtocols = computed(() => this.protocols().length);
+  readonly doneProtocols  = computed(() => this.protocols().filter(p => !!p.log).length);
 
   ngOnInit(): void {
-    this.userSvc.loadMe().subscribe({
-      next: (u: any) => {
-        if (u.name) this.userName.set(u.name);
-      },
-      error: () => {}
-    });
-    
-    // Load profile & metabolic
+    this.userSvc.loadMe().subscribe({ next: (u: any) => { if (u.name) this.userName.set(u.name); }, error: () => {} });
     this.profileSvc.loadProfile().subscribe({ error: () => {} });
     this.profileSvc.loadMetabolic().subscribe({ error: () => {} });
-
-    // Load routine blocks
     this.routineSvc.load().subscribe({ next: () => this.loading.set(false), error: () => this.loading.set(false) });
-
-    // Load daily meal summary
-    this.loadSummary();
-
-    // Load today's water data
+    this.foodSvc.getSummary(this.selectedDate()).subscribe({ next: s => this.summary.set(s), error: () => {} });
     this.waterSvc.loadToday().subscribe({ error: () => {} });
+    this.loadProtocols();
+    this.clockInterval = setInterval(() => this.clockMinute.set(this.currentMinuteOfDay()), 30_000);
   }
 
-  private loadSummary(): void {
-    this.foodSvc.getSummary(this.selectedDate()).subscribe({
-      next: s => this.summary.set(s),
-      error: () => {},
-    });
+  ngOnDestroy(): void { if (this.clockInterval) clearInterval(this.clockInterval); }
+
+  private loadProtocols(): void {
+    this.protocolSvc.logsForDate(this.selectedDate()).subscribe({ next: p => this.protocols.set(p.filter(x => x.isActive)), error: () => {} });
   }
 
   generateRoutine(): void {
     this.generating.set(true);
-    this.routineSvc.generate(this.selectedDate()).subscribe({
-      next: () => this.generating.set(false),
-      error: () => this.generating.set(false),
-    });
+    this.routineSvc.generate(this.selectedDate()).subscribe({ next: () => { this.generating.set(false); this.loadProtocols(); }, error: () => this.generating.set(false) });
   }
 
   changeDate(delta: number): void {
-    const d = new Date(this.selectedDate());
-    d.setDate(d.getDate() + delta);
+    const d = new Date(this.selectedDate()); d.setDate(d.getDate() + delta);
     const next = d.toISOString().slice(0, 10);
-    this.routineSvc.setDate(next);
-    this.loading.set(true);
+    this.routineSvc.setDate(next); this.loading.set(true);
     this.routineSvc.load(next).subscribe({ next: () => this.loading.set(false), error: () => this.loading.set(false) });
     this.foodSvc.getSummary(next).subscribe({ next: s => this.summary.set(s), error: () => {} });
+    this.protocolSvc.logsForDate(next).subscribe({ next: p => this.protocols.set(p.filter(x => x.isActive)), error: () => {} });
   }
 
-  goToday(): void { this.changeDate(0); this.routineSvc.setDate(this.todayStr); }
+  goToday(): void { this.routineSvc.setDate(this.todayStr); this.changeDate(0); }
 
-  currentTimePx = computed(() => {
-    const now = new Date();
-    const minutes = now.getHours() * 60 + now.getMinutes();
-    return (minutes / 60) * HOUR_PX;
-  });
-
-  blockTop(b: RoutineBlock): number {
-    return (timeToMinutes(b.startTime) / 60) * HOUR_PX;
+  toggleProtocol(block: RoutineBlock, event: MouseEvent): void {
+    const protocolId = block.metadata?.['protocolId'] as string | undefined;
+    if (!protocolId) return;
+    this.toggling.set(block.id);
+    this.protocolSvc.toggle(protocolId, this.selectedDate()).subscribe({
+      next: result => {
+        this.protocolSvc.logsForDate(this.selectedDate()).subscribe({ next: p => this.protocols.set(p.filter(x => x.isActive)) });
+        this.toggling.set(null);
+        if (result.xpGained > 0) this.showXpPop(result.xpGained, event);
+      },
+      error: () => this.toggling.set(null),
+    });
   }
 
-  blockHeight(b: RoutineBlock): number {
-    const start = timeToMinutes(b.startTime);
-    let   end   = timeToMinutes(b.endTime);
-    if (end <= start) end += 1440; // overnight
-    const duration = end - start;
-    return Math.max(20, (duration / 60) * HOUR_PX - 2);
+  blockMeta(type: BlockType) { return BLOCK_META[type] ?? BLOCK_META.custom; }
+  dotColor(type: BlockType)  { return BLOCK_META[type]?.color ?? '#9ca3af'; }
+  protocolIcon(b: RoutineBlock): string {
+    if (b.type === 'medication') { const cat = b.metadata?.['category'] as string | undefined; return cat ? (PROTOCOL_ICON[cat] ?? '💊') : '💊'; }
+    return BLOCK_META[b.type]?.icon ?? '📌';
   }
-
-  blockColor(type: BlockType): string { return BLOCK_COLORS[type] ?? '#9ca3af'; }
-  blockEmoji(type: BlockType): string  { return BLOCK_LABELS[type]?.split(' ')[0] ?? '📌'; }
-
-  pct(consumed: number | undefined, target: number): number {
-    if (!consumed || !target) return 0;
-    return Math.min(100, (consumed / target) * 100);
+  isDone(b: RoutineBlock): boolean {
+    if (b.type !== 'medication') return false;
+    const pid = b.metadata?.['protocolId'] as string | undefined;
+    return pid ? this.protocols().some(p => p.id === pid && !!p.log) : false;
+  }
+  pct(consumed: number | undefined, target: number): number { if (!consumed || !target) return 0; return Math.min(100, (consumed / target) * 100); }
+  private currentMinuteOfDay(): number { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); }
+  private showXpPop(xp: number, event?: MouseEvent): void {
+    this.lastXp.set(xp); this.xpPopX = event?.clientX ?? window.innerWidth / 2; this.xpPopY = event?.clientY ?? window.innerHeight / 2;
+    this.xpPopVisible.set(true); setTimeout(() => this.xpPopVisible.set(false), 900);
   }
 }

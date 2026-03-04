@@ -1,7 +1,8 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { UserService } from '../../core/services/user.service'; 
+import { UserService } from '../../core/services/user.service';
+import { ThemeService } from '../../core/services/theme.service';
 import { environment } from '../../environments/environment';
 
 @Component({
@@ -14,30 +15,38 @@ import { environment } from '../../environments/environment';
     /* Sidebar */
     .sidebar {
       width: 240px; flex-shrink: 0;
-      background: #fff; border-right: 1px solid var(--color-border);
+      background: var(--color-surface); border-right: 1px solid var(--color-border);
       display: flex; flex-direction: column;
       position: sticky; top: 0; height: 100vh;
 
       @media (max-width: 768px) { display: none; }
 
       .brand {
-        padding: 1.5rem 1.25rem 1rem;
+        padding: 1.25rem 1.25rem .875rem;
         display: flex; align-items: center; gap: .625rem;
         border-bottom: 1px solid var(--color-border);
         .emoji { font-size: 1.5rem; }
-        .name  { font-size: 1rem; font-weight: 800; color: var(--color-primary); }
+        .name  { font-size: 1rem; font-weight: 800; color: var(--color-primary); flex: 1; }
         .beta  { font-size: .65rem; background: var(--color-primary-light); color: var(--color-primary-dark);
           padding: .1rem .4rem; border-radius: 99px; font-weight: 700; }
+
+        .theme-btn {
+          width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--color-border);
+          background: var(--color-surface-2); cursor: pointer; display: flex;
+          align-items: center; justify-content: center; font-size: .9rem;
+          transition: all .2s; flex-shrink: 0;
+          &:hover { background: var(--color-border); transform: rotate(20deg); }
+        }
       }
 
-      nav { flex: 1; padding: .75rem .75rem; display: flex; flex-direction: column; gap: .25rem; }
+      nav { flex: 1; padding: .75rem; display: flex; flex-direction: column; gap: .2rem; overflow-y: auto; }
 
       .nav-item {
         display: flex; align-items: center; gap: .75rem;
-        padding: .625rem .875rem;
+        padding: .575rem .875rem;
         border-radius: var(--radius-sm);
         color: var(--color-text-muted);
-        font-size: .9rem; font-weight: 500;
+        font-size: .875rem; font-weight: 500;
         text-decoration: none;
         transition: all .15s;
 
@@ -47,8 +56,8 @@ import { environment } from '../../environments/environment';
         &.active-link{ background: var(--color-primary-light); color: var(--color-primary-dark); font-weight: 600; }
       }
 
-      .nav-section { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
-        color: var(--color-text-subtle); padding: .875rem .875rem .25rem; }
+      .nav-section { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+        color: var(--color-text-subtle); padding: .75rem .875rem .2rem; }
 
       .sidebar-footer {
         padding: .875rem .75rem; border-top: 1px solid var(--color-border);
@@ -60,7 +69,7 @@ import { environment } from '../../environments/environment';
             font-size: 1rem; font-weight: 700; color: var(--color-primary-dark); flex-shrink: 0;
             object-fit: cover; }
           .info { flex: 1; min-width: 0;
-            .name { font-size: .82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .name { font-size: .82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-text); }
             .role { font-size: .7rem; color: var(--color-text-subtle); }
           }
         }
@@ -79,7 +88,8 @@ import { environment } from '../../environments/environment';
       display: none;
       @media (max-width: 768px) {
         display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
-        background: #fff; border-top: 1px solid var(--color-border); padding-bottom: env(safe-area-inset-bottom);
+        background: var(--color-surface); border-top: 1px solid var(--color-border);
+        padding-bottom: env(safe-area-inset-bottom);
 
         a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .2rem;
           padding: .625rem .5rem; color: var(--color-text-subtle); font-size: .65rem; font-weight: 600;
@@ -103,6 +113,10 @@ import { environment } from '../../environments/environment';
           <span class="emoji">🌿</span>
           <span class="name">HealthApp</span>
           <span class="beta">BETA</span>
+          <button class="theme-btn" (click)="theme.toggle()"
+            [title]="theme.isDark() ? 'Modo Claro' : 'Modo Escuro'">
+            {{ theme.isDark() ? '☀️' : '🌙' }}
+          </button>
         </div>
 
         <nav>
@@ -115,6 +129,9 @@ import { environment } from '../../environments/environment';
           </a>
           <a routerLink="/nutrition" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🥗</span> Nutrição
+          </a>
+          <a routerLink="/recipes" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">📖</span> Receitas
           </a>
           <a routerLink="/protocols" routerLinkActive="active-link" class="nav-item">
             <span class="icon">💊</span> Protocolos
@@ -136,17 +153,18 @@ import { environment } from '../../environments/environment';
           <a routerLink="/profile" routerLinkActive="active-link" class="nav-item">
             <span class="icon">👤</span> Perfil
           </a>
+          <a routerLink="/glossary" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">❓</span> Glossário
+          </a>
         </nav>
 
         <div class="sidebar-footer">
           <div class="user-row">
-            
             @if (avatarUrl()) {
               <img [src]="avatarUrl()" class="avatar" alt="Avatar" style="object-fit: cover;">
             } @else {
               <div class="avatar">{{ getInitials(userName()) }}</div>
             }
-
             <div class="info">
               <div class="name">{{ userName() }}</div>
               <div class="role">Nível {{ userLevel() }}</div>
@@ -172,42 +190,34 @@ import { environment } from '../../environments/environment';
     </nav>
   `,
 })
-export class NavShellComponent {
-  private auth = inject(AuthService);
+export class NavShellComponent implements OnInit {
+  private auth    = inject(AuthService);
   private userSvc = inject(UserService);
+  readonly theme  = inject(ThemeService);
 
-  // Prepara a base da URL da mesma forma que no ProfileComponent
   readonly apiBase = environment.apiUrl.replace('/api/v1', '');
 
-  // Signals para controlar a UI
-  userName = signal<string>('Minha conta');
+  userName  = signal<string>('Minha conta');
   userLevel = signal<number>(1);
   avatarUrl = signal<string | null>(null);
 
   ngOnInit(): void {
-    // Busca os dados do usuário logado ao carregar o menu
     this.userSvc.loadMe().subscribe({
       next: (u) => {
-        if (u.name) this.userName.set(u.name);
-        if (u.xp) this.userLevel.set(this.calculateLevel(u.xp)); // Se o backend já mandar o level direto, troque por u.level
-        if (u.avatarUrl) {
-          this.avatarUrl.set(`${this.apiBase}${u.avatarUrl}`);
-        }
+        if (u.name)      this.userName.set(u.name);
+        if (u.xp)        this.userLevel.set(this.calculateLevel(u.xp));
+        if (u.avatarUrl) this.avatarUrl.set(`${this.apiBase}${u.avatarUrl}`);
       },
-      error: () => {}
+      error: () => {},
     });
   }
 
-  logout(): void { 
-    this.auth.logout(); 
-  }
+  logout(): void { this.auth.logout(); }
 
-  // Pega a primeira letra do nome se não houver foto
   getInitials(name: string): string {
     return name && name !== 'Minha conta' ? name.charAt(0).toUpperCase() : '👤';
   }
 
-  // Lógica de fallback simples para calcular nível baseado no XP (caso o backend só mande o XP)
   private calculateLevel(xp: number): number {
     return Math.floor(xp / 100) + 1;
   }
