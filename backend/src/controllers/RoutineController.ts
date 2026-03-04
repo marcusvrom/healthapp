@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AppDataSource } from "../config/typeorm.config";
 import { RoutineBlock } from "../entities/RoutineBlock";
+import { ScheduledMeal } from "../entities/ScheduledMeal";
 import { HealthProfile } from "../entities/HealthProfile";
 import { BloodTest } from "../entities/BloodTest";
 import { Exercise } from "../entities/Exercise";
@@ -11,10 +12,11 @@ import { RoutineGeneratorService } from "../services/RoutineGeneratorService";
 import { ClinicalProtocolService } from "../services/ClinicalProtocolService";
 import { ExerciseCalcInput } from "../types/calculation.types";
 
-const routineRepo  = () => AppDataSource.getRepository(RoutineBlock);
-const profileRepo  = () => AppDataSource.getRepository(HealthProfile);
+const routineRepo   = () => AppDataSource.getRepository(RoutineBlock);
+const mealRepo      = () => AppDataSource.getRepository(ScheduledMeal);
+const profileRepo   = () => AppDataSource.getRepository(HealthProfile);
 const bloodTestRepo = () => AppDataSource.getRepository(BloodTest);
-const exerciseRepo = () => AppDataSource.getRepository(Exercise);
+const exerciseRepo  = () => AppDataSource.getRepository(Exercise);
 
 export class RoutineController {
   /** GET /routine?date=YYYY-MM-DD */
@@ -104,8 +106,13 @@ export class RoutineController {
       // Fetch clinical protocols for today (medications, supplements, hormones)
       const clinicalProtocols = await ClinicalProtocolService.forDay(req.userId, date);
 
-      // Delete existing blocks for the day and regenerate
-      await routineRepo().delete({ userId: req.userId, routineDate: date });
+      // Wipe the full day before regenerating so old data never leaks through:
+      // 1. All routine blocks (includes WATER reminder blocks)
+      // 2. All scheduled meals for this date
+      await Promise.all([
+        routineRepo().delete({ userId: req.userId, routineDate: date }),
+        mealRepo().delete({ userId: req.userId, scheduledDate: date }),
+      ]);
 
       const blocks = RoutineGeneratorService.generate({
         healthProfile: profile,
