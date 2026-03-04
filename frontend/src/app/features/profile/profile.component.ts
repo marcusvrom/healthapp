@@ -49,7 +49,7 @@ const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
     .exercise-row  {
       background: var(--color-surface-2); border: 1px solid var(--color-border);
       border-radius: var(--radius-sm); padding: .75rem 1rem;
-      display: flex; align-items: center; gap .75rem;
+      display: flex; align-items: center; gap: .75rem;
 
       .ex-name { font-weight: 600; font-size: .875rem; flex: 1; }
       .ex-meta { font-size: .72rem; color: var(--color-text-subtle); }

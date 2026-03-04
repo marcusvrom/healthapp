@@ -1,9 +1,10 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ProfileService } from '../../core/services/profile.service';
 import { RoutineService } from '../../core/services/routine.service';
 import { AuthService } from '../../core/services/auth.service';
+import { CommonModule } from '@angular/common';
 import { ExercisePreset, ActivityFactor, Gender } from '../../core/models';
 
 interface PersonalStep  { name: string; age: number|null; gender: Gender|''; weight: number|null; height: number|null; }
@@ -24,7 +25,7 @@ const ACTIVITY_OPTIONS: Array<{ value: ActivityFactor; label: string; desc: stri
 @Component({
   selector: 'app-onboarding',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, CommonModule, ReactiveFormsModule],
   styles: [`
     :host { display: block; min-height: 100vh; background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 60%, #d1fae5 100%); }
 
@@ -474,7 +475,7 @@ export class OnboardingComponent {
     this.profileSvc.getPresets().subscribe({ next: p => this.presets.set(p), error: () => {} });
   }
 
-  canProceed = computed((): boolean => {
+  canProceed(): boolean {
     switch (this.step()) {
       case 0: return !!this.personal.name && !!this.personal.age && !!this.personal.gender
                   && !!this.personal.weight && !!this.personal.height;
@@ -483,7 +484,7 @@ export class OnboardingComponent {
       case 3: return true; // exercises are optional
       default: return false;
     }
-  });
+  }
 
   next(): void { if (this.canProceed()) this.step.update(s => s + 1); }
   back(): void { this.step.update(s => Math.max(0, s - 1)); }

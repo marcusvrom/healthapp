@@ -43,7 +43,7 @@ const MEAL_TYPE_LABELS: Record<MealType, string> = {
       .food-item {
         background: var(--color-surface); border: 1px solid var(--color-border);
         border-radius: var(--radius-md); padding: .875rem 1rem;
-        display: flex; align-items: center; gap .75rem; cursor: pointer;
+        display: flex; align-items: center; gap: .75rem; cursor: pointer;
         transition: border-color .15s;
 
         &:hover { border-color: var(--color-primary); }

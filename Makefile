@@ -53,7 +53,7 @@ dev-frontend:
 
 # ── Docker-based migration (runs inside the running backend container) ────────
 migrate-docker:
-	docker compose exec backend npx typeorm migration:run -d src/config/typeorm.config.ts
+	docker compose exec backend npx --yes tsx node_modules/typeorm/cli.js migration:run -d src/config/typeorm.config.ts
 
 migrate-revert-docker:
 	docker compose exec backend npx typeorm migration:revert -d src/config/typeorm.config.ts

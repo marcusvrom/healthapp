@@ -16,16 +16,16 @@ export class User {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ unique: true, length: 255 })
+  @Column({ unique: true, type: "text" })
   email!: string;
 
-  @Column({ length: 255 })
+  @Column({ type: "text" })
   name!: string;
 
-  @Column({ name: "password_hash", length: 255 })
+  @Column({ name: "password_hash", type: "text" })
   passwordHash!: string;
 
-  @Column({ default: true, name: "is_active" })
+  @Column({ default: true, name: "is_active", type: "boolean" })
   isActive!: boolean;
 
   @CreateDateColumn({ name: "created_at" })

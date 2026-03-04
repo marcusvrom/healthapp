@@ -51,10 +51,10 @@ export class Exercise {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "health_profile_id" })
+  @Column({ name: "health_profile_id", type: "text" })
   healthProfileId!: string;
 
-  @Column({ length: 255 })
+  @Column({ type: "text"})
   name!: string;
 
   @Column({ type: "enum", enum: ExerciseCategory, default: ExerciseCategory.STRENGTH })
@@ -85,7 +85,7 @@ export class Exercise {
   /** Preferred start time for the session (HH:MM) */
   @Column({
     name: "preferred_time",
-    length: 5,
+    type: "text",
     nullable: true,
   })
   preferredTime?: string;

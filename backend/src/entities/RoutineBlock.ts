@@ -40,7 +40,7 @@ export class RoutineBlock {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "user_id" })
+  @Column({ name: "user_id", type: "text" })
   userId!: string;
 
   /** ISO date string (YYYY-MM-DD) this block applies to */
@@ -51,15 +51,15 @@ export class RoutineBlock {
   type!: BlockType;
 
   /** Start time as HH:MM */
-  @Column({ name: "start_time", length: 5 })
+  @Column({ name: "start_time", type: "text" })
   startTime!: string;
 
   /** End time as HH:MM */
-  @Column({ name: "end_time", length: 5 })
+  @Column({ name: "end_time", type: "text" })
   endTime!: string;
 
   /** Human-readable label shown in the UI */
-  @Column({ length: 255 })
+  @Column({ type: "text" })
   label!: string;
 
   /**
@@ -95,7 +95,7 @@ export class RoutineBlock {
   metadata?: Record<string, unknown>;
 
   /** Sort order within the day */
-  @Column({ name: "sort_order", default: 0 })
+  @Column({ name: "sort_order", default: 0, type: "numeric" })
   sortOrder!: number;
 
   @CreateDateColumn({ name: "created_at" })

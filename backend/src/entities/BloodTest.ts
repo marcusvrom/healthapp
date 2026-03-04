@@ -19,7 +19,7 @@ export class BloodTest {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "user_id" })
+  @Column({ name: "user_id", type: "text" })
   userId!: string;
 
   /** Date the blood sample was collected */

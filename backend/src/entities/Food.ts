@@ -29,11 +29,11 @@ export class Food {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ length: 512 })
+  @Column({ type: "text" })
   name!: string;
 
   /** Human-friendly portion description, e.g. "1 escumadeira", "1 colher de sopa" */
-  @Column({ name: "household_measure", length: 255, nullable: true })
+  @Column({ name: "household_measure", nullable: true, type: "text" })
   householdMeasure?: string;
 
   /** How many grams correspond to the household measure above */
@@ -78,11 +78,11 @@ export class Food {
   source!: FoodSource;
 
   /** EAN/barcode (used for OpenFoodFacts lookups) */
-  @Column({ length: 64, nullable: true, unique: true })
+  @Column({ nullable: true, unique: true, type: "text" })
   barcode?: string;
 
   /** Original ID in the external dataset */
-  @Column({ name: "external_id", length: 128, nullable: true })
+  @Column({ name: "external_id", nullable: true, type: "text" })
   externalId?: string;
 
   @CreateDateColumn({ name: "created_at" })

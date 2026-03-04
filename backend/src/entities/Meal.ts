@@ -23,7 +23,7 @@ export class Meal {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "user_id" })
+  @Column({ name: "user_id", type: "text" })
   userId!: string;
 
   /** ISO date (YYYY-MM-DD) */
@@ -80,10 +80,10 @@ export class MealFood {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "meal_id" })
+  @Column({ name: "meal_id", type: "text" })
   mealId!: string;
 
-  @Column({ name: "food_id" })
+  @Column({ name: "food_id", type: "text" })
   foodId!: string;
 
   /** Quantity consumed, in grams */

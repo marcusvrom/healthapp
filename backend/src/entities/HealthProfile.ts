@@ -39,11 +39,11 @@ export class HealthProfile {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "user_id" })
+  @Column({ name: "user_id", type: "text" })
   userId!: string;
 
   // ── Biometrics ─────────────────────────────────────────────────────────────
-  @Column()
+  @Column({ type: "numeric" })
   age!: number;
 
   /** Weight in kilograms */
@@ -66,16 +66,16 @@ export class HealthProfile {
   activityFactor!: ActivityFactor;
 
   // ── Daily routine times (stored as HH:MM strings) ─────────────────────────
-  @Column({ name: "wake_up_time", length: 5, default: "07:00" })
+  @Column({ name: "wake_up_time", default: "07:00", type: "text" })
   wakeUpTime!: string;
 
-  @Column({ name: "sleep_time", length: 5, default: "23:00" })
+  @Column({ name: "sleep_time", default: "23:00", type: "text" })
   sleepTime!: string;
 
-  @Column({ name: "work_start_time", length: 5, default: "09:00" })
+  @Column({ name: "work_start_time", default: "09:00", type: "text" })
   workStartTime!: string;
 
-  @Column({ name: "work_end_time", length: 5, default: "18:00" })
+  @Column({ name: "work_end_time", default: "18:00", type: "text" })
   workEndTime!: string;
 
   // ── Caloric goal (overridden by blood-test analysis when present) ──────────
