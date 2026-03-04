@@ -299,9 +299,9 @@ export interface Recipe {
   description?: string;
   instructions: string;
   kcal: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
   servings: number;
   prepTimeMin?: number;
   isPublic: boolean;

@@ -59,13 +59,14 @@ export class RecipeService {
   }
 
   static async create(authorId: string, dto: CreateRecipeDto): Promise<Recipe> {
+    const b = dto as any; // body may arrive as snake_case from frontend
     const entity = repo().create({
       ...dto,
       authorId,
       servings:  dto.servings  ?? 1,
-      proteinG:  dto.proteinG  ?? 0,
-      carbsG:    dto.carbsG    ?? 0,
-      fatG:      dto.fatG      ?? 0,
+      proteinG:  b.proteinG  ?? b.protein_g ?? 0,
+      carbsG:    b.carbsG    ?? b.carbs_g   ?? 0,
+      fatG:      b.fatG      ?? b.fat_g     ?? 0,
       isPublic:  dto.isPublic  ?? false,
     });
     return repo().save(entity);
@@ -74,7 +75,11 @@ export class RecipeService {
   static async update(id: string, authorId: string, dto: Partial<CreateRecipeDto>): Promise<Recipe> {
     const existing = await repo().findOneBy({ id, authorId, isActive: true });
     if (!existing) throw this.notFound();
+    const b = dto as any; // body may arrive as snake_case from frontend
     Object.assign(existing, dto);
+    if (b.protein_g !== undefined && b.proteinG === undefined) existing.proteinG = b.protein_g;
+    if (b.carbs_g   !== undefined && b.carbsG   === undefined) existing.carbsG   = b.carbs_g;
+    if (b.fat_g     !== undefined && b.fatG     === undefined) existing.fatG     = b.fat_g;
     return repo().save(existing);
   }
 
@@ -134,13 +139,31 @@ export class RecipeService {
     });
     const myReviewMap = new Map(myReviews.map((rv) => [rv.recipeId, rv]));
 
-    return rows.map((r) => ({
-      ...(r as unknown as Recipe),
-      avgRating:   parseFloat(r.avg_rating)  || 0,
-      likeCount:   parseInt(r.like_count)    || 0,
-      reviewCount: parseInt(r.review_count)  || 0,
-      myReview:    myReviewMap.get(r.id),
-    }));
+    // Raw SQL returns snake_case DB column names — map to camelCase to match TypeORM entity output
+    return rows.map((r) => {
+      const raw = r as any;
+      return {
+        id:           raw.id,
+        authorId:     raw.author_id,
+        title:        raw.title,
+        description:  raw.description,
+        instructions: raw.instructions,
+        kcal:         Number(raw.kcal),
+        proteinG:     Number(raw.protein_g),
+        carbsG:       Number(raw.carbs_g),
+        fatG:         Number(raw.fat_g),
+        servings:     Number(raw.servings),
+        prepTimeMin:  raw.prep_time_min != null ? Number(raw.prep_time_min) : undefined,
+        isPublic:     raw.is_public === true || raw.is_public === 'true',
+        isActive:     raw.is_active === true  || raw.is_active  === 'true',
+        createdAt:    raw.created_at,
+        updatedAt:    raw.updated_at,
+        avgRating:    parseFloat(raw.avg_rating)  || 0,
+        likeCount:    parseInt(raw.like_count)    || 0,
+        reviewCount:  parseInt(raw.review_count)  || 0,
+        myReview:     myReviewMap.get(raw.id),
+      } as RecipeFeedItem;
+    });
   }
 
   // ── Import recipe into diet plan ───────────────────────────────────────────
