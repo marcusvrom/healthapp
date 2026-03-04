@@ -10,7 +10,6 @@ const GOAL_LABELS: Record<PrimaryGoal, string> = {
   emagrecimento: 'Emagrecimento',
   ganho_massa:   'Ganho de Massa',
   manutencao:    'Manutenção',
-  diabetico:     'Diabético',
   saude_geral:   'Saúde Geral',
   diabetico:     'Diabético',
 };
@@ -19,7 +18,6 @@ const GOAL_EMOJIS: Record<PrimaryGoal, string> = {
   emagrecimento: '🔥',
   ganho_massa:   '💪',
   manutencao:    '⚖️',
-  diabetico:     '🔵',
   saude_geral:   '🌿',
   diabetico:     '🩺',
 };
