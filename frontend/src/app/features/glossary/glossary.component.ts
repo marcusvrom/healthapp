@@ -156,7 +156,7 @@ type Category = keyof typeof CATEGORY_CONFIG;
   standalone: true,
   imports: [FormsModule],
   styles: [`
-    .page { padding: 1.5rem; max-width: 860px; margin: 0 auto; }
+    .page { padding: 1.5rem; max-width: 860px; margin: 0 auto; background: var(--color-bg) !important; }
 
     .page-header { margin-bottom: 1.5rem;
       h2 { font-size: 1.5rem; margin-bottom: .25rem; }

@@ -17,7 +17,7 @@ export class RecipesAndDiabetic1709500006000 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "recipes" (
         "id"           UUID        NOT NULL DEFAULT gen_random_uuid(),
-        "author_id"    TEXT        NOT NULL,
+        "author_id"    UUID        NOT NULL,
         "title"        TEXT        NOT NULL,
         "description"  TEXT,
         "instructions" TEXT        NOT NULL,
@@ -46,8 +46,8 @@ export class RecipesAndDiabetic1709500006000 implements MigrationInterface {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "recipe_reviews" (
         "id"         UUID        NOT NULL DEFAULT gen_random_uuid(),
-        "recipe_id"  TEXT        NOT NULL,
-        "user_id"    TEXT        NOT NULL,
+        "recipe_id"  UUID        NOT NULL,
+        "user_id"    UUID        NOT NULL,
         "rating"     SMALLINT    NOT NULL DEFAULT 0,
         "is_liked"   BOOLEAN     NOT NULL DEFAULT false,
         "comment"    TEXT,

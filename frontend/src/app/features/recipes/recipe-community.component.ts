@@ -8,7 +8,7 @@ type Tab = 'feed' | 'mine';
 
 const EMPTY_FORM = (): CreateRecipeDto => ({
   title: '', instructions: '', kcal: 0,
-  proteinG: 0, carbsG: 0, fatG: 0, servings: 1, isPublic: false,
+  protein_g: 0, carbs_g: 0, fat_g: 0, servings: 1, isPublic: false,
 });
 
 @Component({
@@ -196,9 +196,9 @@ const EMPTY_FORM = (): CreateRecipeDto => ({
 
                   <div class="macro-row">
                     <span class="mp kcal">🔥 {{ r.kcal | number:'1.0-0' }} kcal</span>
-                    <span class="mp prot">💪 {{ r.proteinG | number:'1.0-0' }}g prot</span>
-                    <span class="mp carb">🌾 {{ r.carbsG | number:'1.0-0' }}g carb</span>
-                    <span class="mp fat">🥑 {{ r.fatG | number:'1.0-0' }}g gord</span>
+                    <span class="mp prot">💪 {{ r.protein_g | number:'1.0-0' }}g prot</span>
+                    <span class="mp carb">🌾 {{ r.carbs_g | number:'1.0-0' }}g carb</span>
+                    <span class="mp fat">🥑 {{ r.fat_g | number:'1.0-0' }}g gord</span>
                     @if (r.servings > 1) { <span class="mp serv">×{{ r.servings }} porções</span> }
                   </div>
 
@@ -250,9 +250,9 @@ const EMPTY_FORM = (): CreateRecipeDto => ({
 
                   <div class="macro-row">
                     <span class="mp kcal">🔥 {{ r.kcal | number:'1.0-0' }} kcal</span>
-                    <span class="mp prot">💪 {{ r.proteinG | number:'1.0-0' }}g</span>
-                    <span class="mp carb">🌾 {{ r.carbsG | number:'1.0-0' }}g</span>
-                    <span class="mp fat">🥑 {{ r.fatG | number:'1.0-0' }}g</span>
+                    <span class="mp prot">💪 {{ r.protein_g | number:'1.0-0' }}g</span>
+                    <span class="mp carb">🌾 {{ r.carbs_g | number:'1.0-0' }}g</span>
+                    <span class="mp fat">🥑 {{ r.fat_g | number:'1.0-0' }}g</span>
                   </div>
 
                   @if (r.description) { <p class="r-desc">{{ r.description }}</p> }
@@ -302,15 +302,15 @@ const EMPTY_FORM = (): CreateRecipeDto => ({
             </div>
             <div class="field">
               <label>Proteína (g)</label>
-              <input type="number" [(ngModel)]="form.proteinG" min="0" />
+              <input type="number" [(ngModel)]="form.protein_g" min="0" />
             </div>
             <div class="field">
               <label>Carbs (g)</label>
-              <input type="number" [(ngModel)]="form.carbsG" min="0" />
+              <input type="number" [(ngModel)]="form.carbs_g" min="0" />
             </div>
             <div class="field">
               <label>Gordura (g)</label>
-              <input type="number" [(ngModel)]="form.fatG" min="0" />
+              <input type="number" [(ngModel)]="form.fat_g" min="0" />
             </div>
           </div>
 
@@ -385,13 +385,13 @@ const EMPTY_FORM = (): CreateRecipeDto => ({
                 🔥 {{ detailTarget()!.kcal | number:'1.0-0' }} kcal
               </span>
               <span style="font-size:.78rem;font-weight:600;padding:.2rem .6rem;border-radius:99px;background:#dbeafe;color:#1e40af">
-                💪 {{ detailTarget()!.proteinG | number:'1.0-0' }}g prot
+                💪 {{ detailTarget()!.protein_g | number:'1.0-0' }}g prot
               </span>
               <span style="font-size:.78rem;font-weight:600;padding:.2rem .6rem;border-radius:99px;background:#fce7f3;color:#9d174d">
-                🌾 {{ detailTarget()!.carbsG | number:'1.0-0' }}g carb
+                🌾 {{ detailTarget()!.carbs_g | number:'1.0-0' }}g carb
               </span>
               <span style="font-size:.78rem;font-weight:600;padding:.2rem .6rem;border-radius:99px;background:#ede9fe;color:#5b21b6">
-                🥑 {{ detailTarget()!.fatG | number:'1.0-0' }}g gord
+                🥑 {{ detailTarget()!.fat_g | number:'1.0-0' }}g gord
               </span>
             </div>
             @if (detailTarget()!.description) {
@@ -542,7 +542,7 @@ export class RecipeCommunityComponent implements OnInit {
     this.editingId.set(r.id);
     this.form = {
       title: r.title, description: r.description, instructions: r.instructions,
-      kcal: r.kcal, proteinG: r.proteinG, carbsG: r.carbsG, fatG: r.fatG,
+      kcal: r.kcal, protein_g: r.protein_g, carbs_g: r.carbs_g, fat_g: r.fat_g,
       servings: r.servings, prepTimeMin: r.prepTimeMin, isPublic: r.isPublic,
     };
     this.showForm.set(true);

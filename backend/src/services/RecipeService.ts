@@ -114,7 +114,7 @@ export class RecipeService {
         COUNT(rr.id)                                               AS review_count,
         COUNT(rr.id) FILTER (WHERE rr.is_liked = true)            AS like_count
       FROM   recipes r
-      LEFT   JOIN recipe_reviews rr ON rr.recipe_id = r.id::text
+      LEFT   JOIN recipe_reviews rr ON rr.recipe_id = r.id
       WHERE  r.is_public  = true
         AND  r.is_active  = true
       GROUP  BY r.id

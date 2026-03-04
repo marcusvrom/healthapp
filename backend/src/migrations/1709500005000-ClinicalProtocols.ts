@@ -4,21 +4,6 @@ export class ClinicalProtocols1709500005000 implements MigrationInterface {
   name = "ClinicalProtocols1709500005000";
 
   public async up(qr: QueryRunner): Promise<void> {
-    // ── Extend block_type PostgreSQL ENUM with 'medication' ──────────────────
-    // ALTER TYPE ... ADD VALUE is not transactional in PG, so we check first
-    await qr.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_enum
-          WHERE enumlabel = 'medication'
-            AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'block_type')
-        ) THEN
-          ALTER TYPE block_type ADD VALUE 'medication';
-        END IF;
-      END
-      $$;
-    `);
 
     // ── clinical_protocols ────────────────────────────────────────────────────
     await qr.query(`

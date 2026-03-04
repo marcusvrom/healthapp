@@ -46,7 +46,7 @@ interface TimeGroup {
   standalone: true,
   imports: [DecimalPipe, DatePipe, RouterLink, WaterTrackerComponent],
   styles: [`
-    .dashboard { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 1.5rem;
+    .dashboard { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 1.5rem; background: var(--color-bg) !important;
       @media (max-width: 960px) { grid-template-columns: 1fr; } }
     .dash-header { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
       .greeting { h2 { font-size: 1.5rem; } p { font-size: .875rem; } }

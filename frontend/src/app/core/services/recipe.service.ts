@@ -8,9 +8,9 @@ export interface CreateRecipeDto {
   description?: string;
   instructions: string;
   kcal: number;
-  proteinG?: number;
-  carbsG?: number;
-  fatG?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
   servings?: number;
   prepTimeMin?: number;
   isPublic?: boolean;
