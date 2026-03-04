@@ -102,7 +102,7 @@ import { environment } from '../../environments/environment';
         <div class="brand">
           <span class="emoji">🌿</span>
           <span class="name">HealthApp</span>
-          <span class="beta">MVP</span>
+          <span class="beta">BETA</span>
         </div>
 
         <nav>
