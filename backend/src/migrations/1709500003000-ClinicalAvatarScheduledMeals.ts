@@ -22,7 +22,7 @@ export class ClinicalAvatarScheduledMeals1709500003000 implements MigrationInter
     await qr.query(`
       CREATE TABLE IF NOT EXISTS "scheduled_meals" (
         "id"               UUID         NOT NULL DEFAULT gen_random_uuid(),
-        "user_id"          TEXT         NOT NULL,
+        "user_id"          UUID         NOT NULL,
         "scheduled_date"   DATE         NOT NULL,
         "name"             TEXT         NOT NULL,
         "scheduled_time"   TEXT         NOT NULL,

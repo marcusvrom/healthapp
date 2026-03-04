@@ -24,8 +24,8 @@ import {
   ɵɵdefineNgModule,
   ɵɵinject
 } from "./chunk-IGJZNA3K.js";
-import "./chunk-V4GYEGQC.js";
 import "./chunk-CONQKHOI.js";
+import "./chunk-V4GYEGQC.js";
 import {
   __objRest,
   __spreadValues

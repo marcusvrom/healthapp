@@ -29,10 +29,10 @@ export interface ScheduledFoodItem {
 @Entity("scheduled_meals")
 @Index("IDX_sched_meals_user_date", ["userId", "scheduledDate"])
 export class ScheduledMeal {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn("text")
   id!: string;
 
-  @Column({ name: "user_id", type: "text" })
+  @Column({ name: "user_id", type: "uuid" })
   userId!: string;
 
   @Column({ name: "scheduled_date", type: "date" })

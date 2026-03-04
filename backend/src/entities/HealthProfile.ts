@@ -39,7 +39,7 @@ export class HealthProfile {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "user_id", type: "text" })
+  @Column({ name: "user_id", type: "uuid" })
   userId!: string;
 
   // ── Biometrics ─────────────────────────────────────────────────────────────

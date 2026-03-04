@@ -23,7 +23,7 @@ export class Meal {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "user_id", type: "text" })
+  @Column({ name: "user_id", type: "uuid" })
   userId!: string;
 
   /** ISO date (YYYY-MM-DD) */

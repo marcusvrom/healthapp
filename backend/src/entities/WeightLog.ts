@@ -22,7 +22,7 @@ export class WeightLog {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "user_id", type: "text" })
+  @Column({ name: "user_id", type: "uuid" })
   userId!: string;
 
   @Column({ name: "weight_kg", type: "numeric", precision: 5, scale: 2 })
