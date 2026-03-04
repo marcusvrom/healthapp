@@ -4,6 +4,8 @@ import { HealthProfileController } from "../controllers/HealthProfileController"
 import { BloodTestController } from "../controllers/BloodTestController";
 import { ExerciseController } from "../controllers/ExerciseController";
 import { RoutineController } from "../controllers/RoutineController";
+import { FoodController } from "../controllers/FoodController";
+import { MealController } from "../controllers/MealController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -42,5 +44,20 @@ router.delete("/exercises/:id", ...auth(ExerciseController.remove));
 // ── Routine ───────────────────────────────────────────────────────────────────
 router.get("/routine", ...auth(RoutineController.get));
 router.post("/routine/generate", ...auth(RoutineController.generate));
+
+// ── Foods (search is public; create requires auth) ────────────────────────────
+router.get("/foods/search", FoodController.search);
+router.get("/foods/barcode/:barcode", FoodController.byBarcode);
+router.get("/foods/:id", FoodController.getOne);
+router.post("/foods", ...auth(FoodController.create));
+
+// ── Meals ─────────────────────────────────────────────────────────────────────
+router.get("/meals", ...auth(MealController.list));
+router.get("/meals/summary", ...auth(MealController.summary));
+router.post("/meals", ...auth(MealController.create));
+router.post("/meals/:id/foods", ...auth(MealController.addFoods));
+router.patch("/meals/:mealId/foods/:mealFoodId", ...auth(MealController.updateFood));
+router.delete("/meals/:mealId/foods/:mealFoodId", ...auth(MealController.removeFood));
+router.delete("/meals/:id", ...auth(MealController.delete));
 
 export default router;
