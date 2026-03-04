@@ -6,6 +6,9 @@ import { ExerciseController } from "../controllers/ExerciseController";
 import { RoutineController } from "../controllers/RoutineController";
 import { FoodController } from "../controllers/FoodController";
 import { MealController } from "../controllers/MealController";
+import { WaterController } from "../controllers/WaterController";
+import { HormoneController } from "../controllers/HormoneController";
+import { MetricsController } from "../controllers/MetricsController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -59,5 +62,26 @@ router.post("/meals/:id/foods", ...auth(MealController.addFoods));
 router.patch("/meals/:mealId/foods/:mealFoodId", ...auth(MealController.updateFood));
 router.delete("/meals/:mealId/foods/:mealFoodId", ...auth(MealController.removeFood));
 router.delete("/meals/:id", ...auth(MealController.delete));
+
+// ── Water Tracking ────────────────────────────────────────────────────────────
+// NOTE: /water/today and /water/history must come before /water/:id
+router.post("/water",           ...auth(WaterController.add));
+router.get("/water/today",      ...auth(WaterController.today));
+router.get("/water/history",    ...auth(WaterController.history));
+router.delete("/water/:id",     ...auth(WaterController.remove));
+
+// ── Hormone / Supplement Log ──────────────────────────────────────────────────
+// NOTE: /hormones/latest must come before /hormones/:id
+router.get("/hormones/latest",  ...auth(HormoneController.latest));
+router.get("/hormones",         ...auth(HormoneController.list));
+router.post("/hormones",        ...auth(HormoneController.log));
+router.patch("/hormones/:id",   ...auth(HormoneController.update));
+router.delete("/hormones/:id",  ...auth(HormoneController.remove));
+
+// ── Metrics & Progress ────────────────────────────────────────────────────────
+router.get("/metrics/weight",   ...auth(MetricsController.weightHistory));
+router.post("/metrics/weight",  ...auth(MetricsController.logWeight));
+router.get("/metrics/water",    ...auth(MetricsController.waterConsistency));
+router.get("/metrics/streaks",  ...auth(MetricsController.streaks));
 
 export default router;

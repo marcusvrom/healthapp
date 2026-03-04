@@ -5,6 +5,8 @@ import { ProfileService } from '../../core/services/profile.service';
 import { RoutineService } from '../../core/services/routine.service';
 import { FoodService } from '../../core/services/food.service';
 import { RoutineBlock, BlockType, DailySummary, MetabolicResult } from '../../core/models';
+import { WaterTrackerComponent } from '../water/water-tracker.component';
+import { WaterService } from '../../core/services/water.service';
 
 const HOUR_PX = 64; // px per hour in timeline
 const DAY_START_H = 0; // midnight
@@ -39,7 +41,7 @@ const BLOCK_LABELS: Record<BlockType, string> = {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [DecimalPipe, DatePipe, RouterLink],
+  imports: [DecimalPipe, DatePipe, RouterLink, WaterTrackerComponent],
   styles: [`
     .dashboard { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 1.5rem;
       @media (max-width: 900px) { grid-template-columns: 1fr; }
@@ -383,11 +385,16 @@ const BLOCK_LABELS: Record<BlockType, string> = {
           </div>
         }
 
+        <!-- Water tracker widget -->
+        <app-water-tracker [showLogs]="showWaterLogs" />
+
         <!-- Quick links -->
         <div class="card" style="display:flex;flex-direction:column;gap:.625rem">
           <div style="font-size:.85rem;font-weight:700;margin-bottom:.25rem">⚡ Ações rápidas</div>
           <a routerLink="/nutrition" class="btn btn-secondary w-full">🍽️ Registrar refeição</a>
-          <a routerLink="/profile" class="btn btn-secondary w-full">👤 Atualizar perfil</a>
+          <a routerLink="/hormones"  class="btn btn-secondary w-full">💉 Log hormonal</a>
+          <a routerLink="/progress"  class="btn btn-secondary w-full">📊 Ver progresso</a>
+          <a routerLink="/profile"   class="btn btn-secondary w-full">👤 Atualizar perfil</a>
         </div>
       </div>
     </div>
@@ -397,15 +404,18 @@ export class DashboardComponent implements OnInit {
   private profileSvc = inject(ProfileService);
   private routineSvc = inject(RoutineService);
   private foodSvc    = inject(FoodService);
+  private waterSvc   = inject(WaterService);
 
   readonly HOUR_PX = HOUR_PX;
   readonly hours   = Array.from({ length: 24 }, (_, i) => i);
   readonly todayStr = new Date().toISOString().slice(0, 10);
 
-  blocks     = this.routineSvc.blocks;
+  blocks       = this.routineSvc.blocks;
   selectedDate = this.routineSvc.selectedDate;
-  metabolic  = this.profileSvc.metabolic;
-  selected   = signal<RoutineBlock | null>(null);
+  metabolic    = this.profileSvc.metabolic;
+  selected     = signal<RoutineBlock | null>(null);
+  /** Passed to water widget – hides the log list in compact dashboard mode */
+  readonly showWaterLogs = signal(false);
   loading    = signal(true);
   generating = signal(false);
   summary    = signal<DailySummary | null>(null);
@@ -420,7 +430,7 @@ export class DashboardComponent implements OnInit {
   );
 
   readonly consumedKcal = computed(() => this.summary()?.totalCalories ?? 0);
-  readonly waterConsumed = computed(() => '0');
+  readonly waterConsumed = computed(() => String(this.waterSvc.todayTotal()));
 
   readonly caloriesPct = computed(() => {
     const m = this.metabolic();
@@ -431,7 +441,7 @@ export class DashboardComponent implements OnInit {
   readonly waterPct = computed(() => {
     const m = this.metabolic();
     if (!m) return 0;
-    return Math.min(100, (0 / m.waterMlTotal) * 100);
+    return Math.min(100, (this.waterSvc.todayTotal() / m.waterMlTotal) * 100);
   });
 
   readonly greeting = computed(() => {
@@ -455,6 +465,9 @@ export class DashboardComponent implements OnInit {
 
     // Load daily meal summary
     this.loadSummary();
+
+    // Load today's water data
+    this.waterSvc.loadToday().subscribe({ error: () => {} });
   }
 
   private loadSummary(): void {

@@ -110,6 +110,15 @@ import { AuthService } from '../../core/services/auth.service';
           <a routerLink="/nutrition" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🥗</span> Nutrição
           </a>
+          <a routerLink="/water" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">💧</span> Hidratação
+          </a>
+          <a routerLink="/hormones" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">💉</span> Hormônios
+          </a>
+          <a routerLink="/progress" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">📊</span> Progresso
+          </a>
 
           <span class="nav-section">Configurações</span>
           <a routerLink="/profile" routerLinkActive="active-link" class="nav-item">
@@ -138,7 +147,9 @@ import { AuthService } from '../../core/services/auth.service';
     <!-- Mobile bottom nav -->
     <nav class="bottom-nav">
       <a routerLink="/dashboard" routerLinkActive="active-link"><span class="bn-icon">📅</span>Agenda</a>
-      <a routerLink="/nutrition" routerLinkActive="active-link"><span class="bn-icon">🥗</span>Nutrição</a>
+      <a routerLink="/water"     routerLinkActive="active-link"><span class="bn-icon">💧</span>Água</a>
+      <a routerLink="/hormones"  routerLinkActive="active-link"><span class="bn-icon">💉</span>Hormônios</a>
+      <a routerLink="/progress"  routerLinkActive="active-link"><span class="bn-icon">📊</span>Progresso</a>
       <a routerLink="/profile"   routerLinkActive="active-link"><span class="bn-icon">👤</span>Perfil</a>
     </nav>
   `,
