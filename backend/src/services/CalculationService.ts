@@ -25,8 +25,10 @@ export class CalculationService {
    * Protein ceiling for high hypertrophy stimulus (score ≥ HYPERTROPHY_THRESHOLD).
    * 2.2 g per kg body-weight – upper evidence-based limit.
    */
-  private static readonly PROTEIN_CEILING_G_PER_KG = 2.2;
-  private static readonly PROTEIN_BASE_G_PER_KG = 1.6;
+  private static readonly PROTEIN_CEILING_G_PER_KG = 2.0;
+  private static readonly PROTEIN_BASE_G_PER_KG = 1.8;
+  private static readonly FAT_BASE_G_PER_KG = 0.8;
+  private static readonly FAT_CEILING_G_PER_KG = 1.0;
   private static readonly HYPERTROPHY_THRESHOLD = 8;
 
   /** Water: 35 ml per kg body-weight */
@@ -135,7 +137,8 @@ export class CalculationService {
     }
 
     const goalAdjustmentKcal = primaryGoal ? (GOAL_CALORIC_ADJUSTMENT[primaryGoal] ?? 0) : 0;
-    const dailyCaloricTarget = this.round2(tee + exerciseCalories + goalAdjustmentKcal);
+    // GET (tee) already embeds activity-level exercise via PAL multiplier — do NOT add exercise calories again
+    const dailyCaloricTarget = this.round2(tee + goalAdjustmentKcal);
 
     const macros = this.calculateMacros(
       weightKg,
@@ -266,39 +269,39 @@ export class CalculationService {
     hypertrophyScore: number,
     primaryGoal?: PrimaryGoal
   ): MacroGrams {
+    const isHighStimulus = hypertrophyScore >= this.HYPERTROPHY_THRESHOLD;
+
     // ── Diabetic low-carb pathway ──────────────────────────────────────────
     if (primaryGoal === PrimaryGoal.DIABETICO) {
-      const proteinG    = this.round2(weightKg * 2.0);
+      const proteinG    = this.round2(weightKg * this.PROTEIN_CEILING_G_PER_KG);
       const proteinKcal = proteinG * 4;
 
-      // Cap carbs at 100 g (glycaemic control) OR 25 % of calories, whichever is less
-      const carbsCap = Math.min(100, this.round2((dailyCaloricTarget * 0.25) / 4));
-      const carbsG    = carbsCap;
-      const carbsKcal = carbsG * 4;
+      // Carbs capped at 40 % of total calories (glycaemic control)
+      const carbsMaxKcal = dailyCaloricTarget * 0.40;
+      const carbsKcal    = Math.min(carbsMaxKcal, Math.max(0, dailyCaloricTarget - proteinKcal - weightKg * this.FAT_BASE_G_PER_KG * 9));
+      const carbsG       = this.round2(carbsKcal / 4);
 
       // Fat receives the remaining calories
-      const fatKcal = Math.max(0, dailyCaloricTarget - proteinKcal - carbsKcal);
+      const fatKcal = Math.max(0, dailyCaloricTarget - proteinKcal - carbsG * 4);
       const fatG    = this.round2(fatKcal / 9);
 
       return { proteinG, carbsG, fatG };
     }
 
     // ── Standard pathway ───────────────────────────────────────────────────
-    const proteinGPerKg =
-      hypertrophyScore >= this.HYPERTROPHY_THRESHOLD
-        ? this.PROTEIN_CEILING_G_PER_KG
-        : this.PROTEIN_BASE_G_PER_KG;
+    // Protein: 1.8 g/kg base; 2.0 g/kg when high hypertrophy stimulus
+    const proteinGPerKg = isHighStimulus ? this.PROTEIN_CEILING_G_PER_KG : this.PROTEIN_BASE_G_PER_KG;
+    const proteinG      = this.round2(weightKg * proteinGPerKg);
+    const proteinKcal   = proteinG * 4;
 
-    const proteinG = this.round2(weightKg * proteinGPerKg);
-    const proteinKcal = proteinG * 4;
+    // Fat: 0.8 g/kg base; 1.0 g/kg when high hypertrophy stimulus
+    const fatGPerKg = isHighStimulus ? this.FAT_CEILING_G_PER_KG : this.FAT_BASE_G_PER_KG;
+    const fatG      = this.round2(weightKg * fatGPerKg);
+    const fatKcal   = fatG * 9;
 
-    // Fat = 25 % of total calories
-    const fatKcal = dailyCaloricTarget * 0.25;
-    const fatG = this.round2(fatKcal / 9);
-
-    // Carbs = remainder
+    // Carbs = remaining calories
     const carbsKcal = Math.max(0, dailyCaloricTarget - proteinKcal - fatKcal);
-    const carbsG = this.round2(carbsKcal / 4);
+    const carbsG    = this.round2(carbsKcal / 4);
 
     return { proteinG, carbsG, fatG };
   }

@@ -6,9 +6,10 @@ import { PrimaryGoal, HealthProfile, MetabolicResult } from '../../core/models';
 
 const GOAL_OPTIONS: Array<{ value: PrimaryGoal; icon: string; label: string; desc: string; adj: number }> = [
   { value: 'emagrecimento', icon: '🔥', label: 'Emagrecimento',  desc: 'Déficit calórico para perda de peso',   adj: -500 },
-  { value: 'ganho_massa',   icon: '💪', label: 'Ganho de Massa', desc: 'Superávit calórico para hipertrofia',   adj: +300 },
+  { value: 'ganho_massa',   icon: '💪', label: 'Ganho de Massa', desc: 'Superávit calórico para hipertrofia',   adj: +400 },
   { value: 'manutencao',    icon: '⚖️', label: 'Manutenção',     desc: 'Equilíbrio calórico para manutenção',  adj: 0    },
   { value: 'saude_geral',   icon: '🌿', label: 'Saúde Geral',    desc: 'Foco em hábitos e bem-estar geral',    adj: 0    },
+  { value: 'diabetico',     icon: '🩺', label: 'Diabético',      desc: 'Controle glicêmico com baixo carboidrato', adj: 0 },
 ];
 
 @Component({
@@ -44,13 +45,15 @@ const GOAL_OPTIONS: Array<{ value: PrimaryGoal; icon: string; label: string; des
     }
 
     .caloric-impact {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: .875rem; margin-top: 1rem;
-      @media (max-width: 480px) { grid-template-columns: 1fr; }
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: .875rem; margin-top: 1rem;
+      @media (max-width: 600px) { grid-template-columns: repeat(2, 1fr); }
+      @media (max-width: 360px) { grid-template-columns: 1fr; }
     }
     .ci-card {
       text-align: center; border-radius: var(--radius-sm); padding: .875rem;
       .ci-val  { font-size: 1.4rem; font-weight: 800; }
       .ci-lbl  { font-size: .72rem; color: var(--color-text-subtle); margin-top: .2rem; font-weight: 600; text-transform: uppercase; }
+      &.bmr    { background: #f5f3ff; .ci-val { color: #6d28d9; } }
       &.base   { background: #f0f9ff; .ci-val { color: #0369a1; } }
       &.adj    { background: #fef9c3; .ci-val { color: #854d0e; } }
       &.target { background: #f0fdf4; .ci-val { color: #16a34a; } }
@@ -106,27 +109,34 @@ const GOAL_OPTIONS: Array<{ value: PrimaryGoal; icon: string; label: string; des
       <!-- Caloric impact -->
       @if (metabolic()) {
         <div class="section">
-          <div class="section-title">🔢 Impacto Calórico</div>
+          <div class="section-title">🔢 Como sua meta é calculada</div>
           <div class="caloric-impact">
+            <div class="ci-card bmr">
+              <div class="ci-val">{{ metabolic()!.bmr | number:'1.0-0' }}</div>
+              <div class="ci-lbl">TMB (Mifflin)</div>
+            </div>
             <div class="ci-card base">
               <div class="ci-val">{{ metabolic()!.tee | number:'1.0-0' }}</div>
-              <div class="ci-lbl">TDEE Base (kcal)</div>
+              <div class="ci-lbl">GET (TMB × NAF)</div>
             </div>
             <div class="ci-card adj">
-              <div class="ci-val">{{ adjText() }}</div>
-              <div class="ci-lbl">Ajuste do Objetivo</div>
+              <div class="ci-val">{{ adjDisplayText() }}</div>
+              <div class="ci-lbl">Ajuste Objetivo</div>
             </div>
             <div class="ci-card target">
               <div class="ci-val">{{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }}</div>
-              <div class="ci-lbl">Meta Final (kcal)</div>
+              <div class="ci-lbl">Meta Diária (kcal)</div>
             </div>
           </div>
-          @if (metabolic()!.goalAdjustmentKcal !== 0) {
-            <div class="alert-info">
-              💡 O ajuste de {{ metabolic()!.goalAdjustmentKcal > 0 ? '+' : '' }}{{ metabolic()!.goalAdjustmentKcal }} kcal
-              já está incluído na sua meta calórica diária de {{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }} kcal.
-            </div>
-          }
+          <div class="alert-info" style="margin-top:.75rem">
+            💡 TMB × Fator de Atividade = GET.
+            @if (metabolic()!.goalAdjustmentKcal !== 0) {
+              O ajuste de {{ metabolic()!.goalAdjustmentKcal > 0 ? '+' : '' }}{{ metabolic()!.goalAdjustmentKcal }} kcal
+              já está embutido na meta diária de {{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }} kcal.
+            } @else {
+              Sem ajuste calórico — meta igual ao GET.
+            }
+          </div>
         </div>
       }
 
@@ -155,8 +165,10 @@ export class PlanningComponent implements OnInit {
   saving     = signal(false);
   savedMsg   = signal('');
 
-  adjText(): string {
-    const adj = this.goalOptions.find(g => g.value === this.selectedGoal())?.adj ?? 0;
+  adjDisplayText(): string {
+    const adj = this.metabolic()?.goalAdjustmentKcal
+      ?? this.goalOptions.find(g => g.value === this.selectedGoal())?.adj
+      ?? 0;
     if (adj === 0) return 'Neutro';
     return (adj > 0 ? '+' : '') + adj + ' kcal';
   }

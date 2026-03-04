@@ -145,7 +145,8 @@ export class ScheduledMealService {
             weightKg: Number(profile.weight),
             durationMinutes: ex.durationMinutes,
             hypertrophyScore: ex.hypertrophyScore,
-          }))
+          })),
+          profile.primaryGoal
         );
         dailyCal = profile.caloricGoal
           ? Number(profile.caloricGoal)

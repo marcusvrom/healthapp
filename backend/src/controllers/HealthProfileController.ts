@@ -74,7 +74,8 @@ export class HealthProfileController {
         profile.age,
         profile.gender,
         profile.activityFactor,
-        exercises
+        exercises,
+        profile.primaryGoal
       );
 
       res.json(result);

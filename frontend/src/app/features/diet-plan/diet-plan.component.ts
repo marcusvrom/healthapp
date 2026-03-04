@@ -12,6 +12,7 @@ const GOAL_LABELS: Record<PrimaryGoal, string> = {
   manutencao:    'Manutenção',
   diabetico:     'Diabético',
   saude_geral:   'Saúde Geral',
+  diabetico:     'Diabético',
 };
 
 const GOAL_EMOJIS: Record<PrimaryGoal, string> = {
@@ -20,6 +21,7 @@ const GOAL_EMOJIS: Record<PrimaryGoal, string> = {
   manutencao:    '⚖️',
   diabetico:     '🔵',
   saude_geral:   '🌿',
+  diabetico:     '🩺',
 };
 
 const CATEGORY_ICON: Record<string, string> = {
@@ -199,7 +201,7 @@ function toMinutes(time: string): number {
                 {{ metabolic()!.goalAdjustmentKcal > 0 ? '+' : '' }}{{ metabolic()!.goalAdjustmentKcal | number:'1.0-0' }} kcal ajuste
               </span>
             } @else {
-              <span class="adj-badge adj-zero">Manutenção</span>
+              <span class="adj-badge adj-zero">{{ goalLabel() ?? 'Manutenção' }}</span>
             }
           </div>
         </div>

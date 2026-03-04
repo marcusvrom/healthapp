@@ -48,7 +48,7 @@ export const GOAL_CALORIC_ADJUSTMENT: Record<PrimaryGoal, number> = {
   [PrimaryGoal.GANHO_MASSA]:   +400,
   [PrimaryGoal.MANUTENCAO]:       0,
   [PrimaryGoal.SAUDE_GERAL]:      0,
-  [PrimaryGoal.DIABETICO]:     -200,
+  [PrimaryGoal.DIABETICO]:        0,
 };
 
 @Entity("health_profiles")
