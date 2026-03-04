@@ -11,9 +11,10 @@ import { User } from "./User";
 
 /**
  * WaterLog
- * ─────────
  * Records each water intake event.
- * `loggedAt` defaults to now() but can be set retroactively.
+ * loggedAt defaults to now() but can be set retroactively.
+ * NOTE: All string columns need explicit type to work with tsx/esbuild
+ *       which strips emitDecoratorMetadata.
  */
 @Entity("water_logs")
 @Index("IDX_water_logs_user_date", ["userId", "loggedAt"])
@@ -21,7 +22,7 @@ export class WaterLog {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "user_id" })
+  @Column({ name: "user_id", type: "text" })
   userId!: string;
 
   /** Amount consumed in millilitres */

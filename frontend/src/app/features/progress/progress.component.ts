@@ -1,15 +1,13 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DecimalPipe, DatePipe } from '@angular/common';
-import { BaseChartDirective } from 'ng2-charts';
-import { ChartData, ChartOptions, ChartDataset } from 'chart.js';
+import { DecimalPipe, DatePipe, NgStyle } from '@angular/common';
 import { MetricsService, WeightPoint, StreakData } from '../../core/services/metrics.service';
 import { WaterDayStats } from '../../core/services/water.service';
 
 @Component({
   selector: 'app-progress',
   standalone: true,
-  imports: [FormsModule, DecimalPipe, DatePipe, BaseChartDirective],
+  imports: [FormsModule, DecimalPipe, DatePipe, NgStyle],
   styles: [`
     .page { padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
     .page-header { margin-bottom: 1.5rem; h2 { font-size: 1.5rem; } p { color: var(--color-text-muted); } }
@@ -52,7 +50,7 @@ import { WaterDayStats } from '../../core/services/water.service';
         .actions { display: flex; gap: .5rem; }
       }
 
-      .chart-container { position: relative; height: 240px; }
+      .chart-container { position: relative; height: 240px; overflow: hidden; }
 
       .chart-empty { height: 240px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .75rem;
         color: var(--color-text-muted);
@@ -60,6 +58,23 @@ import { WaterDayStats } from '../../core/services/water.service';
         p { font-size: .85rem; text-align: center; }
       }
     }
+
+    /* SVG chart */
+    .svg-chart { width: 100%; height: 100%; overflow: visible; }
+
+    .axis-line { stroke: var(--color-border); stroke-width: 1; }
+    .grid-line { stroke: var(--color-border); stroke-width: 0.5; stroke-dasharray: 4 3; opacity: .6; }
+    .axis-label { font-size: 10px; fill: var(--color-text-subtle); font-family: inherit; }
+    .data-label { font-size: 9px; fill: var(--color-text-muted); font-family: inherit; }
+
+    /* Line chart */
+    .line-path { fill: none; stroke: #10b981; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+    .line-area { fill: url(#areaGrad); opacity: .25; }
+    .line-dot  { fill: #10b981; }
+
+    /* Bar chart */
+    .bar-goal     { fill: rgba(14,165,233,.25); rx: 3; }
+    .bar-consumed { fill: rgba(16,185,129,.7); rx: 3; }
 
     /* Log weight form */
     .log-weight-form {
@@ -110,8 +125,8 @@ import { WaterDayStats } from '../../core/services/water.service';
 
       <!-- Streak cards -->
       <div class="streak-row">
-        <div class="streak-card" [class.on-fire]="streaks()?.waterCurrentStreak! >= 3">
-          <span class="streak-icon">{{ streaks()?.waterCurrentStreak! >= 3 ? '🔥' : '💧' }}</span>
+        <div class="streak-card" [class.on-fire]="(streaks()?.waterCurrentStreak ?? 0) >= 3">
+          <span class="streak-icon">{{ (streaks()?.waterCurrentStreak ?? 0) >= 3 ? '🔥' : '💧' }}</span>
           <div class="streak-value">{{ streaks()?.waterCurrentStreak ?? '—' }}</div>
           <div class="streak-label">Sequência atual</div>
           <div class="streak-sub">dias batendo a meta de água</div>
@@ -146,10 +161,10 @@ import { WaterDayStats } from '../../core/services/water.service';
             <div class="actions">
               <div class="log-weight-form">
                 <div class="form-group">
-                  <input type="number" [(ngModel)]="newWeight" placeholder="kg" min="20" max="300" step="0.1"
+                  <input type="number" [(ngModel)]="newWeightVal" placeholder="kg" min="20" max="300" step="0.1"
                     style="width:80px;padding:.35rem .5rem;border:1.5px solid var(--color-border);border-radius:6px;font-size:.82rem" />
                 </div>
-                <button class="btn btn-primary btn-sm" (click)="logWeight()" [disabled]="!newWeight || savingWeight()">
+                <button class="btn btn-primary btn-sm" (click)="logWeight()" [disabled]="!newWeightVal || savingWeight()">
                   {{ savingWeight() ? '...' : '+ Peso' }}
                 </button>
               </div>
@@ -158,18 +173,41 @@ import { WaterDayStats } from '../../core/services/water.service';
 
           @if (weightLoading()) {
             <div class="chart-empty"><span class="spinner"></span></div>
-          } @else if ((weightChartData.datasets[0]?.data?.length ?? 0) < 2) {
+          } @else if (weightPoints().length < 2) {
             <div class="chart-empty">
               <span class="emoji">⚖️</span>
               <p>Registre pelo menos 2 pesagens<br>para ver o gráfico de evolução.</p>
             </div>
           } @else {
             <div class="chart-container">
-              <canvas baseChart
-                [data]="weightChartData"
-                [options]="weightChartOptions"
-                [type]="'line'">
-              </canvas>
+              <svg class="svg-chart" [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#10b981" stop-opacity=".4"/>
+                    <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <!-- Grid lines -->
+                @for (tick of weightYTicks(); track tick.y) {
+                  <line class="grid-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="tick.y" [attr.y2]="tick.y"/>
+                  <text class="axis-label" [attr.x]="padL - 4" [attr.y]="tick.y + 3" text-anchor="end">{{ tick.label }}</text>
+                }
+                <!-- X labels -->
+                @for (pt of weightXLabels(); track pt.x) {
+                  <text class="axis-label" [attr.x]="pt.x" [attr.y]="svgH - padB + 14" text-anchor="middle">{{ pt.label }}</text>
+                }
+                <!-- Area fill -->
+                <path class="line-area" [attr.d]="weightAreaPath()"/>
+                <!-- Line -->
+                <path class="line-path" [attr.d]="weightLinePath()"/>
+                <!-- Dots -->
+                @for (pt of weightDots(); track pt.x) {
+                  <circle class="line-dot" [attr.cx]="pt.x" [attr.cy]="pt.y" r="4"/>
+                }
+                <!-- Axes -->
+                <line class="axis-line" [attr.x1]="padL" [attr.x2]="padL" [attr.y1]="padT" [attr.y2]="svgH - padB"/>
+                <line class="axis-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="svgH - padB" [attr.y2]="svgH - padB"/>
+              </svg>
             </div>
           }
         </div>
@@ -194,11 +232,40 @@ import { WaterDayStats } from '../../core/services/water.service';
             </div>
           } @else {
             <div class="chart-container">
-              <canvas baseChart
-                [data]="waterChartData"
-                [options]="waterChartOptions"
-                [type]="'bar'">
-              </canvas>
+              <svg class="svg-chart" [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH" preserveAspectRatio="xMidYMid meet">
+                <!-- Grid lines -->
+                @for (tick of waterYTicks(); track tick.y) {
+                  <line class="grid-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="tick.y" [attr.y2]="tick.y"/>
+                  <text class="axis-label" [attr.x]="padL - 4" [attr.y]="tick.y + 3" text-anchor="end">{{ tick.label }}</text>
+                }
+                <!-- Bars -->
+                @for (bar of waterBars(); track bar.x) {
+                  <!-- Goal bar -->
+                  <rect class="bar-goal"
+                    [attr.x]="bar.x" [attr.y]="bar.goalY"
+                    [attr.width]="bar.w / 2 - 1" [attr.height]="bar.goalH"
+                    rx="3"/>
+                  <!-- Consumed bar -->
+                  <rect class="bar-consumed"
+                    [attr.x]="bar.x + bar.w / 2" [attr.y]="bar.consumedY"
+                    [attr.width]="bar.w / 2 - 1" [attr.height]="bar.consumedH"
+                    rx="3"/>
+                  <!-- X label -->
+                  <text class="axis-label" [attr.x]="bar.x + bar.w / 2" [attr.y]="svgH - padB + 14" text-anchor="middle">{{ bar.label }}</text>
+                }
+                <!-- Axes -->
+                <line class="axis-line" [attr.x1]="padL" [attr.x2]="padL" [attr.y1]="padT" [attr.y2]="svgH - padB"/>
+                <line class="axis-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="svgH - padB" [attr.y2]="svgH - padB"/>
+              </svg>
+            </div>
+            <!-- Legend -->
+            <div style="display:flex;gap:.75rem;margin-top:.5rem;font-size:.72rem;color:var(--color-text-muted)">
+              <span style="display:flex;align-items:center;gap:.3rem">
+                <span style="width:12px;height:12px;background:rgba(14,165,233,.4);border-radius:2px;display:inline-block"></span> Meta
+              </span>
+              <span style="display:flex;align-items:center;gap:.3rem">
+                <span style="width:12px;height:12px;background:rgba(16,185,129,.7);border-radius:2px;display:inline-block"></span> Consumido
+              </span>
             </div>
             <!-- Day pills legend -->
             <div class="water-legend">
@@ -257,9 +324,17 @@ export class ProgressComponent implements OnInit {
   weightLoading= signal(false);
   savingWeight = signal(false);
   waterDays    = signal(7);
-  newWeight    = signal<number | null>(null);
+  newWeightVal: number | null = null;
 
-  // ── Computed helpers ────────────────────────────────────────────────────────
+  // ── SVG layout constants ─────────────────────────────────────────────────────
+  readonly svgW = 460;
+  readonly svgH = 220;
+  readonly padL = 42;
+  readonly padR = 12;
+  readonly padT = 12;
+  readonly padB = 24;
+
+  // ── Computed helpers ─────────────────────────────────────────────────────────
   latestWeight = (): number | null => {
     const pts = this.weightPoints();
     if (!pts.length) return null;
@@ -280,50 +355,118 @@ export class ProgressComponent implements OnInit {
     return h.reduce((s, d) => s + d.consumedMl, 0) / h.length;
   };
 
-  // ── Chart configs ───────────────────────────────────────────────────────────
-  weightChartData: ChartData<'line'> = {
-    labels:   [],
-    datasets: [{ data: [], label: 'Peso (kg)', fill: true, tension: .4,
-      borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.12)',
-      pointBackgroundColor: '#10b981', pointRadius: 5,
-    }],
-  };
+  // ── Weight SVG computed ──────────────────────────────────────────────────────
+  private weightRange = computed(() => {
+    const pts = this.weightPoints();
+    if (!pts.length) return { min: 60, max: 80 };
+    const vals = pts.map(p => Number(p.weightKg));
+    const min = Math.floor(Math.min(...vals) - 1);
+    const max = Math.ceil(Math.max(...vals) + 1);
+    return { min, max };
+  });
 
-  weightChartOptions: ChartOptions<'line'> = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: {
-      label: ctx => ` ${ctx.parsed.y} kg`,
-    }}},
-    scales: {
-      y: { title: { display: true, text: 'kg' }, ticks: { font: { size: 11 } } },
-      x: { ticks: { font: { size: 11 } } },
-    },
-  };
+  private wScaleY = computed(() => {
+    const { min, max } = this.weightRange();
+    const h = this.svgH - this.padT - this.padB;
+    return (v: number) => this.padT + h - ((v - min) / (max - min)) * h;
+  });
 
-  waterChartData: ChartData<'bar'> = {
-    labels:   [],
-    datasets: [
-      { data: [], label: 'Meta (ml)', backgroundColor: 'rgba(14,165,233,.2)', borderColor: '#0ea5e9', borderWidth: 1.5, borderRadius: 4 },
-      { data: [], label: 'Consumido (ml)', backgroundColor: 'rgba(16,185,129,.65)', borderColor: '#10b981', borderWidth: 1.5, borderRadius: 4 },
-    ],
-  };
+  private wScaleX = computed(() => {
+    const pts = this.weightPoints();
+    const w = this.svgW - this.padL - this.padR;
+    return (i: number) => this.padL + (i / Math.max(pts.length - 1, 1)) * w;
+  });
 
-  waterChartOptions: ChartOptions<'bar'> = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } },
-      tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y.toLocaleString('pt-BR')} ml` }},
-    },
-    scales: {
-      y: { title: { display: true, text: 'ml' }, ticks: { font: { size: 11 } } },
-      x: { ticks: { font: { size: 11 } } },
-    },
-  };
+  weightDots = computed(() => {
+    const pts = this.weightPoints();
+    const sx = this.wScaleX();
+    const sy = this.wScaleY();
+    return pts.map((p, i) => ({ x: sx(i), y: sy(Number(p.weightKg)) }));
+  });
 
+  weightLinePath = computed(() => {
+    const dots = this.weightDots();
+    if (!dots.length) return '';
+    return dots.map((d, i) => `${i === 0 ? 'M' : 'L'}${d.x.toFixed(1)},${d.y.toFixed(1)}`).join(' ');
+  });
+
+  weightAreaPath = computed(() => {
+    const dots = this.weightDots();
+    if (!dots.length) return '';
+    const base = this.svgH - this.padB;
+    const line = dots.map((d, i) => `${i === 0 ? 'M' : 'L'}${d.x.toFixed(1)},${d.y.toFixed(1)}`).join(' ');
+    const last = dots[dots.length - 1]!;
+    const first = dots[0]!;
+    return `${line} L${last.x.toFixed(1)},${base} L${first.x.toFixed(1)},${base} Z`;
+  });
+
+  weightYTicks = computed(() => {
+    const { min, max } = this.weightRange();
+    const sy = this.wScaleY();
+    const step = Math.ceil((max - min) / 4);
+    const ticks: { y: number; label: string }[] = [];
+    for (let v = min; v <= max; v += step) {
+      ticks.push({ y: sy(v), label: String(v) });
+    }
+    return ticks;
+  });
+
+  weightXLabels = computed(() => {
+    const pts = this.weightPoints();
+    const sx = this.wScaleX();
+    const every = Math.max(1, Math.floor(pts.length / 6));
+    return pts
+      .map((p, i) => ({ x: sx(i), label: this.shortDate(p.date), i }))
+      .filter((_, i) => i % every === 0 || i === pts.length - 1);
+  });
+
+  // ── Water SVG computed ───────────────────────────────────────────────────────
+  private waterMaxVal = computed(() => {
+    const h = this.waterHistory();
+    if (!h.length) return 2000;
+    return Math.max(...h.map(d => Math.max(d.goalMl, d.consumedMl))) * 1.1;
+  });
+
+  private wWaterScaleY = computed(() => {
+    const maxV = this.waterMaxVal();
+    const h = this.svgH - this.padT - this.padB;
+    return (v: number) => this.padT + h - (v / maxV) * h;
+  });
+
+  waterYTicks = computed(() => {
+    const maxV = this.waterMaxVal();
+    const sy = this.wWaterScaleY();
+    const ticks: { y: number; label: string }[] = [];
+    const step = Math.ceil(maxV / 4 / 500) * 500;
+    for (let v = 0; v <= maxV; v += step) {
+      ticks.push({ y: sy(v), label: v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v) });
+    }
+    return ticks;
+  });
+
+  waterBars = computed(() => {
+    const hist = this.waterHistory();
+    const sy = this.wWaterScaleY();
+    const chartW = this.svgW - this.padL - this.padR;
+    const barW = chartW / hist.length;
+    const base = this.svgH - this.padB;
+    return hist.map((d, i) => {
+      const goalY = sy(d.goalMl);
+      const consumedY = sy(d.consumedMl);
+      return {
+        x: this.padL + i * barW,
+        w: barW - 2,
+        goalY,
+        goalH: base - goalY,
+        consumedY,
+        consumedH: base - consumedY,
+        label: this.shortDate(d.date),
+      };
+    });
+  });
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────────
   ngOnInit(): void {
-    this.loadAll();
-  }
-
-  private loadAll(): void {
     this.metricsSvc.streaks().subscribe({ next: s => this.streaks.set(s), error: () => {} });
     this.loadWeight();
     this.loadWater();
@@ -332,18 +475,7 @@ export class ProgressComponent implements OnInit {
   private loadWeight(): void {
     this.weightLoading.set(true);
     this.metricsSvc.weightHistory(30).subscribe({
-      next: pts => {
-        this.weightPoints.set(pts);
-        this.weightChartData = {
-          ...this.weightChartData,
-          labels: pts.map(p => this.shortDate(p.date)),
-          datasets: [{
-            ...this.weightChartData.datasets[0]!,
-            data: pts.map(p => Number(p.weightKg)),
-          }],
-        };
-        this.weightLoading.set(false);
-      },
+      next: pts => { this.weightPoints.set(pts); this.weightLoading.set(false); },
       error: () => this.weightLoading.set(false),
     });
   }
@@ -351,18 +483,7 @@ export class ProgressComponent implements OnInit {
   private loadWater(): void {
     this.waterLoading.set(true);
     this.metricsSvc.waterConsistency(this.waterDays()).subscribe({
-      next: hist => {
-        this.waterHistory.set(hist);
-        this.waterChartData = {
-          ...this.waterChartData,
-          labels: hist.map(d => this.shortDate(d.date)),
-          datasets: [
-            { ...this.waterChartData.datasets[0]!, data: hist.map(d => d.goalMl) },
-            { ...this.waterChartData.datasets[1]!, data: hist.map(d => d.consumedMl) },
-          ],
-        };
-        this.waterLoading.set(false);
-      },
+      next: hist => { this.waterHistory.set(hist); this.waterLoading.set(false); },
       error: () => this.waterLoading.set(false),
     });
   }
@@ -373,13 +494,13 @@ export class ProgressComponent implements OnInit {
   }
 
   logWeight(): void {
-    const w = this.newWeight();
+    const w = this.newWeightVal;
     if (!w) return;
     this.savingWeight.set(true);
     this.metricsSvc.logWeight(w).subscribe({
       next: () => {
         this.savingWeight.set(false);
-        this.newWeight.set(null);
+        this.newWeightVal = null;
         this.loadWeight();
         this.metricsSvc.streaks().subscribe({ next: s => this.streaks.set(s) });
       },

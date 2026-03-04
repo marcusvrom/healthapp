@@ -11,17 +11,16 @@ import {
 import { User } from "./User";
 
 export enum HormoneCategory {
-  TRT            = "TRT",
-  FEMALE_HORMONES= "Female_Hormones",
-  SLEEP          = "Sleep",
-  OTHER          = "Other",
+  TRT             = "TRT",
+  FEMALE_HORMONES = "Female_Hormones",
+  SLEEP           = "Sleep",
+  OTHER           = "Other",
 }
 
 /**
  * HormoneLog
- * ──────────
  * Tracks each hormone / supplement administration with full audit trail.
- * Categories allow filtering/charting by protocol type.
+ * NOTE: All string columns need explicit type to work with tsx/esbuild.
  */
 @Entity("hormone_logs")
 @Index("IDX_hormone_logs_user_cat", ["userId", "category"])
@@ -30,14 +29,14 @@ export class HormoneLog {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ name: "user_id" })
+  @Column({ name: "user_id", type: "text" })
   userId!: string;
 
   @Column({ type: "enum", enum: HormoneCategory, default: HormoneCategory.OTHER })
   category!: HormoneCategory;
 
   /** Generic/brand name (e.g. "Enantato de Testosterona", "Melatonina") */
-  @Column({ length: 255 })
+  @Column({ type: "varchar", length: 255 })
   name!: string;
 
   /** Numeric dose amount */
@@ -45,7 +44,7 @@ export class HormoneLog {
   dosage!: number;
 
   /** Unit of measurement: mg, ml, ui, mcg, comprimido … */
-  @Column({ length: 32 })
+  @Column({ type: "varchar", length: 32 })
   unit!: string;
 
   /** Exact date & time of administration / consumption */

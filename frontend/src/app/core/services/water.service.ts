@@ -25,8 +25,7 @@ export class WaterService {
   }
 
   loadToday(date?: string): Observable<WaterDay> {
-    const params = date ? { date } : {};
-    return this.api.get<WaterDay>('/water/today', params).pipe(
+    return this.api.get<WaterDay>('/water/today', date ? { date } : undefined).pipe(
       tap(d => {
         this.todayTotal.set(d.totalMl);
         this.todayLogs.set(d.logs);
