@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ProfileService } from '../../core/services/profile.service';
 import { RoutineService } from '../../core/services/routine.service';
 import { FoodService } from '../../core/services/food.service';
+import { UserService } from '../../core/services/user.service';
 import { RoutineBlock, BlockType, DailySummary, MetabolicResult } from '../../core/models';
 import { WaterTrackerComponent } from '../water/water-tracker.component';
 import { WaterService } from '../../core/services/water.service';
@@ -405,6 +406,7 @@ export class DashboardComponent implements OnInit {
   private routineSvc = inject(RoutineService);
   private foodSvc    = inject(FoodService);
   private waterSvc   = inject(WaterService);
+  private userSvc    = inject(UserService);
 
   readonly HOUR_PX = HOUR_PX;
   readonly hours   = Array.from({ length: 24 }, (_, i) => i);
@@ -419,10 +421,10 @@ export class DashboardComponent implements OnInit {
   loading    = signal(true);
   generating = signal(false);
   summary    = signal<DailySummary | null>(null);
+  userName = signal<string>('usuário');
 
   readonly firstName = computed(() => {
-    const name = (this.profileSvc.profile()?.userId ?? '');
-    return name.split(' ')[0] || 'usuário';
+    return this.userName().split(' ')[0] || 'usuário';
   });
 
   readonly waterReminders = computed(() =>
@@ -456,6 +458,13 @@ export class DashboardComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.userSvc.loadMe().subscribe({
+      next: (u: any) => {
+        if (u.name) this.userName.set(u.name);
+      },
+      error: () => {}
+    });
+    
     // Load profile & metabolic
     this.profileSvc.loadProfile().subscribe({ error: () => {} });
     this.profileSvc.loadMetabolic().subscribe({ error: () => {} });

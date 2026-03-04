@@ -1,6 +1,8 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { UserService } from '../../core/services/user.service'; 
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-nav-shell',
@@ -55,7 +57,8 @@ import { AuthService } from '../../core/services/auth.service';
           display: flex; align-items: center; gap: .75rem;
           .avatar { width: 36px; height: 36px; border-radius: 50%;
             background: var(--color-primary-light); display: flex; align-items: center; justify-content: center;
-            font-size: 1rem; font-weight: 700; color: var(--color-primary-dark); flex-shrink: 0; }
+            font-size: 1rem; font-weight: 700; color: var(--color-primary-dark); flex-shrink: 0;
+            object-fit: cover; }
           .info { flex: 1; min-width: 0;
             .name { font-size: .82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
             .role { font-size: .7rem; color: var(--color-text-subtle); }
@@ -135,10 +138,16 @@ import { AuthService } from '../../core/services/auth.service';
 
         <div class="sidebar-footer">
           <div class="user-row">
-            <div class="avatar">👤</div>
+            
+            @if (avatarUrl()) {
+              <img [src]="avatarUrl()" class="avatar" alt="Avatar" style="object-fit: cover;">
+            } @else {
+              <div class="avatar">{{ getInitials(userName()) }}</div>
+            }
+
             <div class="info">
-              <div class="name">Minha conta</div>
-              <div class="role">Usuário</div>
+              <div class="name">{{ userName() }}</div>
+              <div class="role">Nível {{ userLevel() }}</div>
             </div>
           </div>
           <button class="logout-btn" (click)="logout()">🚪 Sair</button>
@@ -163,5 +172,41 @@ import { AuthService } from '../../core/services/auth.service';
 })
 export class NavShellComponent {
   private auth = inject(AuthService);
-  logout(): void { this.auth.logout(); }
+  private userSvc = inject(UserService);
+
+  // Prepara a base da URL da mesma forma que no ProfileComponent
+  readonly apiBase = environment.apiUrl.replace('/api/v1', '');
+
+  // Signals para controlar a UI
+  userName = signal<string>('Minha conta');
+  userLevel = signal<number>(1);
+  avatarUrl = signal<string | null>(null);
+
+  ngOnInit(): void {
+    // Busca os dados do usuário logado ao carregar o menu
+    this.userSvc.loadMe().subscribe({
+      next: (u) => {
+        if (u.name) this.userName.set(u.name);
+        if (u.xp) this.userLevel.set(this.calculateLevel(u.xp)); // Se o backend já mandar o level direto, troque por u.level
+        if (u.avatarUrl) {
+          this.avatarUrl.set(`${this.apiBase}${u.avatarUrl}`);
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  logout(): void { 
+    this.auth.logout(); 
+  }
+
+  // Pega a primeira letra do nome se não houver foto
+  getInitials(name: string): string {
+    return name && name !== 'Minha conta' ? name.charAt(0).toUpperCase() : '👤';
+  }
+
+  // Lógica de fallback simples para calcular nível baseado no XP (caso o backend só mande o XP)
+  private calculateLevel(xp: number): number {
+    return Math.floor(xp / 100) + 1;
+  }
 }
