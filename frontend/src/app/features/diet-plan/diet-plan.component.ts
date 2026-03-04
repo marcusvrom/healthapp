@@ -2,12 +2,35 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { DietPlanService } from '../../core/services/diet-plan.service';
-import { MedicationService, MedicationWithLog } from '../../core/services/medication.service';
-import { ScheduledMeal, UserLevel } from '../../core/models';
+import { ProfileService } from '../../core/services/profile.service';
+import { ClinicalProtocolService } from '../../core/services/clinical-protocol.service';
+import { ScheduledMeal, UserLevel, ClinicalProtocolWithLog, PrimaryGoal } from '../../core/models';
+
+const GOAL_LABELS: Record<PrimaryGoal, string> = {
+  emagrecimento: 'Emagrecimento',
+  ganho_massa:   'Ganho de Massa',
+  manutencao:    'Manutenção',
+  saude_geral:   'Saúde Geral',
+};
+
+const GOAL_EMOJIS: Record<PrimaryGoal, string> = {
+  emagrecimento: '🔥',
+  ganho_massa:   '💪',
+  manutencao:    '⚖️',
+  saude_geral:   '🌿',
+};
+
+const CATEGORY_ICON: Record<string, string> = {
+  SUPLEMENTO:         '🧴',
+  REMEDIO_CONTROLADO: '💊',
+  TRT:                '💉',
+  HORMONIO_FEMININO:  '🌸',
+  SONO:               '😴',
+};
 
 type TimelineItem =
   | { kind: 'meal'; data: ScheduledMeal }
-  | { kind: 'medication'; data: MedicationWithLog };
+  | { kind: 'protocol'; data: ClinicalProtocolWithLog };
 
 function toMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
@@ -28,21 +51,28 @@ function toMinutes(time: string): number {
         padding: .45rem .75rem; font-size: .875rem; }
     }
 
-    .xp-banner {
-      display: flex; align-items: center; gap: .875rem;
-      background: linear-gradient(135deg, #312e81, #6366f1);
-      border-radius: var(--radius-md); padding: 1rem 1.25rem;
-      color: #fff; margin-bottom: 1.5rem;
-      .xp-icon { font-size: 1.75rem; }
-      .xp-info { flex: 1;
-        .xp-level { font-size: .8rem; opacity: .85; }
-        .xp-val   { font-size: 1.2rem; font-weight: 800; }
+    /* Goal + caloric target banner */
+    .goal-banner {
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+      background: var(--color-surface); border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-md); padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+
+      .goal-pill {
+        display: flex; align-items: center; gap: .5rem;
+        background: var(--color-primary-light); color: var(--color-primary-dark);
+        border-radius: 99px; padding: .35rem .875rem;
+        font-size: .875rem; font-weight: 700;
+        .g-emoji { font-size: 1.1rem; }
       }
-      .xp-bar-wrap { width: 120px;
-        .xp-bar-bg  { height: 8px; background: rgba(255,255,255,.2); border-radius: 99px;
-          .xp-bar-fill { height: 100%; background: #a5b4fc; border-radius: 99px; transition: width .5s; }
-        }
-        .xp-next { font-size: .68rem; opacity: .75; margin-top: .2rem; }
+
+      .caloric-info { flex: 1; display: flex; align-items: baseline; gap: .5rem;
+        .cal-val   { font-size: 1.75rem; font-weight: 800; color: var(--color-primary); }
+        .cal-lbl   { font-size: .82rem; color: var(--color-text-muted); }
+        .adj-badge { font-size: .75rem; font-weight: 700; padding: .15rem .5rem;
+          border-radius: 99px; margin-left: auto; }
+        .adj-pos   { background: #dcfce7; color: #15803d; }
+        .adj-neg   { background: #fee2e2; color: #b91c1c; }
+        .adj-zero  { background: var(--color-surface-2); color: var(--color-text-muted); }
       }
     }
 
@@ -78,7 +108,7 @@ function toMinutes(time: string): number {
       &.checking { opacity: .7; pointer-events: none; }
     }
 
-    .med-card { border-color: #c4b5fd !important; background: #faf5ff !important;
+    .proto-card { border-color: #c4b5fd !important; background: #faf5ff !important;
       &.done { background: #f5f3ff !important; border-color: #a78bfa !important;
         &::before { background: #7c3aed !important; box-shadow: 0 0 0 2px #c4b5fd !important; }
       }
@@ -87,8 +117,8 @@ function toMinutes(time: string): number {
     .card-row { display: flex; align-items: flex-start; gap: .875rem; }
     .time-badge { padding: .25rem .625rem; border-radius: var(--radius-sm); font-size: .78rem;
       font-weight: 700; white-space: nowrap; flex-shrink: 0;
-      &.meal { background: var(--color-primary-light); color: var(--color-primary-dark); }
-      &.med  { background: #ede9fe; color: #6b21a8; }
+      &.meal  { background: var(--color-primary-light); color: var(--color-primary-dark); }
+      &.proto { background: #ede9fe; color: #6b21a8; }
     }
     .card-info { flex: 1; min-width: 0;
       .item-name   { font-size: .95rem; font-weight: 700; &.struck { text-decoration: line-through; color: var(--color-text-subtle); } }
@@ -103,7 +133,7 @@ function toMinutes(time: string): number {
       &.carb { background: #fce7f3; color: #9d174d; }
       &.fat  { background: #ede9fe; color: #5b21b6; }
     }
-    .type-pill { font-size: .7rem; font-weight: 700; padding: .1rem .5rem; border-radius: 99px;
+    .cat-pill { font-size: .7rem; font-weight: 700; padding: .1rem .5rem; border-radius: 99px;
       background: #ede9fe; color: #6b21a8; display: inline-block; margin-top: .25rem; }
 
     .food-list { margin-top: .75rem; padding-top: .75rem; border-top: 1px dashed var(--color-border);
@@ -115,9 +145,9 @@ function toMinutes(time: string): number {
       width: 44px; height: 44px; border-radius: 50%; border: 2.5px solid var(--color-border);
       background: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
       font-size: 1.25rem; transition: all .2s; flex-shrink: 0;
-      &.done     { background: #16a34a; border-color: #16a34a; color: #fff; }
-      &.med-done { background: #7c3aed; border-color: #7c3aed; color: #fff; }
-      &:hover:not(.done):not(.med-done) { border-color: #16a34a; background: #f0fdf4; }
+      &.done      { background: #16a34a; border-color: #16a34a; color: #fff; }
+      &.proto-done{ background: #7c3aed; border-color: #7c3aed; color: #fff; }
+      &:hover:not(.done):not(.proto-done) { border-color: #16a34a; background: #f0fdf4; }
     }
 
     .done-note { margin-top: .5rem; font-size: .72rem; font-weight: 600; }
@@ -137,8 +167,8 @@ function toMinutes(time: string): number {
   template: `
     <div class="page">
       <div class="page-header">
-        <h2>🍽️ Dieta & Medicamentos</h2>
-        <p>Sua timeline diária com refeições e medicamentos. Marque cada item e ganhe XP!</p>
+        <h2>🍽️ Dieta & Protocolos</h2>
+        <p>Sua timeline diária com refeições e protocolos clínicos. Marque cada item e ganhe XP!</p>
       </div>
 
       <div class="controls">
@@ -149,34 +179,42 @@ function toMinutes(time: string): number {
         <button class="btn" (click)="load()">🔄 Recarregar</button>
       </div>
 
-      @if (totalXp() > 0) {
-        <div class="xp-banner">
-          <div class="xp-icon">⚡</div>
-          <div class="xp-info">
-            <div class="xp-level">{{ currentLevel()?.title }} · Nível {{ currentLevel()?.level }}</div>
-            <div class="xp-val">{{ totalXp() }} XP</div>
-          </div>
-          <div class="xp-bar-wrap">
-            <div class="xp-bar-bg">
-              <div class="xp-bar-fill" [style.width]="xpPct() + '%'"></div>
+      <!-- Goal + caloric target banner -->
+      @if (metabolic()) {
+        <div class="goal-banner">
+          @if (goalLabel()) {
+            <div class="goal-pill">
+              <span class="g-emoji">{{ goalEmoji() }}</span>
+              <span>{{ goalLabel() }}</span>
             </div>
-            <div class="xp-next">Próximo: {{ currentLevel()?.nextLevelXp }} XP</div>
+          }
+          <div class="caloric-info">
+            <span class="cal-val">{{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }}</span>
+            <span class="cal-lbl">kcal / dia (meta)</span>
+            @if (metabolic()!.goalAdjustmentKcal !== 0) {
+              <span class="adj-badge" [class.adj-pos]="metabolic()!.goalAdjustmentKcal > 0"
+                [class.adj-neg]="metabolic()!.goalAdjustmentKcal < 0">
+                {{ metabolic()!.goalAdjustmentKcal > 0 ? '+' : '' }}{{ metabolic()!.goalAdjustmentKcal | number:'1.0-0' }} kcal ajuste
+              </span>
+            } @else {
+              <span class="adj-badge adj-zero">Manutenção</span>
+            }
           </div>
         </div>
       }
 
-      @if (meals().length > 0) {
+      @if (meals().length > 0 || metabolic()) {
         <div class="macros-row">
           <div class="macro-card">
-            <div class="mv">{{ totalCal() | number:'1.0-0' }}</div>
-            <div class="ml">Calorias</div><div class="mc">kcal planejadas</div>
+            <div class="mv">{{ targetCal() | number:'1.0-0' }}</div>
+            <div class="ml">Calorias</div><div class="mc">meta do dia</div>
           </div>
           <div class="macro-card">
-            <div class="mv">{{ totalProtein() | number:'1.0-0' }}g</div>
+            <div class="mv">{{ targetProtein() | number:'1.0-0' }}g</div>
             <div class="ml">Proteína</div><div class="mc">meta do dia</div>
           </div>
           <div class="macro-card">
-            <div class="mv">{{ totalCarbs() | number:'1.0-0' }}g</div>
+            <div class="mv">{{ targetCarbs() | number:'1.0-0' }}g</div>
             <div class="ml">Carboidratos</div><div class="mc">meta do dia</div>
           </div>
           <div class="macro-card">
@@ -195,7 +233,7 @@ function toMinutes(time: string): number {
           <span class="emoji">🍽️</span>
           <p>Nenhum item para este dia.<br>
             Clique em <strong>Gerar Plano do Dia</strong> para criar seu plano alimentar.<br>
-            Adicione medicamentos em <strong>💊 Medicamentos</strong> para vê-los aqui.</p>
+            Adicione protocolos em <strong>💊 Protocolos</strong> para vê-los aqui.</p>
         </div>
       } @else {
         <div class="timeline">
@@ -250,26 +288,26 @@ function toMinutes(time: string): number {
               </div>
             }
 
-            @if (item.kind === 'medication') {
-              <div class="timeline-card med-card"
+            @if (item.kind === 'protocol') {
+              <div class="timeline-card proto-card"
                 [class.done]="!!item.data.log"
-                [class.checking]="checking() === 'med-' + item.data.id">
+                [class.checking]="checking() === 'proto-' + item.data.id">
                 <div class="card-row">
-                  <span class="time-badge med">💊 {{ item.data.scheduledTime }}</span>
+                  <span class="time-badge proto">{{ catIcon(item.data.category) }} {{ item.data.scheduledTime }}</span>
                   <div class="card-info">
                     <div class="item-name" [class.struck]="!!item.data.log">{{ item.data.name }}</div>
                     <div class="item-sub">{{ item.data.dosage }}</div>
-                    <span class="type-pill">{{ item.data.type }}</span>
+                    <span class="cat-pill">{{ item.data.category }}</span>
                   </div>
-                  <button class="check-btn" [class.med-done]="!!item.data.log"
-                    (click)="toggleMedication(item.data, $event)" [disabled]="checking() === 'med-' + item.data.id">
+                  <button class="check-btn" [class.proto-done]="!!item.data.log"
+                    (click)="toggleProtocol(item.data, $event)" [disabled]="checking() === 'proto-' + item.data.id">
                     {{ item.data.log ? '✓' : '○' }}
                   </button>
                 </div>
                 @if (item.data.log) {
                   <div class="done-note" style="color:#7c3aed">
                     ✓ Tomado às {{ item.data.log.takenAt | date:'HH:mm' }}
-                    @if (item.data.log.xpAwarded) { · +{{ XP_MED }} XP! }
+                    @if (item.data.log.xpAwarded) { · +{{ XP_PROTO }} XP! }
                   </div>
                 }
               </div>
@@ -288,44 +326,54 @@ function toMinutes(time: string): number {
   `,
 })
 export class DietPlanComponent implements OnInit {
-  private mealSvc = inject(DietPlanService);
-  private medSvc  = inject(MedicationService);
+  private mealSvc     = inject(DietPlanService);
+  private profileSvc  = inject(ProfileService);
+  private protocolSvc = inject(ClinicalProtocolService);
 
-  readonly XP_MEAL = 10;
-  readonly XP_MED  = 5;
+  readonly XP_MEAL  = 10;
+  readonly XP_PROTO = 5;
 
   loading      = signal(false);
   generating   = signal(false);
   checking     = signal<string | null>(null);
   meals        = signal<ScheduledMeal[]>([]);
-  medications  = signal<MedicationWithLog[]>([]);
+  protocols    = signal<ClinicalProtocolWithLog[]>([]);
   selectedDate = signal(new Date().toISOString().slice(0, 10));
-  totalXp      = signal(0);
-  currentLevel = signal<UserLevel | null>(null);
   lastXp       = signal(0);
   xpPopVisible = signal(false);
   xpPopX = 0; xpPopY = 0;
 
+  readonly metabolic  = this.profileSvc.metabolic;
+  readonly profile    = this.profileSvc.profile;
+
+  readonly goalLabel = computed(() => {
+    const g = this.profile()?.primaryGoal;
+    return g ? GOAL_LABELS[g] : null;
+  });
+
+  readonly goalEmoji = computed(() => {
+    const g = this.profile()?.primaryGoal;
+    return g ? GOAL_EMOJIS[g] : '🎯';
+  });
+
+  readonly targetCal     = computed(() => this.metabolic()?.dailyCaloricTarget ?? 0);
+  readonly targetProtein = computed(() => this.metabolic()?.macros?.proteinG ?? 0);
+  readonly targetCarbs   = computed(() => this.metabolic()?.macros?.carbsG ?? 0);
+  readonly consumedMeals = computed(() => this.meals().filter(m => m.isConsumed).length);
+
   timeline = computed((): TimelineItem[] => {
     const items: TimelineItem[] = [
       ...this.meals().map(m => ({ kind: 'meal' as const, data: m })),
-      ...this.medications().map(m => ({ kind: 'medication' as const, data: m })),
+      ...this.protocols().map(p => ({ kind: 'protocol' as const, data: p })),
     ];
     return items.sort((a, b) => toMinutes(a.data.scheduledTime) - toMinutes(b.data.scheduledTime));
   });
 
-  totalCal     = computed(() => this.meals().reduce((s, m) => s + (m.caloricTarget ?? 0), 0));
-  totalProtein = computed(() => this.meals().reduce((s, m) => s + (m.proteinG ?? 0), 0));
-  totalCarbs   = computed(() => this.meals().reduce((s, m) => s + (m.carbsG ?? 0), 0));
-  consumedMeals= computed(() => this.meals().filter(m => m.isConsumed).length);
-
-  xpPct = computed(() => {
-    const lv = this.currentLevel();
-    if (!lv) return 0;
-    return Math.min(100, Math.round((this.totalXp() / lv.nextLevelXp) * 100));
-  });
-
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.profileSvc.loadProfile().subscribe({ error: () => {} });
+    this.profileSvc.loadMetabolic().subscribe({ error: () => {} });
+    this.load();
+  }
 
   load(): void {
     this.loading.set(true);
@@ -334,8 +382,8 @@ export class DietPlanComponent implements OnInit {
     const done = () => { if (--pending === 0) this.loading.set(false); };
 
     this.mealSvc.list(date).subscribe({ next: m => { this.meals.set(m); done(); }, error: done });
-    this.medSvc.logsForDate(date).subscribe({
-      next: m => { this.medications.set(m.filter(x => x.isActive)); done(); },
+    this.protocolSvc.logsForDate(date).subscribe({
+      next: p => { this.protocols.set(p.filter(x => x.isActive)); done(); },
       error: done,
     });
   }
@@ -357,13 +405,15 @@ export class DietPlanComponent implements OnInit {
     return item.kind + '-' + item.data.id;
   }
 
+  catIcon(category: string): string {
+    return CATEGORY_ICON[category] ?? '💊';
+  }
+
   toggleMeal(meal: ScheduledMeal, event?: MouseEvent): void {
     this.checking.set(meal.id);
     this.mealSvc.toggle(meal.id).subscribe({
       next: result => {
         this.meals.update(list => list.map(m => m.id === meal.id ? result.meal : m));
-        this.totalXp.set(result.totalXp);
-        this.currentLevel.set(result.level);
         this.checking.set(null);
         if (result.xpGained > 0) this.showXpPop(result.xpGained, event);
       },
@@ -371,12 +421,12 @@ export class DietPlanComponent implements OnInit {
     });
   }
 
-  toggleMedication(med: MedicationWithLog, event?: MouseEvent): void {
-    this.checking.set('med-' + med.id);
-    this.medSvc.toggle(med.id, this.selectedDate()).subscribe({
+  toggleProtocol(proto: ClinicalProtocolWithLog, event?: MouseEvent): void {
+    this.checking.set('proto-' + proto.id);
+    this.protocolSvc.toggle(proto.id, this.selectedDate()).subscribe({
       next: result => {
-        this.medSvc.logsForDate(this.selectedDate()).subscribe({
-          next: list => this.medications.set(list.filter(x => x.isActive)),
+        this.protocolSvc.logsForDate(this.selectedDate()).subscribe({
+          next: list => this.protocols.set(list.filter(x => x.isActive)),
         });
         this.checking.set(null);
         if (result.xpGained > 0) this.showXpPop(result.xpGained, event);

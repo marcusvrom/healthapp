@@ -18,7 +18,7 @@ export type ActivityFactor =
   | 'sedentary' | 'lightly_active' | 'moderately_active'
   | 'very_active' | 'extra_active';
 
-export type PrimaryGoal = 'emagrecimento' | 'ganho_massa' | 'manutencao' | 'saude_geral';
+export type PrimaryGoal = 'emagrecimento' | 'ganho_massa' | 'manutencao' | 'saude_geral' | 'diabetico';
 
 export interface HealthProfile {
   id: string;
@@ -110,8 +110,41 @@ export interface ExercisePreset {
   hypertrophyScore: number;
 }
 
+// ── Clinical Protocols ────────────────────────────────────────────────────────
+export type ClinicalCategory = 'SUPLEMENTO'|'REMEDIO_CONTROLADO'|'TRT'|'HORMONIO_FEMININO'|'SONO';
+
+export interface ClinicalProtocol {
+  id: string;
+  userId: string;
+  name: string;
+  category: ClinicalCategory;
+  dosage: string;
+  scheduledTime: string;
+  daysOfWeek: number[];
+  notes?: string;
+  isActive: boolean;
+}
+
+export interface ClinicalProtocolLog {
+  id: string;
+  protocolId: string;
+  takenDate: string;
+  takenAt: string;
+  xpAwarded: boolean;
+}
+
+export interface ClinicalProtocolWithLog extends ClinicalProtocol {
+  log?: ClinicalProtocolLog;
+}
+
+export interface ProtocolToggleResult {
+  taken: boolean;
+  xpGained: number;
+  totalXp: number;
+}
+
 // ── Routine ───────────────────────────────────────────────────────────────────
-export type BlockType = 'sleep'|'work'|'exercise'|'meal'|'water'|'sun_exposure'|'free'|'custom';
+export type BlockType = 'sleep'|'work'|'exercise'|'meal'|'water'|'sun_exposure'|'free'|'custom'|'medication';
 export type MealType =
   | 'breakfast'|'morning_snack'|'lunch'|'afternoon_snack'
   | 'pre_workout'|'post_workout'|'dinner'|'supper';
@@ -256,4 +289,45 @@ export interface ToggleResult {
   xpGained: number;
   totalXp: number;
   level: UserLevel;
+}
+
+// ── Recipes (Community) ───────────────────────────────────────────────────────
+export interface Recipe {
+  id: string;
+  authorId: string;
+  title: string;
+  description?: string;
+  instructions: string;
+  kcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+  servings: number;
+  prepTimeMin?: number;
+  isPublic: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  reviews?: RecipeReview[];
+  /** Aggregated fields returned by the community feed endpoint */
+  avgRating?: number;
+  likeCount?: number;
+}
+
+export interface RecipeReview {
+  id: string;
+  recipeId: string;
+  userId: string;
+  rating: number;
+  isLiked: boolean;
+  comment?: string;
+  createdAt: string;
+}
+
+export interface RecipeFeedItem extends Recipe {
+  avgRating: number;
+  likeCount: number;
+  reviewCount: number;
+  /** Whether the current user has already liked/reviewed */
+  myReview?: RecipeReview;
 }

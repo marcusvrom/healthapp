@@ -116,8 +116,8 @@ import { environment } from '../../environments/environment';
           <a routerLink="/nutrition" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🥗</span> Nutrição
           </a>
-          <a routerLink="/medications" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">💊</span> Medicamentos
+          <a routerLink="/protocols" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">💊</span> Protocolos
           </a>
           <a routerLink="/hormones" routerLinkActive="active-link" class="nav-item">
             <span class="icon">💉</span> Hormônios
@@ -166,7 +166,7 @@ import { environment } from '../../environments/environment';
     <nav class="bottom-nav">
       <a routerLink="/dashboard"   routerLinkActive="active-link"><span class="bn-icon">📅</span>Agenda</a>
       <a routerLink="/diet"        routerLinkActive="active-link"><span class="bn-icon">🍽️</span>Dieta</a>
-      <a routerLink="/medications" routerLinkActive="active-link"><span class="bn-icon">💊</span>Remédios</a>
+      <a routerLink="/protocols"   routerLinkActive="active-link"><span class="bn-icon">💊</span>Protocolos</a>
       <a routerLink="/progress"    routerLinkActive="active-link"><span class="bn-icon">📊</span>Progresso</a>
       <a routerLink="/profile"     routerLinkActive="active-link"><span class="bn-icon">👤</span>Perfil</a>
     </nav>

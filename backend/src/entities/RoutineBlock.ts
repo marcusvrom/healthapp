@@ -10,14 +10,15 @@ import {
 import { User } from "./User";
 
 export enum BlockType {
-  SLEEP = "sleep",
-  WORK = "work",
-  EXERCISE = "exercise",
-  MEAL = "meal",
-  WATER = "water",
+  SLEEP        = "sleep",
+  WORK         = "work",
+  EXERCISE     = "exercise",
+  MEAL         = "meal",
+  WATER        = "water",
   SUN_EXPOSURE = "sun_exposure",
-  FREE = "free",
-  CUSTOM = "custom",
+  FREE         = "free",
+  CUSTOM       = "custom",
+  MEDICATION   = "medication",
 }
 
 export enum MealType {

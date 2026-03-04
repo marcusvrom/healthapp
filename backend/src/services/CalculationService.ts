@@ -140,7 +140,8 @@ export class CalculationService {
     const macros = this.calculateMacros(
       weightKg,
       dailyCaloricTarget,
-      maxHypertrophyScore
+      maxHypertrophyScore,
+      primaryGoal
     );
 
     const waterMlTotal = this.calculateDailyWater(weightKg);
@@ -221,21 +222,68 @@ export class CalculationService {
 
   // ── Private helpers ─────────────────────────────────────────────────────────
 
+  // ── Goal metadata helpers (Single Source of Truth) ─────────────────────────
+
+  /** Human-readable label for each goal (used by frontend AND backend logs). */
+  static getGoalLabel(goal: PrimaryGoal): string {
+    const labels: Record<PrimaryGoal, string> = {
+      [PrimaryGoal.EMAGRECIMENTO]: "Emagrecimento",
+      [PrimaryGoal.GANHO_MASSA]:   "Ganho de Massa",
+      [PrimaryGoal.MANUTENCAO]:    "Manutenção",
+      [PrimaryGoal.SAUDE_GERAL]:   "Saúde Geral",
+      [PrimaryGoal.DIABETICO]:     "Diabéticos",
+    };
+    return labels[goal] ?? goal;
+  }
+
+  /** Caloric offset for a given goal (delegates to the constant in HealthProfile). */
+  static getGoalAdjustmentKcal(goal: PrimaryGoal): number {
+    return GOAL_CALORIC_ADJUSTMENT[goal] ?? 0;
+  }
+
+  // ── Private helpers ─────────────────────────────────────────────────────────
+
   /**
-   * Baseline macro split.
+   * Goal-aware macro split — the ONLY place in the codebase that distributes
+   * macronutrients.  All other modules call this; none recalculate macros
+   * independently.
    *
-   * If hypertrophyScore >= 8 → protein ceiling = 2.2 g/kg
-   * Otherwise                → protein base    = 1.6 g/kg
+   * Standard distribution:
+   *   Protein : 1.6 g/kg (2.2 g/kg when hypertrophyScore ≥ 8)
+   *   Fat     : 25 % of calories
+   *   Carbs   : remainder
    *
-   * Remaining kcal after protein + fat are assigned to carbohydrates.
+   * Diabetic distribution (DIABETICO goal):
+   *   Protein : 2.0 g/kg (to preserve lean mass on moderate deficit)
+   *   Carbs   : capped at 100 g/day (glycaemic control)
+   *   Fat     : remainder after protein + capped carbs
    *
    * Caloric coefficients: protein = 4 kcal/g, fat = 9 kcal/g, carbs = 4 kcal/g
    */
   private static calculateMacros(
     weightKg: number,
     dailyCaloricTarget: number,
-    hypertrophyScore: number
+    hypertrophyScore: number,
+    primaryGoal?: PrimaryGoal
   ): MacroGrams {
+    // ── Diabetic low-carb pathway ──────────────────────────────────────────
+    if (primaryGoal === PrimaryGoal.DIABETICO) {
+      const proteinG    = this.round2(weightKg * 2.0);
+      const proteinKcal = proteinG * 4;
+
+      // Cap carbs at 100 g (glycaemic control) OR 25 % of calories, whichever is less
+      const carbsCap = Math.min(100, this.round2((dailyCaloricTarget * 0.25) / 4));
+      const carbsG    = carbsCap;
+      const carbsKcal = carbsG * 4;
+
+      // Fat receives the remaining calories
+      const fatKcal = Math.max(0, dailyCaloricTarget - proteinKcal - carbsKcal);
+      const fatG    = this.round2(fatKcal / 9);
+
+      return { proteinG, carbsG, fatG };
+    }
+
+    // ── Standard pathway ───────────────────────────────────────────────────
     const proteinGPerKg =
       hypertrophyScore >= this.HYPERTROPHY_THRESHOLD
         ? this.PROTEIN_CEILING_G_PER_KG

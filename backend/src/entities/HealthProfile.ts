@@ -39,14 +39,16 @@ export enum PrimaryGoal {
   GANHO_MASSA   = "ganho_massa",
   MANUTENCAO    = "manutencao",
   SAUDE_GERAL   = "saude_geral",
+  DIABETICO     = "diabetico",
 }
 
 /** Caloric offset applied to TEE+exercise based on the user\'s primary goal */
 export const GOAL_CALORIC_ADJUSTMENT: Record<PrimaryGoal, number> = {
   [PrimaryGoal.EMAGRECIMENTO]: -500,
-  [PrimaryGoal.GANHO_MASSA]:   +300,
+  [PrimaryGoal.GANHO_MASSA]:   +400,
   [PrimaryGoal.MANUTENCAO]:       0,
   [PrimaryGoal.SAUDE_GERAL]:      0,
+  [PrimaryGoal.DIABETICO]:     -200,
 };
 
 @Entity("health_profiles")

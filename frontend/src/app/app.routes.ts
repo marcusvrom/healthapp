@@ -35,6 +35,7 @@ export const routes: Routes = [
       { path: 'diet',         loadComponent: () => import('./features/diet-plan/diet-plan.component').then(m => m.DietPlanComponent) },
       { path: 'planning',     loadComponent: () => import('./features/planning/planning.component').then(m => m.PlanningComponent) },
       { path: 'medications',  loadComponent: () => import('./features/medications/medications.component').then(m => m.MedicationsComponent) },
+      { path: 'protocols',    loadComponent: () => import('./features/protocols/protocols.component').then(m => m.ProtocolsComponent) },
     ],
   },
 

@@ -1,12 +1,14 @@
 import { BlockType, MealType, RoutineBlock } from "../entities/RoutineBlock";
 import { HealthProfile } from "../entities/HealthProfile";
 import { Exercise } from "../entities/Exercise";
+import { ClinicalProtocol } from "../entities/ClinicalProtocol";
 import { CalculationService } from "./CalculationService";
 import { WaterReminder } from "../types/calculation.types";
 
 interface GenerateRoutineInput {
   healthProfile: HealthProfile;
-  exercises: Exercise[];       // today's exercises
+  exercises: Exercise[];            // today's exercises
+  clinicalProtocols?: ClinicalProtocol[]; // today's medication/supplement protocols
   date: string;                // YYYY-MM-DD
   totalKcal: number;           // from MetabolicResult
   waterMlTotal: number;        // from MetabolicResult
@@ -45,6 +47,7 @@ export class RoutineGeneratorService {
     const {
       healthProfile: hp,
       exercises,
+      clinicalProtocols = [],
       date,
       totalKcal,
       waterMlTotal,
@@ -78,7 +81,10 @@ export class RoutineGeneratorService {
     );
     blocks.push(...mealBlocks);
 
-    // ── 5. Water reminders ─────────────────────────────────────────────────
+    // ── 5. Clinical protocol (medication/supplement/hormone) blocks ────────
+    blocks.push(...this.buildProtocolBlocks(clinicalProtocols, date));
+
+    // ── 6. Water reminders ─────────────────────────────────────────────────
     const waterReminders = CalculationService.distributeWaterReminders(
       waterMlTotal,
       hp.wakeUpTime,
@@ -292,6 +298,34 @@ export class RoutineGeneratorService {
     }
 
     return meals;
+  }
+
+  // ── Clinical Protocols ────────────────────────────────────────────────────
+
+  private static buildProtocolBlocks(protocols: ClinicalProtocol[], date: string): BlockSlot[] {
+    return protocols.map(p => {
+      const startMin = CalculationService.timeToMinutes(p.scheduledTime);
+      const endMin   = startMin + 15; // 15-minute block
+      return this.slot(
+        BlockType.MEDICATION,
+        p.scheduledTime,
+        CalculationService.minutesToTime(endMin),
+        `${this.categoryIcon(p.category)} ${p.name} – ${p.dosage}`,
+        date,
+        { protocolId: p.id, category: p.category, dosage: p.dosage }
+      );
+    });
+  }
+
+  private static categoryIcon(category: string): string {
+    const icons: Record<string, string> = {
+      SUPLEMENTO:          "🧴",
+      REMEDIO_CONTROLADO:  "💊",
+      TRT:                 "💉",
+      HORMONIO_FEMININO:   "🌸",
+      SONO:                "😴",
+    };
+    return icons[category] ?? "💊";
   }
 
   // ── Water ─────────────────────────────────────────────────────────────────

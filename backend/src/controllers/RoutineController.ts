@@ -8,10 +8,11 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { CalculationService } from "../services/CalculationService";
 import { BloodTestAnalysisService } from "../services/BloodTestAnalysisService";
 import { RoutineGeneratorService } from "../services/RoutineGeneratorService";
+import { ClinicalProtocolService } from "../services/ClinicalProtocolService";
 import { ExerciseCalcInput } from "../types/calculation.types";
 
-const routineRepo = () => AppDataSource.getRepository(RoutineBlock);
-const profileRepo = () => AppDataSource.getRepository(HealthProfile);
+const routineRepo  = () => AppDataSource.getRepository(RoutineBlock);
+const profileRepo  = () => AppDataSource.getRepository(HealthProfile);
 const bloodTestRepo = () => AppDataSource.getRepository(BloodTest);
 const exerciseRepo = () => AppDataSource.getRepository(Exercise);
 
@@ -55,13 +56,13 @@ export class RoutineController {
       }
 
       // Fetch exercises scheduled for the requested day-of-week
-      const dayOfWeek = new Date(date).getDay();
+      const dayOfWeek = new Date(date + "T12:00:00").getDay();
       const allExercises = profile.exercises ?? [];
       const todaysExercises = allExercises.filter((ex) =>
         ex.daysOfWeek.includes(dayOfWeek)
       );
 
-      // Calculate metabolic data
+      // Calculate metabolic data (including primaryGoal adjustment)
       const exerciseInputs: ExerciseCalcInput[] = todaysExercises.map((ex) => ({
         met: Number(ex.met),
         weightKg: Number(profile.weight),
@@ -75,7 +76,8 @@ export class RoutineController {
         profile.age,
         profile.gender,
         profile.activityFactor,
-        exerciseInputs
+        exerciseInputs,
+        profile.primaryGoal
       );
 
       // Analyse latest blood test if available
@@ -99,12 +101,16 @@ export class RoutineController {
         prioritiseAerobic = analysis.prioritiseAerobic;
       }
 
+      // Fetch clinical protocols for today (medications, supplements, hormones)
+      const clinicalProtocols = await ClinicalProtocolService.forDay(req.userId, date);
+
       // Delete existing blocks for the day and regenerate
       await routineRepo().delete({ userId: req.userId, routineDate: date });
 
       const blocks = RoutineGeneratorService.generate({
         healthProfile: profile,
         exercises: todaysExercises,
+        clinicalProtocols,
         date,
         totalKcal: metabolic.dailyCaloricTarget,
         waterMlTotal: metabolic.waterMlTotal,

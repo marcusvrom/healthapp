@@ -13,6 +13,7 @@ import { ClinicalController } from "../controllers/ClinicalController";
 import { ScheduledMealController } from "../controllers/ScheduledMealController";
 import { UserController } from "../controllers/UserController";
 import { MedicationController } from "../controllers/MedicationController";
+import { ClinicalProtocolController } from "../controllers/ClinicalProtocolController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -104,13 +105,21 @@ router.get("/users/me",     ...auth(UserController.me));
 router.post("/users/avatar", authMiddleware, (req: Request, res: Response, next: NextFunction) =>
   UserController.uploadAvatar(req as AuthenticatedRequest, res, next));
 
-// ── Medications & Supplements ─────────────────────────────────────────────────
-// NOTE: /medications/logs must come before /medications/:id
+// ── Medications & Supplements (legacy) ────────────────────────────────────────
 router.get("/medications/logs",           ...auth(MedicationController.logs));
 router.get("/medications",                ...auth(MedicationController.list));
 router.post("/medications",               ...auth(MedicationController.create));
 router.patch("/medications/:id",          ...auth(MedicationController.update));
 router.patch("/medications/:id/toggle",   ...auth(MedicationController.toggle));
 router.delete("/medications/:id",         ...auth(MedicationController.remove));
+
+// ── Clinical Protocols (unified: meds, supplements, hormones) ─────────────────
+// NOTE: /protocols/logs must come BEFORE /protocols/:id
+router.get("/protocols/logs",             ...auth(ClinicalProtocolController.logs));
+router.get("/protocols",                  ...auth(ClinicalProtocolController.list));
+router.post("/protocols",                 ...auth(ClinicalProtocolController.create));
+router.patch("/protocols/:id",            ...auth(ClinicalProtocolController.update));
+router.patch("/protocols/:id/toggle",     ...auth(ClinicalProtocolController.toggle));
+router.delete("/protocols/:id",           ...auth(ClinicalProtocolController.remove));
 
 export default router;

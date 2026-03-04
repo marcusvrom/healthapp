@@ -26,6 +26,7 @@ const BLOCK_COLORS: Record<BlockType, string> = {
   sun_exposure: '#eab308',
   free:         '#d1d5db',
   custom:       '#8b5cf6',
+  medication:   '#7c3aed',
 };
 
 const BLOCK_LABELS: Record<BlockType, string> = {
@@ -37,6 +38,7 @@ const BLOCK_LABELS: Record<BlockType, string> = {
   sun_exposure: '☀️ Sol',
   free:         '⬜ Livre',
   custom:       '📌 Custom',
+  medication:   '💊 Protocolo',
 };
 
 @Component({
