@@ -4,7 +4,7 @@ import { DecimalPipe } from '@angular/common';
 import { ProfileService } from '../../core/services/profile.service';
 import { UserService } from '../../core/services/user.service';
 import { HealthProfile, ActivityFactor, Gender, Exercise, BloodTest } from '../../core/models';
-import { environment } from '../../environments/environment';
+import { environment } from '../../../environments/environment';
 
 const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
   sedentary:         '🪑 Sedentário',

@@ -34,6 +34,21 @@ export const ACTIVITY_MULTIPLIERS: Record<ActivityFactor, number> = {
   [ActivityFactor.EXTRA_ACTIVE]: 1.9,
 };
 
+export enum PrimaryGoal {
+  EMAGRECIMENTO = "emagrecimento",
+  GANHO_MASSA   = "ganho_massa",
+  MANUTENCAO    = "manutencao",
+  SAUDE_GERAL   = "saude_geral",
+}
+
+/** Caloric offset applied to TEE+exercise based on the user\'s primary goal */
+export const GOAL_CALORIC_ADJUSTMENT: Record<PrimaryGoal, number> = {
+  [PrimaryGoal.EMAGRECIMENTO]: -500,
+  [PrimaryGoal.GANHO_MASSA]:   +300,
+  [PrimaryGoal.MANUTENCAO]:       0,
+  [PrimaryGoal.SAUDE_GERAL]:      0,
+};
+
 @Entity("health_profiles")
 export class HealthProfile {
   @PrimaryGeneratedColumn("uuid")
@@ -115,7 +130,13 @@ export class HealthProfile {
   })
   fatGoalG?: number;
 
-  @CreateDateColumn({ name: "created_at" })
+  @Column({ name: "primary_goal", type: "text", nullable: true })
+  primaryGoal?: PrimaryGoal;
+
+  @Column({ name: "target_weight", type: "numeric", precision: 5, scale: 2, nullable: true })
+  targetWeight?: number;
+
+    @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
 
   @UpdateDateColumn({ name: "updated_at" })

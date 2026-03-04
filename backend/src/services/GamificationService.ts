@@ -6,6 +6,7 @@ export const XP_REWARDS = {
   WATER_GOAL_MET: 5,
   WEIGHT_LOGGED: 3,
   BLOOD_TEST_ADDED: 20,
+  MEDICATION_TAKEN: 5,
 } as const;
 
 /**

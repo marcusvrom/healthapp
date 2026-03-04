@@ -5,14 +5,22 @@ import { ProfileService } from '../../core/services/profile.service';
 import { RoutineService } from '../../core/services/routine.service';
 import { AuthService } from '../../core/services/auth.service';
 import { CommonModule } from '@angular/common';
-import { ExercisePreset, ActivityFactor, Gender } from '../../core/models';
+import { ExercisePreset, ActivityFactor, Gender, PrimaryGoal } from '../../core/models';
 
 interface PersonalStep  { name: string; age: number|null; gender: Gender|''; weight: number|null; height: number|null; }
 interface ScheduleStep  { wakeUpTime: string; sleepTime: string; workStartTime: string; workEndTime: string; }
 interface ActivityStep  { activityFactor: ActivityFactor|''; }
 interface ExerciseStep  { selected: ExercisePreset[]; daysOfWeek: number[]; preferredTime: string; durationMinutes: number; }
+interface GoalStep      { primaryGoal: PrimaryGoal|''; targetWeight: number|null; }
 
-const STEPS = ['Pessoal', 'Horários', 'Atividade', 'Exercícios', 'Pronto!'];
+const STEPS = ['Pessoal', 'Horários', 'Atividade', 'Exercícios', 'Objetivo', 'Pronto!'];
+
+const GOAL_OPTIONS: Array<{ value: PrimaryGoal; icon: string; label: string; desc: string; kcal: string }> = [
+  { value: 'emagrecimento', icon: '🔥', label: 'Emagrecimento',   desc: 'Perder peso com déficit calórico controlado', kcal: '−500 kcal/dia' },
+  { value: 'ganho_massa',   icon: '💪', label: 'Ganho de Massa',  desc: 'Ganhar músculo com superávit calórico',        kcal: '+300 kcal/dia' },
+  { value: 'manutencao',    icon: '⚖️', label: 'Manutenção',      desc: 'Manter o peso atual com equilíbrio calórico',  kcal: '0 kcal' },
+  { value: 'saude_geral',   icon: '🌿', label: 'Saúde Geral',     desc: 'Melhorar hábitos e bem-estar geral',           kcal: '0 kcal' },
+];
 const DAYS  = ['D','S','T','Q','Q','S','S'];
 const ACTIVITY_OPTIONS: Array<{ value: ActivityFactor; label: string; desc: string; icon: string }> = [
   { value: 'sedentary',          icon: '🪑', label: 'Sedentário',          desc: 'Trabalho de escritório, sem exercícios' },
@@ -189,6 +197,31 @@ const ACTIVITY_OPTIONS: Array<{ value: ActivityFactor; label: string; desc: stri
       display: flex; align-items: center; justify-content: center;
       transition: all .2s;
       &.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    }
+
+    /* Goal cards */
+    .goal-cards { display: flex; flex-direction: column; gap: .625rem; }
+    .goal-card {
+      display: flex; align-items: center; gap: 1rem;
+      padding: 1rem 1.25rem;
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-md);
+      cursor: pointer; transition: all .2s;
+      background: var(--color-surface-2);
+
+      .icon  { font-size: 1.75rem; }
+      .info  { flex: 1; }
+      .title { font-weight: 600; font-size: .9rem; }
+      .desc  { font-size: .78rem; color: var(--color-text-subtle); margin-top: .15rem; }
+      .kcal  { font-size: .75rem; font-weight: 700; color: var(--color-primary-dark);
+        background: var(--color-primary-light); padding: .1rem .5rem; border-radius: 99px; white-space: nowrap; }
+      .check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--color-border);
+        display: flex; align-items: center; justify-content: center; font-size: .7rem; }
+
+      &.selected { border-color: var(--color-primary); background: var(--color-primary-light);
+        .check { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+      }
+      &:hover { border-color: var(--color-primary); }
     }
 
     /* Done step */
@@ -377,8 +410,38 @@ const ACTIVITY_OPTIONS: Array<{ value: ActivityFactor; label: string; desc: stri
             }
           }
 
-          <!-- Step 4: Done -->
+          <!-- Step 4: Goal -->
           @if (step() === 4) {
+            <div class="step-header">
+              <span class="emoji">🎯</span>
+              <h2>Objetivo principal</h2>
+              <p>Qual é a sua meta de saúde? Isso ajustará sua meta calórica diária.</p>
+            </div>
+            <div class="fields">
+              <div class="goal-cards">
+                @for (g of goalOptions; track g.value) {
+                  <div class="goal-card" [class.selected]="goal.primaryGoal === g.value" (click)="goal.primaryGoal = g.value">
+                    <span class="icon">{{ g.icon }}</span>
+                    <div class="info">
+                      <div class="title">{{ g.label }}</div>
+                      <div class="desc">{{ g.desc }}</div>
+                    </div>
+                    <span class="kcal">{{ g.kcal }}</span>
+                    <div class="check">@if (goal.primaryGoal === g.value) { ✓ }</div>
+                  </div>
+                }
+              </div>
+              @if (goal.primaryGoal === 'emagrecimento' || goal.primaryGoal === 'ganho_massa') {
+                <div class="form-group">
+                  <label>Peso alvo (kg) <span style="font-weight:400;color:var(--color-text-subtle)">(opcional)</span></label>
+                  <input type="number" [(ngModel)]="goal.targetWeight" min="30" max="300" step="0.5" placeholder="Ex: 75.0" />
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Step 5: Done -->
+          @if (step() === 5) {
             <div class="done-step">
               @if (saving()) {
                 <span class="big-emoji">⏳</span>
@@ -457,6 +520,7 @@ export class OnboardingComponent {
 
   readonly steps          = STEPS;
   readonly days           = DAYS;
+  readonly goalOptions    = GOAL_OPTIONS;
   readonly genderOptions  = [
     { value: 'male' as Gender,   emoji: '👨', label: 'Masculino' },
     { value: 'female' as Gender, emoji: '👩', label: 'Feminino'  },
@@ -468,6 +532,7 @@ export class OnboardingComponent {
   schedule: ScheduleStep = { wakeUpTime: '07:00', sleepTime: '23:00', workStartTime: '09:00', workEndTime: '18:00' };
   activity: ActivityStep = { activityFactor: '' };
   exercise: ExerciseStep = { selected: [], daysOfWeek: [1, 3, 5], preferredTime: '07:00', durationMinutes: 60 };
+  goal:     GoalStep     = { primaryGoal: '', targetWeight: null };
 
   constructor() { this.loadPresets(); }
 
@@ -482,6 +547,7 @@ export class OnboardingComponent {
       case 1: return !!this.schedule.wakeUpTime && !!this.schedule.sleepTime;
       case 2: return !!this.activity.activityFactor;
       case 3: return true; // exercises are optional
+      case 4: return !!this.goal.primaryGoal;
       default: return false;
     }
   }
@@ -519,16 +585,19 @@ export class OnboardingComponent {
 
   save(): void {
     this.saving.set(true);
-    this.step.set(4);
+    this.step.set(5);
 
     // 1. Save health profile
-    const profileDto = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const profileDto: any = {
       age:            this.personal.age!,
       weight:         this.personal.weight!,
       height:         this.personal.height!,
       gender:         this.personal.gender as Gender,
       activityFactor: this.activity.activityFactor as ActivityFactor,
       ...this.schedule,
+      primaryGoal:    this.goal.primaryGoal || undefined,
+      targetWeight:   this.goal.targetWeight ?? undefined,
     };
 
     this.profileSvc.saveProfile(profileDto).subscribe({

@@ -14,6 +14,8 @@ export interface MetabolicResult {
   waterMlTotal: number;
   /** Hypertrophy score of the most demanding exercise today (0 if none) */
   hypertrophyScore: number;
+  /** Caloric offset applied due to primary goal (negative=deficit, positive=surplus, 0=maintenance) */
+  goalAdjustmentKcal: number;
 }
 
 export interface MacroGrams {

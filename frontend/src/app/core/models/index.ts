@@ -18,6 +18,8 @@ export type ActivityFactor =
   | 'sedentary' | 'lightly_active' | 'moderately_active'
   | 'very_active' | 'extra_active';
 
+export type PrimaryGoal = 'emagrecimento' | 'ganho_massa' | 'manutencao' | 'saude_geral';
+
 export interface HealthProfile {
   id: string;
   userId: string;
@@ -34,6 +36,8 @@ export interface HealthProfile {
   proteinGoalG?: number;
   carbsGoalG?: number;
   fatGoalG?: number;
+  primaryGoal?: PrimaryGoal;
+  targetWeight?: number;
   exercises?: Exercise[];
 }
 
@@ -47,6 +51,7 @@ export interface MetabolicResult {
   macros: MacroGrams;
   waterMlTotal: number;
   hypertrophyScore: number;
+  goalAdjustmentKcal: number;
 }
 
 // ── Blood Test ────────────────────────────────────────────────────────────────

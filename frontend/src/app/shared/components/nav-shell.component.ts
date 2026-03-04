@@ -110,11 +110,14 @@ import { environment } from '../../environments/environment';
           <a routerLink="/dashboard" routerLinkActive="active-link" class="nav-item">
             <span class="icon">📅</span> Dashboard
           </a>
+          <a routerLink="/diet" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">🍽️</span> Dieta
+          </a>
           <a routerLink="/nutrition" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🥗</span> Nutrição
           </a>
-          <a routerLink="/water" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">💧</span> Hidratação
+          <a routerLink="/medications" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">💊</span> Medicamentos
           </a>
           <a routerLink="/hormones" routerLinkActive="active-link" class="nav-item">
             <span class="icon">💉</span> Hormônios
@@ -122,12 +125,11 @@ import { environment } from '../../environments/environment';
           <a routerLink="/progress" routerLinkActive="active-link" class="nav-item">
             <span class="icon">📊</span> Progresso
           </a>
-
           <a routerLink="/clinical" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🩺</span> Clínico
           </a>
-          <a routerLink="/diet" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">🍽️</span> Dieta
+          <a routerLink="/planning" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">📋</span> Planejamento
           </a>
 
           <span class="nav-section">Configurações</span>
@@ -162,11 +164,11 @@ import { environment } from '../../environments/environment';
 
     <!-- Mobile bottom nav -->
     <nav class="bottom-nav">
-      <a routerLink="/dashboard" routerLinkActive="active-link"><span class="bn-icon">📅</span>Agenda</a>
-      <a routerLink="/diet"      routerLinkActive="active-link"><span class="bn-icon">🍽️</span>Dieta</a>
-      <a routerLink="/clinical"  routerLinkActive="active-link"><span class="bn-icon">🩺</span>Clínico</a>
-      <a routerLink="/progress"  routerLinkActive="active-link"><span class="bn-icon">📊</span>Progresso</a>
-      <a routerLink="/profile"   routerLinkActive="active-link"><span class="bn-icon">👤</span>Perfil</a>
+      <a routerLink="/dashboard"   routerLinkActive="active-link"><span class="bn-icon">📅</span>Agenda</a>
+      <a routerLink="/diet"        routerLinkActive="active-link"><span class="bn-icon">🍽️</span>Dieta</a>
+      <a routerLink="/medications" routerLinkActive="active-link"><span class="bn-icon">💊</span>Remédios</a>
+      <a routerLink="/progress"    routerLinkActive="active-link"><span class="bn-icon">📊</span>Progresso</a>
+      <a routerLink="/profile"     routerLinkActive="active-link"><span class="bn-icon">👤</span>Perfil</a>
     </nav>
   `,
 })

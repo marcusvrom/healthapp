@@ -37,9 +37,7 @@ export class ClinicalAvatarScheduledMeals1709500003000 implements MigrationInter
         "notes"            TEXT,
         "created_at"       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
         "updated_at"       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-        CONSTRAINT "PK_scheduled_meals" PRIMARY KEY ("id"),
-        CONSTRAINT "FK_sched_meals_user"
-          FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE
+        CONSTRAINT "PK_scheduled_meals" PRIMARY KEY ("id")
       );
     `);
 

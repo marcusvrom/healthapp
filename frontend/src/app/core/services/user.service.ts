@@ -1,15 +1,11 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { ApiService } from './api.service';
 import { CurrentUser } from '../models';
-import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class UserService {
-  private api    = inject(ApiService);
-  private http   = inject(HttpClient);
-  private base   = environment.apiUrl;
+  private api = inject(ApiService);
 
   currentUser = signal<CurrentUser | null>(null);
 
@@ -19,17 +15,19 @@ export class UserService {
     );
   }
 
-  /**
-   * Upload avatar via multipart/form-data.
-   * Returns the new avatarUrl.
-   */
   uploadAvatar(file: File): Observable<{ avatarUrl: string }> {
-    const form = new FormData();
-    form.append('avatar', file);
-    return this.http.post<{ avatarUrl: string }>(`${this.base}/users/avatar`, form).pipe(
-      tap(r => {
-        this.currentUser.update(u => u ? { ...u, avatarUrl: r.avatarUrl } : u);
-      })
-    );
+    return new Observable(subscriber => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        this.api.post<{ avatarUrl: string }>('/users/avatar', { dataUrl }).pipe(
+          tap(r => {
+            this.currentUser.update(u => u ? { ...u, avatarUrl: r.avatarUrl } : u);
+          })
+        ).subscribe(subscriber);
+      };
+      reader.onerror = () => subscriber.error(new Error('Falha ao ler o arquivo.'));
+      reader.readAsDataURL(file);
+    });
   }
 }

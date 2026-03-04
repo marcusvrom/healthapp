@@ -12,6 +12,7 @@ import { MetricsController } from "../controllers/MetricsController";
 import { ClinicalController } from "../controllers/ClinicalController";
 import { ScheduledMealController } from "../controllers/ScheduledMealController";
 import { UserController } from "../controllers/UserController";
+import { MedicationController } from "../controllers/MedicationController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -102,5 +103,14 @@ router.delete("/scheduled-meals/:id",       ...auth(ScheduledMealController.remo
 router.get("/users/me",     ...auth(UserController.me));
 router.post("/users/avatar", authMiddleware, (req: Request, res: Response, next: NextFunction) =>
   UserController.uploadAvatar(req as AuthenticatedRequest, res, next));
+
+// ── Medications & Supplements ─────────────────────────────────────────────────
+// NOTE: /medications/logs must come before /medications/:id
+router.get("/medications/logs",           ...auth(MedicationController.logs));
+router.get("/medications",                ...auth(MedicationController.list));
+router.post("/medications",               ...auth(MedicationController.create));
+router.patch("/medications/:id",          ...auth(MedicationController.update));
+router.patch("/medications/:id/toggle",   ...auth(MedicationController.toggle));
+router.delete("/medications/:id",         ...auth(MedicationController.remove));
 
 export default router;

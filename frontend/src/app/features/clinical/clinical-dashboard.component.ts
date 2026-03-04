@@ -477,8 +477,8 @@ export class ClinicalDashboardComponent implements OnInit {
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   }
 
-  statusClass(value: any): string {
-    if (value == null) return '';
+  statusClass(value: string | number | undefined): string {
+    if (typeof value !== 'number') return '';
     const m = this.activeMarker();
     if (!m || m.refMin == null || m.refMax == null) return '';
     if (value < m.refMin) return 'low';
@@ -486,7 +486,7 @@ export class ClinicalDashboardComponent implements OnInit {
     return 'ok';
   }
 
-  statusLabel(value: any): string {
+  statusLabel(value: string | number | undefined): string {
     const cls = this.statusClass(value);
     return cls === 'ok' ? '✓ Normal' : cls === 'low' ? '↓ Baixo' : cls === 'high' ? '↑ Alto' : '';
   }

@@ -1,4 +1,4 @@
-import { ActivityFactor, ACTIVITY_MULTIPLIERS, Gender } from "../entities/HealthProfile";
+import { ActivityFactor, ACTIVITY_MULTIPLIERS, Gender, PrimaryGoal, GOAL_CALORIC_ADJUSTMENT } from "../entities/HealthProfile";
 import {
   ExerciseCalcInput,
   MacroGrams,
@@ -118,7 +118,8 @@ export class CalculationService {
     age: number,
     gender: Gender,
     activityFactor: ActivityFactor,
-    exercises: ExerciseCalcInput[] = []
+    exercises: ExerciseCalcInput[] = [],
+    primaryGoal?: PrimaryGoal
   ): MetabolicResult {
     const bmr = this.calculateBMR(weightKg, heightCm, age, gender);
     const tee = this.calculateTEE(bmr, activityFactor);
@@ -133,7 +134,8 @@ export class CalculationService {
       }
     }
 
-    const dailyCaloricTarget = this.round2(tee + exerciseCalories);
+    const goalAdjustmentKcal = primaryGoal ? (GOAL_CALORIC_ADJUSTMENT[primaryGoal] ?? 0) : 0;
+    const dailyCaloricTarget = this.round2(tee + exerciseCalories + goalAdjustmentKcal);
 
     const macros = this.calculateMacros(
       weightKg,
@@ -151,6 +153,7 @@ export class CalculationService {
       macros,
       waterMlTotal,
       hypertrophyScore: maxHypertrophyScore,
+      goalAdjustmentKcal,
     };
   }
 
