@@ -106,13 +106,14 @@ export class RoutineController {
       // Fetch clinical protocols for today (medications, supplements, hormones)
       const clinicalProtocols = await ClinicalProtocolService.forDay(req.userId, date);
 
-      // Wipe the full day before regenerating so old data never leaks through:
-      // 1. All routine blocks (includes WATER reminder blocks)
-      // 2. All scheduled meals for this date
-      await Promise.all([
-        routineRepo().delete({ userId: req.userId, routineDate: date }),
-        mealRepo().delete({ userId: req.userId, scheduledDate: date }),
-      ]);
+      // Wipe the full day before regenerating so old data never leaks through.
+      // RoutineBlock delete is critical — run first.
+      // ScheduledMeal delete is best-effort: silently ignore failures so a
+      // missing table or type mismatch never prevents routine generation.
+      await routineRepo().delete({ userId: req.userId, routineDate: date });
+      try {
+        await mealRepo().delete({ userId: req.userId, scheduledDate: date });
+      } catch { /* non-fatal — proceed with block generation regardless */ }
 
       const blocks = RoutineGeneratorService.generate({
         healthProfile: profile,

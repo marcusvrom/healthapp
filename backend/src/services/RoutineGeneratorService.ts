@@ -424,9 +424,12 @@ export class RoutineGeneratorService {
     endTime: string,
     label: string,
     routineDate: string,
-    metadata?: Record<string, unknown>
+    extra?: { mealType?: MealType; caloricTarget?: number; [key: string]: unknown }
   ): BlockSlot {
-    return { type, startTime, endTime, label, routineDate, metadata, userId: "", sortOrder: 0 };
+    const { mealType, caloricTarget, ...restMeta } = extra ?? {};
+    // Keep non-entity fields (exerciseId, met, etc.) in the JSONB metadata column
+    const metadata = Object.keys(restMeta).length > 0 ? restMeta : undefined;
+    return { type, startTime, endTime, label, routineDate, mealType, caloricTarget, metadata, userId: "", sortOrder: 0 };
   }
 
   private static round2(n: number): number {
