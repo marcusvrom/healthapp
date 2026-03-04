@@ -14,6 +14,7 @@ import { ScheduledMealController } from "../controllers/ScheduledMealController"
 import { UserController } from "../controllers/UserController";
 import { MedicationController } from "../controllers/MedicationController";
 import { ClinicalProtocolController } from "../controllers/ClinicalProtocolController";
+import { RecipeController } from "../controllers/RecipeController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -121,5 +122,17 @@ router.post("/protocols",                 ...auth(ClinicalProtocolController.cre
 router.patch("/protocols/:id",            ...auth(ClinicalProtocolController.update));
 router.patch("/protocols/:id/toggle",     ...auth(ClinicalProtocolController.toggle));
 router.delete("/protocols/:id",           ...auth(ClinicalProtocolController.remove));
+
+// ── Recipes (community) ────────────────────────────────────────────────────────
+// NOTE: static sub-paths (/mine, /feed) must come BEFORE /recipes/:id
+router.get("/recipes/mine",          ...auth(RecipeController.listMine));
+router.get("/recipes/feed",          ...auth(RecipeController.feed));
+router.get("/recipes/:id",           ...auth(RecipeController.findOne));
+router.post("/recipes",              ...auth(RecipeController.create));
+router.patch("/recipes/:id",         ...auth(RecipeController.update));
+router.delete("/recipes/:id",        ...auth(RecipeController.remove));
+router.post("/recipes/:id/import",   ...auth(RecipeController.importRecipe));
+router.post("/recipes/:id/review",   ...auth(RecipeController.review));
+router.patch("/recipes/:id/like",    ...auth(RecipeController.toggleLike));
 
 export default router;
