@@ -1,0 +1,75 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: healthapp_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-healthapp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-healthapp_secret}
+      POSTGRES_DB: ${DB_NAME:-healthapp_db}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - healthapp_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-healthapp} -d ${DB_NAME:-healthapp_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: healthapp_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-healthapp}
+      DB_PASSWORD: ${DB_PASSWORD:-healthapp_secret}
+      DB_NAME: ${DB_NAME:-healthapp_db}
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production_please}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - healthapp_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: healthapp_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      API_URL: ${API_URL:-http://localhost:3000}
+    ports:
+      - "${FRONTEND_PORT:-4200}:4200"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - healthapp_net
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  healthapp_net:
+    driver: bridge
