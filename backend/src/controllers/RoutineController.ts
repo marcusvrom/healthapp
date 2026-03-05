@@ -10,6 +10,7 @@ import { CalculationService } from "../services/CalculationService";
 import { BloodTestAnalysisService } from "../services/BloodTestAnalysisService";
 import { RoutineGeneratorService } from "../services/RoutineGeneratorService";
 import { ClinicalProtocolService } from "../services/ClinicalProtocolService";
+import { GamificationService, XP_REWARDS } from "../services/GamificationService";
 import { ExerciseCalcInput } from "../types/calculation.types";
 
 const routineRepo   = () => AppDataSource.getRepository(RoutineBlock);
@@ -175,6 +176,65 @@ export class RoutineController {
       }
 
       res.status(201).json(saved);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * PATCH /routine/blocks/:id/complete
+   * Toggles the completedAt timestamp (complete ↔ undo).
+   * Awards XP on first completion based on block type.
+   * Returns { block, xpGained, totalXp, level }
+   */
+  static async completeBlock(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const block = await routineRepo().findOneBy({
+        id: req.params["id"]!,
+        userId: req.userId,
+      });
+
+      if (!block) {
+        res.status(404).json({ message: "Bloco não encontrado." });
+        return;
+      }
+
+      const isUndoing = !!block.completedAt;
+      block.completedAt = isUndoing ? undefined : new Date();
+
+      // XP per block type — only award once (first completion)
+      const XP_FOR_TYPE: Partial<Record<BlockType, number>> = {
+        [BlockType.EXERCISE]:     XP_REWARDS.BLOCK_EXERCISE,
+        [BlockType.WATER]:        XP_REWARDS.BLOCK_WATER,
+        [BlockType.SUN_EXPOSURE]: XP_REWARDS.BLOCK_SUN_EXPOSURE,
+        [BlockType.SLEEP]:        XP_REWARDS.BLOCK_SLEEP,
+        [BlockType.WORK]:         XP_REWARDS.BLOCK_WORK,
+        [BlockType.FREE]:         XP_REWARDS.BLOCK_FREE,
+        [BlockType.CUSTOM]:       XP_REWARDS.BLOCK_CUSTOM,
+      };
+
+      let xpGained = 0;
+      let totalXp  = 0;
+
+      if (!isUndoing && !block.xpAwarded) {
+        const reward = XP_FOR_TYPE[block.type] ?? 5;
+        totalXp    = await GamificationService.awardXp(req.userId, reward);
+        xpGained   = reward;
+        block.xpAwarded = true;
+      } else {
+        // Read current XP without changing it
+        const user = await GamificationService["repo"].findOneBy({ id: req.userId });
+        totalXp = user?.xp ?? 0;
+      }
+
+      await routineRepo().save(block);
+
+      const level = GamificationService.levelFromXp(totalXp);
+      res.json({ block, xpGained, totalXp, level });
     } catch (err) {
       next(err);
     }

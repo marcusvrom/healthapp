@@ -99,6 +99,17 @@ export class RoutineBlock {
   @Column({ name: "sort_order", default: 0, type: "numeric" })
   sortOrder!: number;
 
+  /**
+   * Timestamp when the user marked this block as completed.
+   * Null = not yet done.
+   */
+  @Column({ name: "completed_at", type: "timestamptz", nullable: true })
+  completedAt?: Date;
+
+  /** Prevents double-awarding XP if the block is toggled multiple times. */
+  @Column({ name: "xp_awarded", type: "boolean", default: false })
+  xpAwarded!: boolean;
+
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
 

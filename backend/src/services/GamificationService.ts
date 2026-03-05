@@ -2,14 +2,22 @@ import { AppDataSource } from "../config/typeorm.config";
 import { User } from "../entities/User";
 
 export const XP_REWARDS = {
-  MEAL_CONSUMED:    10,
-  WATER_GOAL_MET:    5,
-  WEIGHT_LOGGED:     3,
-  BLOOD_TEST_ADDED: 20,
-  MEDICATION_TAKEN:  5,
-  RECIPE_CREATED:   10,
-  RECIPE_IMPORTED:  15,
-  RECIPE_REVIEWED:   5,
+  MEAL_CONSUMED:      10,
+  WATER_GOAL_MET:      5,
+  WEIGHT_LOGGED:       3,
+  BLOOD_TEST_ADDED:   20,
+  MEDICATION_TAKEN:    5,
+  RECIPE_CREATED:     10,
+  RECIPE_IMPORTED:    15,
+  RECIPE_REVIEWED:     5,
+  // Routine block completions
+  BLOCK_EXERCISE:     25,
+  BLOCK_WATER:         5,
+  BLOCK_SUN_EXPOSURE: 10,
+  BLOCK_SLEEP:        10,
+  BLOCK_WORK:          5,
+  BLOCK_FREE:          5,
+  BLOCK_CUSTOM:        5,
 } as const;
 
 /**

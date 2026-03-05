@@ -185,6 +185,16 @@ export interface RoutineBlock {
   waterMl?: number;
   metadata?: Record<string, unknown>;
   sortOrder: number;
+  /** ISO timestamp set when the user marks this block completed. */
+  completedAt?: string;
+  xpAwarded?: boolean;
+}
+
+export interface BlockCompleteResult {
+  block: RoutineBlock;
+  xpGained: number;
+  totalXp: number;
+  level: UserLevel;
 }
 
 // ── Food ──────────────────────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ import { RecipeScheduleService }     from '../../core/services/recipe-schedule.s
 import {
   RoutineBlock, BlockType, DailySummary, ClinicalProtocolWithLog,
   ScheduledMeal, LinkedRecipe, Recipe, RecipeFeedItem, RecipeSchedule,
+  BlockCompleteResult,
 } from '../../core/models';
 import { WaterTrackerComponent } from '../water/water-tracker.component';
 
@@ -50,6 +51,22 @@ const PROTOCOL_ICON: Record<string, string> = {
 
 /** Short labels for days of week in Portuguese (0=Sun … 6=Sat) */
 const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+
+/** XP awarded for completing each completable block type */
+const BLOCK_XP: Partial<Record<BlockType, number>> = {
+  exercise:     25,
+  water:         5,
+  sun_exposure: 10,
+  sleep:        10,
+  work:          5,
+  free:          5,
+  custom:        5,
+};
+
+/** Block types that support user completion (excludes meal and medication — handled separately) */
+const COMPLETABLE_TYPES = new Set<BlockType>([
+  'exercise', 'water', 'sun_exposure', 'sleep', 'work', 'free', 'custom',
+]);
 
 interface TimeGroup {
   time: string; minuteOfDay: number; blocks: RoutineBlock[];
@@ -99,6 +116,7 @@ interface LinkedRecipeView extends LinkedRecipe {
     .block-card { border-radius: var(--radius-sm); border: 1px solid var(--color-border); border-left-width: 3px; padding: .575rem .875rem; background: var(--color-surface); transition: box-shadow .15s, transform .1s;
       &:hover { box-shadow: var(--shadow-sm); transform: translateX(2px); }
       &.done { opacity: .65; }
+      &.block-completed { background: rgba(34,197,94,.05); border-left-color: #22c55e !important; }
       &.meal-clickable { cursor: pointer; }
       .bc-row { display: flex; align-items: center; gap: .625rem; }
       .bc-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .9rem; flex-shrink: 0; }
@@ -109,9 +127,30 @@ interface LinkedRecipeView extends LinkedRecipe {
       .bc-right { display: flex; align-items: center; gap: .375rem; flex-shrink: 0; }
       .bc-pill  { font-size: .66rem; font-weight: 700; padding: .1rem .4rem; border-radius: 99px; }
       .bc-check { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--color-border); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .8rem; transition: .15s; flex-shrink: 0;
-        &.checked { background: #7c3aed; border-color: #7c3aed; color: #fff; }
-        &:hover:not(.checked) { border-color: #7c3aed; background: #f5f3ff; }
+        &.checked { background: #22c55e; border-color: #22c55e; color: #fff; }
+        &.checked-purple { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+        &:hover:not(.checked):not(.checked-purple) { border-color: #7c3aed; background: rgba(124,58,237,.08); }
       }
+    }
+
+    /* ── Inline recipe picker (diet view) ───────────────────────────────────── */
+    .inline-recipe-picker { margin-top: .5rem; border-top: 1px solid var(--color-border); padding-top: .5rem;
+      .irp-input-row { display:flex; gap:.375rem; margin-bottom:.375rem;
+        input { flex:1; font-size:.78rem; padding:.3rem .6rem; }
+        button { font-size:.72rem; padding:.3rem .6rem; white-space:nowrap; }
+      }
+      .irp-results { display:flex; flex-direction:column; gap:.25rem; max-height:200px; overflow-y:auto; }
+      .irp-item { display:flex; align-items:center; gap:.5rem; padding:.375rem .5rem; border-radius:var(--radius-sm); border:1px solid var(--color-border); background:var(--color-surface);
+        &:hover { background:var(--color-surface-2); }
+        .irp-info { flex:1; min-width:0;
+          .irp-title { font-size:.78rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+          .irp-kcal  { font-size:.65rem; color:var(--color-text-muted); }
+        }
+        .irp-add { font-size:.7rem; font-weight:700; padding:.2rem .5rem; border-radius:99px; border:1.5px solid var(--color-primary-light); background:none; cursor:pointer; color:var(--color-primary); white-space:nowrap;
+          &:hover { background:var(--color-primary); color:#fff; }
+        }
+      }
+      .irp-empty { font-size:.75rem; color:var(--color-text-muted); text-align:center; padding:.5rem 0; }
     }
 
     /* Meal block extras */

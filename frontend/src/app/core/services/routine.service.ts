@@ -1,7 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { ApiService } from './api.service';
-import { RoutineBlock } from '../models';
+import { RoutineBlock, BlockCompleteResult } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class RoutineService {
@@ -21,6 +22,21 @@ export class RoutineService {
     const d = date ?? this.selectedDate();
     return this.api.post<RoutineBlock[]>(`/routine/generate?date=${d}`, {}).pipe(
       tap(b => this.blocks.set(b))
+    );
+  }
+
+  /**
+   * Toggle completion of a non-meal/non-medication routine block.
+   * Awards XP on first completion; returns updated block + XP info.
+   * Also patches the local blocks signal.
+   */
+  completeBlock(blockId: string): Observable<BlockCompleteResult> {
+    return this.api.patch<BlockCompleteResult>(`/routine/blocks/${blockId}/complete`, {}).pipe(
+      tap(result => {
+        this.blocks.update(list =>
+          list.map(b => b.id === result.block.id ? result.block : b)
+        );
+      })
     );
   }
 
