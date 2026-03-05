@@ -3,9 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { ProfileService } from '../../core/services/profile.service';
 import { UserService } from '../../core/services/user.service';
-import { HealthProfile, ActivityFactor, Gender, Exercise, BloodTest } from '../../core/models';
+import {
+  HealthProfile, ActivityFactor, Gender,
+  Exercise, ExerciseCategory, ExercisePreset, BloodTest,
+} from '../../core/models';
 import { environment } from '../../environments/environment';
 
+// ── Constants ─────────────────────────────────────────────────────────────────
 const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
   sedentary:         '🪑 Sedentário',
   lightly_active:    '🚶 Levemente ativo',
@@ -13,6 +17,94 @@ const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
   very_active:       '💪 Muito ativo',
   extra_active:      '🏋️ Extremamente ativo',
 };
+
+const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const DAYS = [0, 1, 2, 3, 4, 5, 6];
+
+const CATEGORY_LABEL: Record<ExerciseCategory, string> = {
+  strength:    '💪 Força',
+  cardio:      '🏃 Cardio',
+  flexibility: '🧘 Flexibilidade',
+  mind_body:   '🧠 Mente-corpo',
+  sports:      '⚽ Esporte',
+};
+
+// ── Blood test accordion ───────────────────────────────────────────────────────
+interface BtField { key: string; label: string; placeholder?: string; step?: string; }
+interface BtSection { title: string; icon: string; fields: BtField[]; }
+
+const BT_SECTIONS: BtSection[] = [
+  {
+    title: 'Perfil Metabólico', icon: '🍬',
+    fields: [
+      { key: 'glucoseMgDl',   label: 'Glicemia (mg/dL)',   placeholder: 'Ex: 95' },
+      { key: 'insulinUiuMl',  label: 'Insulina (μIU/mL)',  placeholder: 'Ex: 10' },
+      { key: 'hba1cPct',      label: 'HbA1c (%)',          placeholder: 'Ex: 5.4', step: '0.1' },
+    ],
+  },
+  {
+    title: 'Perfil Lipídico', icon: '🫀',
+    fields: [
+      { key: 'cholesterolTotalMgDl', label: 'Colesterol Total (mg/dL)', placeholder: 'Ex: 190' },
+      { key: 'ldlMgDl',             label: 'LDL (mg/dL)',               placeholder: 'Ex: 100' },
+      { key: 'hdlMgDl',             label: 'HDL (mg/dL)',               placeholder: 'Ex: 55'  },
+      { key: 'triglyceridesMgDl',   label: 'Triglicerídeos (mg/dL)',    placeholder: 'Ex: 120' },
+    ],
+  },
+  {
+    title: 'Painel Hormonal', icon: '⚗️',
+    fields: [
+      { key: 'testosteroneTotalNgDl', label: 'Testosterona Total (ng/dL)', placeholder: 'Ex: 650' },
+      { key: 'testosteroneFreeNgDl',  label: 'Testosterona Livre (ng/dL)', placeholder: 'Ex: 12',  step: '0.01' },
+      { key: 'estradiolPgMl',         label: 'Estradiol E2 (pg/mL)',       placeholder: 'Ex: 25'  },
+      { key: 'shbgNmolL',             label: 'SHBG (nmol/L)',              placeholder: 'Ex: 35'  },
+      { key: 'prolactinNgMl',         label: 'Prolactina (ng/mL)',         placeholder: 'Ex: 8'   },
+      { key: 'dhtPgMl',               label: 'DHT (pg/mL)',                placeholder: 'Ex: 300' },
+      { key: 'fshMuiMl',              label: 'FSH (mUI/mL)',               placeholder: 'Ex: 4'   },
+      { key: 'lhMuiMl',               label: 'LH (mUI/mL)',                placeholder: 'Ex: 5'   },
+      { key: 'cortisolMcgDl',         label: 'Cortisol matinal (μg/dL)',   placeholder: 'Ex: 15'  },
+    ],
+  },
+  {
+    title: 'Tireoide', icon: '🦋',
+    fields: [
+      { key: 'tshMiuL',      label: 'TSH (μIU/mL)',  placeholder: 'Ex: 2.1', step: '0.01' },
+      { key: 't3FreePgMl',   label: 'T3 Livre (pg/mL)', placeholder: 'Ex: 3.2', step: '0.1' },
+      { key: 't4FreeNgDl',   label: 'T4 Livre (ng/dL)', placeholder: 'Ex: 1.2', step: '0.1' },
+    ],
+  },
+  {
+    title: 'Hepático & Renal', icon: '🫁',
+    fields: [
+      { key: 'astUL',          label: 'AST/TGO (U/L)',     placeholder: 'Ex: 28' },
+      { key: 'altUL',          label: 'ALT/TGP (U/L)',     placeholder: 'Ex: 25' },
+      { key: 'gamaGtUL',       label: 'GGT (U/L)',         placeholder: 'Ex: 30' },
+      { key: 'creatinineMgDl', label: 'Creatinina (mg/dL)',placeholder: 'Ex: 1.0', step: '0.01' },
+      { key: 'ureaMgDl',       label: 'Ureia (mg/dL)',     placeholder: 'Ex: 35' },
+    ],
+  },
+  {
+    title: 'Vitaminas & Inflamação', icon: '💊',
+    fields: [
+      { key: 'vitaminDNgMl',   label: 'Vitamina D (ng/mL)', placeholder: 'Ex: 40' },
+      { key: 'vitaminB12PgMl', label: 'Vitamina B12 (pg/mL)', placeholder: 'Ex: 500' },
+      { key: 'ferritinNgMl',   label: 'Ferritina (ng/mL)',   placeholder: 'Ex: 80' },
+      { key: 'crpMgL',         label: 'PCR-us (mg/L)',       placeholder: 'Ex: 1.2', step: '0.1' },
+    ],
+  },
+];
+
+// ── Blank exercise form ───────────────────────────────────────────────────────
+function blankExForm() {
+  return {
+    id: undefined as string | undefined,
+    selectedPresetName: '',
+    name: '', category: 'strength' as ExerciseCategory,
+    met: 0, hypertrophyScore: 0,
+    durationMinutes: 45,
+    preferredTime: '', daysOfWeek: [] as number[],
+  };
+}
 
 @Component({
   selector: 'app-profile',
@@ -46,24 +138,74 @@ const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
       }
     }
 
-    /* Exercise list */
+    /* ── Exercise list ──────────────────────────────────────────────────────── */
     .exercise-list { display: flex; flex-direction: column; gap: .625rem; margin-bottom: 1rem; }
     .exercise-row  {
       background: var(--color-surface-2); border: 1px solid var(--color-border);
       border-radius: var(--radius-sm); padding: .75rem 1rem;
-      display: flex; align-items: center; gap: .75rem;
 
-      .ex-name { font-weight: 600; font-size: .875rem; flex: 1; }
-      .ex-meta { font-size: .72rem; color: var(--color-text-subtle); }
-      .del-btn { background: none; border: none; cursor: pointer; color: var(--color-text-subtle);
-        &:hover { color: var(--color-danger); } }
+      .ex-name { font-weight: 600; font-size: .875rem; }
+      .ex-meta { font-size: .72rem; color: var(--color-text-subtle); margin-top: .15rem; }
+
+      .ex-actions { display: flex; gap: .375rem; margin-left: auto; flex-shrink: 0;
+        button { background: none; border: none; cursor: pointer; color: var(--color-text-subtle); font-size: .875rem; padding: .2rem .3rem;
+          &:hover { color: var(--color-primary); }
+          &.del:hover { color: var(--color-danger); }
+        }
+      }
+    }
+    .day-pills { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .375rem;
+      .dp { font-size: .65rem; font-weight: 700; padding: .1rem .35rem; border-radius: 99px;
+        background: var(--color-border); color: var(--color-text-subtle);
+        &.on { background: var(--color-primary-light); color: var(--color-primary); }
+      }
     }
 
-    /* Blood test */
-    .bt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .875rem; }
+    /* ── Exercise form ──────────────────────────────────────────────────────── */
+    .ex-form {
+      background: var(--color-surface-2); border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); padding: 1rem; margin-top: .5rem;
+    }
+    .day-selector { display: flex; flex-wrap: wrap; gap: .375rem; margin-top: .25rem;
+      .day-btn { padding: .25rem .6rem; border-radius: 99px; border: 1.5px solid var(--color-border);
+        background: var(--color-surface); cursor: pointer; font-size: .75rem; font-weight: 600;
+        transition: .15s;
+        &.selected { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+      }
+    }
+
+    /* ── Blood test accordion ───────────────────────────────────────────────── */
+    .bt-accordion { display: flex; flex-direction: column; gap: .5rem; }
+    .bt-section {
+      border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      overflow: hidden;
+
+      .bt-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: .75rem 1rem; cursor: pointer; background: var(--color-surface-2);
+        user-select: none;
+        &:hover { background: var(--color-surface); }
+
+        .bt-title { font-size: .875rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; }
+        .chevron { transition: transform .2s; font-size: .75rem; color: var(--color-text-muted); }
+      }
+      &.open .bt-header .chevron { transform: rotate(180deg); }
+
+      .bt-body {
+        display: none; padding: 1rem;
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .75rem;
+        max-height: 0; overflow: hidden; transition: max-height .25s ease;
+      }
+      &.open .bt-body { max-height: 600px; }
+    }
+
+    /* ── Blood test date row ────────────────────────────────────────────────── */
+    .bt-meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: .875rem; margin-bottom: .75rem; }
+
+    /* ── Misc ───────────────────────────────────────────────────────────────── */
     .success-msg { color: var(--color-primary); font-size: .875rem; font-weight: 600; padding: .5rem 0; }
 
-    /* Avatar */
+    /* ── Avatar ─────────────────────────────────────────────────────────────── */
     .avatar-section {
       display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.75rem;
       padding: 1.25rem; background: var(--color-surface); border: 1px solid var(--color-border);
@@ -138,11 +280,11 @@ const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
         </div>
       }
 
-      @if (saveSuccess()) { <div class="success-msg">✓ Perfil salvo com sucesso!</div> }
+      @if (saveSuccess()) { <div class="success-msg">✓ Salvo com sucesso!</div> }
       @if (saveError())   { <div class="alert alert-error mb-4">{{ saveError() }}</div> }
 
       <div class="grid-2">
-        <!-- Personal data -->
+        <!-- ── Personal data ─────────────────────────────────────────────── -->
         <div class="card">
           <div class="section-title">🧍 Dados Pessoais</div>
           <div class="fields">
@@ -181,7 +323,7 @@ const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
           </div>
         </div>
 
-        <!-- Schedule -->
+        <!-- ── Schedule ──────────────────────────────────────────────────── -->
         <div class="card">
           <div class="section-title">🕐 Horários de Rotina</div>
           <div class="fields">
@@ -201,39 +343,163 @@ const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
           </div>
         </div>
 
-        <!-- Exercises -->
-        <div class="card">
-          <div class="section-title">💪 Exercícios Cadastrados</div>
-          @if (exercises().length === 0) {
-            <p class="text-muted">Nenhum exercício cadastrado.</p>
-          } @else {
+        <!-- ── Exercises ─────────────────────────────────────────────────── -->
+        <div class="card" style="grid-column: 1 / -1">
+          <div class="section-title">
+            💪 Exercícios Cadastrados
+            <button class="btn btn-sm btn-outline" style="margin-left:auto"
+              (click)="openAddExercise()" [disabled]="showExForm() && !exForm.id">
+              + Adicionar
+            </button>
+          </div>
+
+          <!-- Exercise list -->
+          @if (exercises().length > 0) {
             <div class="exercise-list">
               @for (ex of exercises(); track ex.id) {
-                <div class="exercise-row">
+                <div class="exercise-row" style="display:flex;align-items:flex-start;gap:.75rem">
                   <div style="flex:1">
                     <div class="ex-name">{{ ex.name }}</div>
-                    <div class="ex-meta">MET {{ ex.met }} · {{ ex.durationMinutes }}min · Score {{ ex.hypertrophyScore }}/10</div>
+                    <div class="ex-meta">
+                      {{ categoryLabel(ex.category) }} · MET {{ ex.met }} · {{ ex.durationMinutes }}min
+                      @if (ex.preferredTime) { · 🕐 {{ ex.preferredTime }} }
+                    </div>
+                    <div class="day-pills">
+                      @for (d of days; track d) {
+                        <span class="dp" [class.on]="ex.daysOfWeek.includes(d)">{{ dayLabels[d] }}</span>
+                      }
+                    </div>
                   </div>
-                  <button class="del-btn" (click)="deleteExercise(ex.id)">🗑️</button>
+                  <div class="ex-actions">
+                    <button (click)="startEdit(ex)" title="Editar">✏️</button>
+                    <button class="del" (click)="deleteExercise(ex.id)" title="Excluir">🗑️</button>
+                  </div>
                 </div>
               }
+            </div>
+          } @else {
+            <p class="text-muted" style="margin-bottom:.75rem">Nenhum exercício cadastrado.</p>
+          }
+
+          <!-- Add / Edit form -->
+          @if (showExForm()) {
+            <div class="ex-form">
+              <div style="font-weight:700;font-size:.875rem;margin-bottom:.875rem">
+                {{ exForm.id ? '✏️ Editar Exercício' : '➕ Novo Exercício' }}
+              </div>
+
+              <!-- Preset selector -->
+              @if (!exForm.id) {
+                <div class="form-group" style="margin-bottom:.875rem">
+                  <label>Escolher preset</label>
+                  <select [(ngModel)]="exForm.selectedPresetName" (ngModelChange)="onPresetChange($event)">
+                    <option value="">— Personalizado —</option>
+                    @for (p of presets(); track p.name) {
+                      <option [value]="p.name">{{ p.name }}</option>
+                    }
+                  </select>
+                </div>
+              }
+
+              <div class="row-2" style="margin-bottom:.875rem">
+                <div class="form-group">
+                  <label>Nome</label>
+                  <input type="text" [(ngModel)]="exForm.name" placeholder="Ex: Corrida" />
+                </div>
+                <div class="form-group">
+                  <label>Categoria</label>
+                  <select [(ngModel)]="exForm.category">
+                    @for (c of categoryOptions; track c.value) {
+                      <option [value]="c.value">{{ c.label }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+
+              <div class="row-2" style="margin-bottom:.875rem">
+                <div class="form-group">
+                  <label>MET</label>
+                  <input type="number" [(ngModel)]="exForm.met" step="0.1" min="1" />
+                </div>
+                <div class="form-group">
+                  <label>Score hipertrofia (0–10)</label>
+                  <input type="number" [(ngModel)]="exForm.hypertrophyScore" min="0" max="10" step="0.5" />
+                </div>
+              </div>
+
+              <div class="row-2" style="margin-bottom:.875rem">
+                <div class="form-group">
+                  <label>Duração (min)</label>
+                  <input type="number" [(ngModel)]="exForm.durationMinutes" min="5" />
+                </div>
+                <div class="form-group">
+                  <label>Horário preferido</label>
+                  <input type="time" [(ngModel)]="exForm.preferredTime" />
+                </div>
+              </div>
+
+              <!-- Day checkboxes -->
+              <div class="form-group" style="margin-bottom:.875rem">
+                <label>Dias da semana</label>
+                <div class="day-selector">
+                  @for (d of days; track d) {
+                    <button type="button" class="day-btn"
+                      [class.selected]="exForm.daysOfWeek.includes(d)"
+                      (click)="toggleDay(d)">{{ dayLabels[d] }}</button>
+                  }
+                </div>
+              </div>
+
+              <div style="display:flex;gap:.625rem">
+                <button class="btn btn-primary" (click)="submitExercise()" [disabled]="addingEx()">
+                  {{ addingEx() ? 'Salvando...' : (exForm.id ? '💾 Atualizar' : '✅ Adicionar') }}
+                </button>
+                <button class="btn btn-outline" (click)="cancelEdit()">Cancelar</button>
+              </div>
             </div>
           }
         </div>
 
-        <!-- Blood test -->
-        <div class="card">
+        <!-- ── Blood test ─────────────────────────────────────────────────── -->
+        <div class="card" style="grid-column: 1 / -1">
           <div class="section-title">🩸 Cadastrar Exame de Sangue</div>
-          <div class="bt-grid">
-            <div class="form-group"><label>Glicemia (mg/dL)</label><input type="number" [(ngModel)]="bt.glucoseMgDl" placeholder="Ex: 95" /></div>
-            <div class="form-group"><label>Insulina (μIU/mL)</label><input type="number" [(ngModel)]="bt.insulinUiuMl" placeholder="Ex: 10" /></div>
-            <div class="form-group"><label>LDL (mg/dL)</label><input type="number" [(ngModel)]="bt.ldlMgDl" placeholder="Ex: 100" /></div>
-            <div class="form-group"><label>HDL (mg/dL)</label><input type="number" [(ngModel)]="bt.hdlMgDl" placeholder="Ex: 55" /></div>
-            <div class="form-group"><label>Triglicerídeos</label><input type="number" [(ngModel)]="bt.triglyceridesMgDl" placeholder="Ex: 120" /></div>
-            <div class="form-group"><label>Vitamina D (ng/mL)</label><input type="number" [(ngModel)]="bt.vitaminDNgMl" placeholder="Ex: 35" /></div>
-            <div class="form-group"><label>PCR-us (mg/L)</label><input type="number" [(ngModel)]="bt.crpMgL" placeholder="Ex: 1.2" /></div>
-            <div class="form-group"><label>Data da coleta</label><input type="date" [(ngModel)]="bt.collectedAt" /></div>
+
+          <!-- Date + notes -->
+          <div class="bt-meta-row">
+            <div class="form-group">
+              <label>Data da coleta</label>
+              <input type="date" [ngModel]="bt['collectedAt']" (ngModelChange)="bt['collectedAt'] = $event" />
+            </div>
+            <div class="form-group">
+              <label>Observações</label>
+              <input type="text" [ngModel]="bt['notes']" (ngModelChange)="bt['notes'] = $event" placeholder="Opcional" />
+            </div>
           </div>
+
+          <!-- Accordion sections -->
+          <div class="bt-accordion">
+            @for (sec of btSections; track sec.title; let si = $index) {
+              <div class="bt-section" [class.open]="openBtSection() === si">
+                <div class="bt-header" (click)="toggleBtSection(si)">
+                  <span class="bt-title">{{ sec.icon }} {{ sec.title }}</span>
+                  <span class="chevron">▼</span>
+                </div>
+                <div class="bt-body">
+                  @for (f of sec.fields; track f.key) {
+                    <div class="form-group">
+                      <label>{{ f.label }}</label>
+                      <input type="number"
+                        [step]="f.step ?? '0.1'"
+                        [placeholder]="f.placeholder ?? ''"
+                        [ngModel]="bt[f.key]"
+                        (ngModelChange)="bt[f.key] = $event" />
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
           <button class="btn btn-primary mt-4" (click)="saveBloodTest()" [disabled]="savingBt()">
             {{ savingBt() ? 'Salvando...' : '🩸 Salvar Exame' }}
           </button>
@@ -254,9 +520,21 @@ export class ProfileComponent implements OnInit {
   saveError       = signal('');
   savingBt        = signal(false);
   exercises       = signal<Exercise[]>([]);
+  presets         = signal<ExercisePreset[]>([]);
   uploadingAvatar = signal(false);
   avatarError     = signal('');
   avatarUrl       = signal<string | null>(null);
+
+  showExForm    = signal(false);
+  addingEx      = signal(false);
+  openBtSection = signal<number | null>(0); // first section open by default
+
+  exForm = blankExForm();
+
+  // bt needs an index signature so Angular can use bt[f.key] in the template
+  bt: { [key: string]: string | number | null | undefined; collectedAt: string } = {
+    collectedAt: new Date().toISOString().slice(0, 10),
+  };
 
   form: Partial<HealthProfile> = {
     age: undefined, gender: 'male', weight: undefined, height: undefined,
@@ -264,50 +542,41 @@ export class ProfileComponent implements OnInit {
     workStartTime: '09:00', workEndTime: '18:00',
   };
 
-  bt: Partial<BloodTest> = {
-    collectedAt: new Date().toISOString().slice(0, 10),
-  };
-
+  readonly days      = DAYS;
+  readonly dayLabels = DAY_LABELS;
+  readonly btSections = BT_SECTIONS;
   readonly activityOptions = Object.entries(ACTIVITY_LABELS).map(([value, label]) => ({ value, label }));
+  readonly categoryOptions = Object.entries(CATEGORY_LABEL).map(([value, label]) => ({ value: value as ExerciseCategory, label }));
 
+  // ── Lifecycle ───────────────────────────────────────────────────────────────
   ngOnInit(): void {
-    this.profileSvc.loadProfile().subscribe({
-      next: p => { Object.assign(this.form, p); },
-      error: () => {},
-    });
+    this.profileSvc.loadProfile().subscribe({ next: p => Object.assign(this.form, p), error: () => {} });
     this.profileSvc.loadMetabolic().subscribe({ error: () => {} });
-    this.profileSvc.getExercises().subscribe({
-      next: ex => this.exercises.set(ex),
-      error: () => {},
-    });
+    this.profileSvc.getExercises().subscribe({ next: ex => this.exercises.set(ex), error: () => {} });
+    this.profileSvc.getPresets().subscribe({ next: p => this.presets.set(p), error: () => {} });
     this.userSvc.loadMe().subscribe({
       next: u => this.avatarUrl.set(u.avatarUrl ? `${this.apiBase}${u.avatarUrl}` : null),
       error: () => {},
     });
   }
 
+  // ── Avatar ──────────────────────────────────────────────────────────────────
   onFileSelected(event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
     this.uploadingAvatar.set(true);
     this.avatarError.set('');
     this.userSvc.uploadAvatar(file).subscribe({
-      next: r => {
-        this.avatarUrl.set(`${this.apiBase}${r.avatarUrl}`);
-        this.uploadingAvatar.set(false);
-      },
-      error: () => {
-        this.avatarError.set('Erro ao enviar imagem. Verifique o formato e tamanho.');
-        this.uploadingAvatar.set(false);
-      },
+      next: r => { this.avatarUrl.set(`${this.apiBase}${r.avatarUrl}`); this.uploadingAvatar.set(false); },
+      error: () => { this.avatarError.set('Erro ao enviar imagem. Verifique o formato e tamanho.'); this.uploadingAvatar.set(false); },
     });
   }
 
+  // ── Profile ─────────────────────────────────────────────────────────────────
   saveProfile(): void {
     this.saving.set(true);
     this.saveSuccess.set(false);
     this.saveError.set('');
-
     this.profileSvc.saveProfile(this.form).subscribe({
       next: () => {
         this.saving.set(false);
@@ -315,10 +584,84 @@ export class ProfileComponent implements OnInit {
         this.profileSvc.loadMetabolic().subscribe({ error: () => {} });
         setTimeout(() => this.saveSuccess.set(false), 3000);
       },
-      error: (e) => {
-        this.saving.set(false);
-        this.saveError.set(e.error?.message ?? 'Erro ao salvar perfil.');
+      error: (e) => { this.saving.set(false); this.saveError.set(e.error?.message ?? 'Erro ao salvar perfil.'); },
+    });
+  }
+
+  // ── Exercises ───────────────────────────────────────────────────────────────
+  categoryLabel(cat: ExerciseCategory): string {
+    return CATEGORY_LABEL[cat] ?? cat;
+  }
+
+  openAddExercise(): void {
+    this.exForm = blankExForm();
+    this.showExForm.set(true);
+  }
+
+  startEdit(ex: Exercise): void {
+    this.exForm = {
+      id: ex.id,
+      selectedPresetName: '',
+      name: ex.name,
+      category: ex.category,
+      met: ex.met,
+      hypertrophyScore: ex.hypertrophyScore,
+      durationMinutes: ex.durationMinutes,
+      preferredTime: ex.preferredTime ?? '',
+      daysOfWeek: [...ex.daysOfWeek],
+    };
+    this.showExForm.set(true);
+  }
+
+  cancelEdit(): void {
+    this.exForm = blankExForm();
+    this.showExForm.set(false);
+  }
+
+  onPresetChange(name: string): void {
+    const p = this.presets().find(x => x.name === name);
+    if (!p) return;
+    this.exForm.name           = p.name;
+    this.exForm.category       = p.category;
+    this.exForm.met            = p.met;
+    this.exForm.hypertrophyScore = p.hypertrophyScore;
+  }
+
+  toggleDay(d: number): void {
+    const idx = this.exForm.daysOfWeek.indexOf(d);
+    if (idx >= 0) this.exForm.daysOfWeek.splice(idx, 1);
+    else           this.exForm.daysOfWeek.push(d);
+  }
+
+  submitExercise(): void {
+    if (!this.exForm.name.trim()) return;
+    this.addingEx.set(true);
+
+    const dto: Partial<Exercise> = {
+      name:             this.exForm.name,
+      category:         this.exForm.category,
+      met:              this.exForm.met,
+      hypertrophyScore: this.exForm.hypertrophyScore,
+      durationMinutes:  this.exForm.durationMinutes,
+      preferredTime:    this.exForm.preferredTime || undefined,
+      daysOfWeek:       this.exForm.daysOfWeek,
+    };
+
+    const req$ = this.exForm.id
+      ? this.profileSvc.updateExercise(this.exForm.id, dto)
+      : this.profileSvc.addExercise(dto);
+
+    req$.subscribe({
+      next: saved => {
+        if (this.exForm.id) {
+          this.exercises.update(ex => ex.map(e => e.id === saved.id ? saved : e));
+        } else {
+          this.exercises.update(ex => [...ex, saved]);
+        }
+        this.addingEx.set(false);
+        this.cancelEdit();
       },
+      error: () => this.addingEx.set(false),
     });
   }
 
@@ -328,9 +671,14 @@ export class ProfileComponent implements OnInit {
     });
   }
 
+  // ── Blood test ──────────────────────────────────────────────────────────────
+  toggleBtSection(idx: number): void {
+    this.openBtSection.update(cur => cur === idx ? null : idx);
+  }
+
   saveBloodTest(): void {
     this.savingBt.set(true);
-    this.profileSvc.saveBloodTest(this.bt).subscribe({
+    this.profileSvc.saveBloodTest(this.bt as Partial<BloodTest>).subscribe({
       next: () => {
         this.savingBt.set(false);
         this.bt = { collectedAt: new Date().toISOString().slice(0, 10) };

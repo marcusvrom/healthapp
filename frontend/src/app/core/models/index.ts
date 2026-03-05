@@ -59,17 +59,40 @@ export interface BloodTest {
   id: string;
   userId: string;
   collectedAt: string;
+  // 1. Metabolic
   glucoseMgDl?: number;
   insulinUiuMl?: number;
   hba1cPct?: number;
+  // 2. Lipid
   cholesterolTotalMgDl?: number;
   ldlMgDl?: number;
   hdlMgDl?: number;
   triglyceridesMgDl?: number;
+  // 3. Vitamins
   vitaminDNgMl?: number;
   vitaminB12PgMl?: number;
   ferritinNgMl?: number;
+  // 4. Thyroid
   tshMiuL?: number;
+  t3FreePgMl?: number;
+  t4FreeNgDl?: number;
+  // 5. Hormonal
+  testosteroneTotalNgDl?: number;
+  testosteroneFreeNgDl?: number;
+  estradiolPgMl?: number;
+  shbgNmolL?: number;
+  prolactinNgMl?: number;
+  dhtPgMl?: number;
+  fshMuiMl?: number;
+  lhMuiMl?: number;
+  cortisolMcgDl?: number;
+  // 6. Hepatic & Renal
+  astUL?: number;
+  altUL?: number;
+  gamaGtUL?: number;
+  creatinineMgDl?: number;
+  ureaMgDl?: number;
+  // 7. Inflammation
   crpMgL?: number;
   notes?: string;
   computedAdjustments?: BloodTestAnalysis;
@@ -220,23 +243,45 @@ export interface DailySummary {
 }
 
 // ── Clinical ───────────────────────────────────────────────────────────────────
+/** Full blood-test snapshot — all panels (mirrors backend BloodTest entity). */
 export interface BloodTestFull {
   id: string;
   userId: string;
   collectedAt: string;
+  // 1. Metabolic
   glucoseMgDl?: number;
   insulinUiuMl?: number;
   hba1cPct?: number;
+  // 2. Lipid
   cholesterolTotalMgDl?: number;
   ldlMgDl?: number;
   hdlMgDl?: number;
   triglyceridesMgDl?: number;
+  // 3. Vitamins
   vitaminDNgMl?: number;
   vitaminB12PgMl?: number;
   ferritinNgMl?: number;
-  testosteroneTotalNgDl?: number;
-  estradiolPgMl?: number;
+  // 4. Thyroid
   tshMiuL?: number;
+  t3FreePgMl?: number;
+  t4FreeNgDl?: number;
+  // 5. Hormonal
+  testosteroneTotalNgDl?: number;
+  testosteroneFreeNgDl?: number;
+  estradiolPgMl?: number;
+  shbgNmolL?: number;
+  prolactinNgMl?: number;
+  dhtPgMl?: number;
+  fshMuiMl?: number;
+  lhMuiMl?: number;
+  cortisolMcgDl?: number;
+  // 6. Hepatic & Renal
+  astUL?: number;
+  altUL?: number;
+  gamaGtUL?: number;
+  creatinineMgDl?: number;
+  ureaMgDl?: number;
+  // 7. Inflammation
   crpMgL?: number;
   notes?: string;
 }

@@ -14,18 +14,40 @@ interface MarkerDef {
 }
 
 const MARKERS: MarkerDef[] = [
-  { key: 'testosteroneTotalNgDl', label: 'Testosterona Total',  unit: 'ng/dL', color: '#6366f1', refMin: 300,  refMax: 1000 },
-  { key: 'estradiolPgMl',         label: 'Estradiol',           unit: 'pg/mL', color: '#ec4899', refMin: 10,   refMax: 40   },
-  { key: 'ldlMgDl',               label: 'LDL',                 unit: 'mg/dL', color: '#ef4444', refMin: 0,    refMax: 130  },
-  { key: 'hdlMgDl',               label: 'HDL',                 unit: 'mg/dL', color: '#10b981', refMin: 40,   refMax: 99   },
-  { key: 'cholesterolTotalMgDl',  label: 'Colesterol Total',    unit: 'mg/dL', color: '#f59e0b', refMin: 0,    refMax: 200  },
-  { key: 'triglyceridesMgDl',     label: 'Triglicerídeos',      unit: 'mg/dL', color: '#f97316', refMin: 0,    refMax: 150  },
-  { key: 'glucoseMgDl',           label: 'Glicemia',            unit: 'mg/dL', color: '#84cc16', refMin: 70,   refMax: 100  },
-  { key: 'vitaminDNgMl',          label: 'Vitamina D',          unit: 'ng/mL', color: '#eab308', refMin: 30,   refMax: 100  },
-  { key: 'vitaminB12PgMl',        label: 'Vitamina B12',        unit: 'pg/mL', color: '#06b6d4', refMin: 200,  refMax: 900  },
-  { key: 'ferritinNgMl',          label: 'Ferritina',           unit: 'ng/mL', color: '#8b5cf6', refMin: 12,   refMax: 300  },
-  { key: 'tshMiuL',               label: 'TSH',                 unit: 'mIU/L', color: '#14b8a6', refMin: 0.4,  refMax: 4.0  },
-  { key: 'crpMgL',                label: 'PCR-us',              unit: 'mg/L',  color: '#f43f5e', refMin: 0,    refMax: 3.0  },
+  // Metabolic
+  { key: 'glucoseMgDl',           label: 'Glicemia',              unit: 'mg/dL',  color: '#84cc16', refMin: 70,   refMax: 100   },
+  { key: 'insulinUiuMl',          label: 'Insulina',              unit: 'μIU/mL', color: '#a3e635', refMin: 2,    refMax: 25    },
+  { key: 'hba1cPct',              label: 'HbA1c',                 unit: '%',      color: '#65a30d', refMin: 4.0,  refMax: 5.6   },
+  // Lipid
+  { key: 'cholesterolTotalMgDl',  label: 'Colesterol Total',      unit: 'mg/dL',  color: '#f59e0b', refMin: 0,    refMax: 200   },
+  { key: 'ldlMgDl',               label: 'LDL',                   unit: 'mg/dL',  color: '#ef4444', refMin: 0,    refMax: 130   },
+  { key: 'hdlMgDl',               label: 'HDL',                   unit: 'mg/dL',  color: '#10b981', refMin: 40,   refMax: 99    },
+  { key: 'triglyceridesMgDl',     label: 'Triglicerídeos',        unit: 'mg/dL',  color: '#f97316', refMin: 0,    refMax: 150   },
+  // Hormonal
+  { key: 'testosteroneTotalNgDl', label: 'Testosterona Total',    unit: 'ng/dL',  color: '#6366f1', refMin: 300,  refMax: 1000  },
+  { key: 'testosteroneFreeNgDl',  label: 'Testosterona Livre',    unit: 'ng/dL',  color: '#818cf8', refMin: 5,    refMax: 21    },
+  { key: 'estradiolPgMl',         label: 'Estradiol',             unit: 'pg/mL',  color: '#ec4899', refMin: 10,   refMax: 40    },
+  { key: 'shbgNmolL',             label: 'SHBG',                  unit: 'nmol/L', color: '#a78bfa', refMin: 10,   refMax: 57    },
+  { key: 'prolactinNgMl',         label: 'Prolactina',            unit: 'ng/mL',  color: '#c084fc', refMin: 2,    refMax: 15    },
+  { key: 'dhtPgMl',               label: 'DHT',                   unit: 'pg/mL',  color: '#7c3aed', refMin: 112,  refMax: 955   },
+  { key: 'fshMuiMl',              label: 'FSH',                   unit: 'mUI/mL', color: '#8b5cf6', refMin: 1.5,  refMax: 12.4  },
+  { key: 'lhMuiMl',               label: 'LH',                    unit: 'mUI/mL', color: '#9333ea', refMin: 1.7,  refMax: 8.6   },
+  { key: 'cortisolMcgDl',         label: 'Cortisol',              unit: 'μg/dL',  color: '#d97706', refMin: 6,    refMax: 23    },
+  // Thyroid
+  { key: 'tshMiuL',               label: 'TSH',                   unit: 'mIU/L',  color: '#14b8a6', refMin: 0.4,  refMax: 4.0   },
+  { key: 't3FreePgMl',            label: 'T3 Livre',              unit: 'pg/mL',  color: '#0d9488', refMin: 2.3,  refMax: 4.2   },
+  { key: 't4FreeNgDl',            label: 'T4 Livre',              unit: 'ng/dL',  color: '#0f766e', refMin: 0.8,  refMax: 1.8   },
+  // Hepatic & Renal
+  { key: 'astUL',                 label: 'AST/TGO',               unit: 'U/L',    color: '#dc2626', refMin: 0,    refMax: 40    },
+  { key: 'altUL',                 label: 'ALT/TGP',               unit: 'U/L',    color: '#b91c1c', refMin: 0,    refMax: 40    },
+  { key: 'gamaGtUL',              label: 'GGT',                   unit: 'U/L',    color: '#991b1b', refMin: 0,    refMax: 60    },
+  { key: 'creatinineMgDl',        label: 'Creatinina',            unit: 'mg/dL',  color: '#0284c7', refMin: 0.5,  refMax: 1.2   },
+  { key: 'ureaMgDl',              label: 'Ureia',                 unit: 'mg/dL',  color: '#0369a1', refMin: 10,   refMax: 50    },
+  // Vitamins & Inflammation
+  { key: 'vitaminDNgMl',          label: 'Vitamina D',            unit: 'ng/mL',  color: '#eab308', refMin: 30,   refMax: 100   },
+  { key: 'vitaminB12PgMl',        label: 'Vitamina B12',          unit: 'pg/mL',  color: '#06b6d4', refMin: 200,  refMax: 900   },
+  { key: 'ferritinNgMl',          label: 'Ferritina',             unit: 'ng/mL',  color: '#7c3aed', refMin: 12,   refMax: 300   },
+  { key: 'crpMgL',                label: 'PCR-us',                unit: 'mg/L',   color: '#f43f5e', refMin: 0,    refMax: 3.0   },
 ];
 
 interface ChartPoint { x: number; y: number; value: number; date: string; }
