@@ -15,6 +15,7 @@ import { UserController } from "../controllers/UserController";
 import { MedicationController } from "../controllers/MedicationController";
 import { ClinicalProtocolController } from "../controllers/ClinicalProtocolController";
 import { RecipeController } from "../controllers/RecipeController";
+import { RecipeScheduleController } from "../controllers/RecipeScheduleController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -94,14 +95,21 @@ router.get("/metrics/streaks",  ...auth(MetricsController.streaks));
 router.get("/clinical/history", ...auth(ClinicalController.history));
 
 // ── Scheduled Meals ───────────────────────────────────────────────────────────
-// NOTE: static sub-paths (/generate) must come before /scheduled-meals/:id
+// NOTE: static sub-paths must come BEFORE parameterized routes
 router.post("/scheduled-meals/generate",                        ...auth(ScheduledMealController.generate));
+router.post("/scheduled-meals/clone",                           ...auth(ScheduledMealController.clone));
+router.post("/scheduled-meals/apply-schedules",                 ...auth(ScheduledMealController.applySchedules));
 router.get("/scheduled-meals",                                  ...auth(ScheduledMealController.list));
 router.post("/scheduled-meals",                                 ...auth(ScheduledMealController.create));
 router.patch("/scheduled-meals/:id/toggle",                     ...auth(ScheduledMealController.toggle));
 router.post("/scheduled-meals/:id/link-recipe",                 ...auth(ScheduledMealController.linkRecipe));
 router.delete("/scheduled-meals/:id/link-recipe/:recipeId",     ...auth(ScheduledMealController.unlinkRecipe));
 router.delete("/scheduled-meals/:id",                           ...auth(ScheduledMealController.remove));
+
+// ── Recipe Schedules (weekly repetition) ──────────────────────────────────────
+router.get("/recipe-schedules",       ...auth(RecipeScheduleController.list));
+router.post("/recipe-schedules",      ...auth(RecipeScheduleController.upsert));
+router.delete("/recipe-schedules/:id",...auth(RecipeScheduleController.remove));
 
 // ── User Profile & Avatar ─────────────────────────────────────────────────────
 router.get("/users/me",     ...auth(UserController.me));

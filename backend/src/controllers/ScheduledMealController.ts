@@ -95,4 +95,42 @@ export class ScheduledMealController {
       next(err);
     }
   }
+
+  /**
+   * POST /scheduled-meals/clone
+   * Body: { from: "YYYY-MM-DD", to: "YYYY-MM-DD" }
+   * Copies all meals (with linkedRecipes) from `from` to `to`.
+   */
+  static async clone(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { from, to } = req.body as { from: string; to: string };
+      if (!from || !to) {
+        res.status(400).json({ message: "Os campos 'from' e 'to' são obrigatórios." });
+        return;
+      }
+      if (from === to) {
+        res.status(400).json({ message: "As datas de origem e destino devem ser diferentes." });
+        return;
+      }
+      const meals = await ScheduledMealService.clone(req.userId, from, to);
+      res.json(meals);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * POST /scheduled-meals/apply-schedules
+   * Body: { date: "YYYY-MM-DD" }
+   * Auto-links recipes from active RecipeSchedules that match today's day-of-week.
+   */
+  static async applySchedules(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const date = (req.body?.date as string | undefined) ?? new Date().toISOString().slice(0, 10);
+      const meals = await ScheduledMealService.applySchedules(req.userId, date);
+      res.json(meals);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

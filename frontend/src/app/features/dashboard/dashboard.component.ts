@@ -7,18 +7,19 @@ import { RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, Subject, switchMap, of } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 
-import { ProfileService }         from '../../core/services/profile.service';
-import { RoutineService }          from '../../core/services/routine.service';
-import { FoodService }             from '../../core/services/food.service';
-import { UserService }             from '../../core/services/user.service';
-import { WaterService }            from '../../core/services/water.service';
-import { ClinicalProtocolService } from '../../core/services/clinical-protocol.service';
-import { RecipeService }           from '../../core/services/recipe.service';
-import { ScheduledMealService }    from '../../core/services/scheduled-meal.service';
+import { ProfileService }           from '../../core/services/profile.service';
+import { RoutineService }            from '../../core/services/routine.service';
+import { FoodService }               from '../../core/services/food.service';
+import { UserService }               from '../../core/services/user.service';
+import { WaterService }              from '../../core/services/water.service';
+import { ClinicalProtocolService }   from '../../core/services/clinical-protocol.service';
+import { RecipeService }             from '../../core/services/recipe.service';
+import { ScheduledMealService }      from '../../core/services/scheduled-meal.service';
+import { RecipeScheduleService }     from '../../core/services/recipe-schedule.service';
 
 import {
   RoutineBlock, BlockType, DailySummary, ClinicalProtocolWithLog,
-  ScheduledMeal, LinkedRecipe, Recipe, RecipeFeedItem,
+  ScheduledMeal, LinkedRecipe, Recipe, RecipeFeedItem, RecipeSchedule,
 } from '../../core/models';
 import { WaterTrackerComponent } from '../water/water-tracker.component';
 
@@ -46,6 +47,9 @@ const PROTOCOL_ICON: Record<string, string> = {
   SUPLEMENTO: '🧴', REMEDIO_CONTROLADO: '💊', TRT: '💉',
   HORMONIO_FEMININO: '🌸', SONO: '😴',
 };
+
+/** Short labels for days of week in Portuguese (0=Sun … 6=Sat) */
+const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
 
 interface TimeGroup {
   time: string; minuteOfDay: number; blocks: RoutineBlock[];
@@ -261,6 +265,98 @@ interface LinkedRecipeView extends LinkedRecipe {
       }
     }
 
+    /* ── Remaining macros section ────────────────────────────────────────────── */
+    .remaining-section {
+      margin-top: .875rem; padding-top: .875rem; border-top: 1px solid var(--color-border);
+      .rem-title { font-size: .72rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .5rem; }
+      .rem-pills { display: flex; flex-wrap: wrap; gap: .375rem; }
+      .rem-pill { display: flex; align-items: center; gap: .3rem; font-size: .72rem; font-weight: 600; padding: .25rem .6rem; border-radius: 99px; border: 1.5px solid var(--color-border);
+        &.positive { background: rgba(34,197,94,.08); border-color: rgba(34,197,94,.3); color: #15803d; }
+        &.negative { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.3); color: #dc2626; }
+        &.neutral  { background: var(--color-surface-2); color: var(--color-text-muted); }
+      }
+    }
+
+    /* ── Meal grouping (diet view) ───────────────────────────────────────────── */
+    .view-toggle { display:flex; gap:.375rem; margin-bottom:1rem;
+      button { flex:1; padding:.375rem; font-size:.78rem; font-weight:600; border-radius:var(--radius-sm);
+        border:1.5px solid var(--color-border); background:var(--color-surface); color:var(--color-text-muted);
+        cursor:pointer; transition:.15s;
+        &.active { background:var(--color-primary); border-color:var(--color-primary); color:#fff; }
+        &:hover:not(.active) { background:var(--color-border); }
+      }
+    }
+    .diet-view { display:flex; flex-direction:column; gap:.75rem; }
+    .diet-meal-group {
+      background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-md);
+      border-left:3px solid var(--color-border); overflow:hidden; transition:.15s;
+      &.consumed { border-left-color: #22c55e; }
+      &.has-recipes:not(.consumed) { border-left-color: #f59e0b; }
+
+      .dmg-header { display:flex; align-items:center; gap:.625rem; padding:.625rem .875rem; cursor:pointer; transition:.15s;
+        &:hover { background: var(--color-surface-2); }
+        .dmg-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:.9rem; flex-shrink:0; }
+        .dmg-info { flex:1; min-width:0;
+          .dmg-name { font-size:.82rem; font-weight:700; }
+          .dmg-sub  { font-size:.68rem; color:var(--color-text-muted); margin-top:.1rem; }
+        }
+        .dmg-progress { text-align:right; flex-shrink:0;
+          .dmg-pct { font-size:.72rem; font-weight:700; }
+          .dmg-kcal { font-size:.65rem; color:var(--color-text-muted); }
+        }
+        .dmg-chevron { font-size:.7rem; color:var(--color-text-subtle); transition:transform .2s; flex-shrink:0;
+          &.open { transform:rotate(180deg); }
+        }
+      }
+
+      .dmg-bar { height:3px; background:var(--color-border);
+        .dmg-bar-fill { height:100%; border-radius:0; transition:width .4s; }
+      }
+
+      .dmg-recipes { padding:.5rem .875rem .75rem; display:flex; flex-direction:column; gap:.375rem; border-top:1px solid var(--color-border); }
+      .dmg-recipe-row { display:flex; align-items:center; gap:.5rem; padding:.375rem .5rem; border-radius:var(--radius-sm); background:var(--color-surface-2);
+        .drr-title { flex:1; font-size:.78rem; font-weight:600; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .drr-kcal { font-size:.68rem; color:var(--color-text-muted); flex-shrink:0; }
+        .drr-srv { display:flex; align-items:center; gap:.25rem; flex-shrink:0;
+          button { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--color-border); background:var(--color-surface); cursor:pointer; font-size:.8rem; line-height:1; display:flex; align-items:center; justify-content:center;
+            &:hover { background:var(--color-border); } }
+          span { font-size:.75rem; font-weight:700; min-width:18px; text-align:center; }
+        }
+        .drr-remove { background:none; border:none; cursor:pointer; color:var(--color-text-subtle); font-size:.8rem; &:hover { color:var(--color-danger); } }
+      }
+      .dmg-no-recipes { font-size:.75rem; color:var(--color-text-muted); padding:.5rem .5rem .25rem; border-top:1px solid var(--color-border); }
+      .dmg-actions { display:flex; gap:.375rem; margin-top:.375rem;
+        button { flex:1; font-size:.72rem; padding:.25rem .5rem; border-radius:var(--radius-sm); }
+      }
+    }
+
+    /* ── Clone modal ─────────────────────────────────────────────────────────── */
+    .clone-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:300; display:flex; align-items:center; justify-content:center; padding:1rem; }
+    .clone-modal { background:var(--color-surface); border-radius:var(--radius-md); padding:1.5rem; width:100%; max-width:380px; box-shadow:var(--shadow-lg);
+      h3 { font-size:1rem; font-weight:700; margin-bottom:1rem; }
+      .clone-fields { display:flex; flex-direction:column; gap:.75rem; margin-bottom:1.25rem;
+        label { font-size:.78rem; font-weight:600; color:var(--color-text-muted); display:flex; flex-direction:column; gap:.25rem;
+          input { font-size:.875rem; }
+        }
+      }
+      .clone-actions { display:flex; gap:.625rem; }
+    }
+
+    /* ── Repeat picker (inside meal panel) ───────────────────────────────────── */
+    .repeat-section { border-top:1px solid var(--color-border); padding-top:.75rem; margin-top:.25rem;
+      .rp-title { font-size:.75rem; font-weight:700; color:var(--color-text-muted); margin-bottom:.5rem; }
+      .rp-recipe-row { display:flex; align-items:center; gap:.5rem; margin-bottom:.625rem;
+        .rpr-name { flex:1; font-size:.78rem; font-weight:600; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .rpr-days { display:flex; gap:.2rem; flex-wrap:wrap;
+          button { width:28px; height:28px; border-radius:50%; font-size:.62rem; font-weight:700; border:1.5px solid var(--color-border); background:var(--color-surface); cursor:pointer; transition:.15s;
+            &.selected { background:var(--color-primary); border-color:var(--color-primary); color:#fff; }
+            &:hover:not(.selected) { background:var(--color-border); }
+          }
+        }
+        .rpr-save { font-size:.7rem; padding:.2rem .5rem; border-radius:99px; }
+      }
+    }
+
     /* ── XP pop ──────────────────────────────────────────────────────────────── */
     @keyframes xpPop { 0% { transform:scale(1);opacity:1; } 50% { transform:scale(1.5) translateY(-12px);opacity:1; } 100% { transform:scale(1) translateY(-28px);opacity:0; } }
     .xp-pop { position:fixed;pointer-events:none;z-index:999;font-size:1.1rem;font-weight:800;color:#7c3aed;animation:xpPop .9s ease forwards; }
@@ -292,15 +388,112 @@ interface LinkedRecipeView extends LinkedRecipe {
       } @else if (blocks().length > 0) {
         <div class="generate-bar" style="padding:.625rem 1.5rem">
           <div class="gb-text"><h3>Rotina do dia · {{ blocks().length }} blocos</h3><p>{{ doneProtocols() }}/{{ totalProtocols() }} protocolos · {{ waterBlocks() }} lembretes de água</p></div>
-          <button (click)="generateRoutine()" [disabled]="generating()">{{ generating() ? '⏳...' : '🔄 Regenerar' }}</button>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button (click)="generateRoutine()" [disabled]="generating()">{{ generating() ? '⏳...' : '🔄 Regenerar' }}</button>
+            @if (scheduledMeals().length > 0) {
+              <button (click)="applySchedules()" [disabled]="applyingSchedules()" title="Auto-vincular receitas repetidas deste dia da semana">{{ applyingSchedules() ? '⏳...' : '🔁 Aplicar Repetições' }}</button>
+              <button (click)="openCloneModal()" style="background:rgba(255,255,255,.15)">📋 Clonar Dieta</button>
+            }
+          </div>
         </div>
       }
 
-      <!-- ── Timeline ────────────────────────────────────────────────────── -->
+      <!-- ── Timeline / Diet view ────────────────────────────────────────── -->
       <div class="timeline-panel">
-        <div class="panel-title">📅 Agenda do Dia</div>
+        <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>{{ dietView() ? '🍽️ Refeições do Dia' : '📅 Agenda do Dia' }}</span>
+        </div>
+
+        <!-- View toggle -->
+        @if (!loading() && (timeGroups().length > 0 || scheduledMeals().length > 0)) {
+          <div class="view-toggle">
+            <button [class.active]="!dietView()" (click)="dietView.set(false)">📅 Agenda completa</button>
+            <button [class.active]="dietView()" (click)="dietView.set(true)">🍽️ Visão Dieta</button>
+          </div>
+        }
+
         @if (loading()) {
           <div style="text-align:center;padding:3rem;color:var(--color-text-muted)"><div class="spinner" style="margin:0 auto 1rem"></div>Carregando...</div>
+
+        } @else if (dietView()) {
+          <!-- ── Diet grouped view ──────────────────────────────────────── -->
+          @if (scheduledMeals().length === 0) {
+            <div style="text-align:center;padding:3rem;color:var(--color-text-muted);font-size:.875rem">
+              Nenhuma refeição planejada.<br>Clique em <strong>✨ Gerar Rotina</strong> para criar.
+            </div>
+          } @else {
+            <div class="diet-view">
+              @for (meal of scheduledMeals(); track meal.id) {
+                <div class="diet-meal-group" [class.consumed]="meal.isConsumed" [class.has-recipes]="(meal.linkedRecipes?.length ?? 0) > 0">
+                  <div class="dmg-header" (click)="toggleDietGroup(meal.id)">
+                    <div class="dmg-icon" style="background:#fef3c7;color:#b45309">🍽️</div>
+                    <div class="dmg-info">
+                      <div class="dmg-name">{{ meal.name }}</div>
+                      <div class="dmg-sub">
+                        {{ meal.scheduledTime }}
+                        @if (meal.caloricTarget) { · alvo {{ meal.caloricTarget | number:'1.0-0' }} kcal }
+                        @if (meal.isConsumed) { · <span style="color:#16a34a;font-weight:700">✓ consumida</span> }
+                      </div>
+                    </div>
+                    <div class="dmg-progress">
+                      @if ((meal.linkedRecipes?.length ?? 0) > 0) {
+                        <div class="dmg-pct" [style.color]="mealKcalFromLinked(meal) > (meal.caloricTarget ?? 0) ? '#dc2626' : '#16a34a'">
+                          {{ mealKcalFromLinked(meal) | number:'1.0-0' }} kcal
+                        </div>
+                        <div class="dmg-kcal">/ {{ meal.caloricTarget | number:'1.0-0' }} alvo</div>
+                      }
+                    </div>
+                    <span class="dmg-chevron" [class.open]="isDietGroupOpen(meal.id)">▼</span>
+                  </div>
+
+                  <!-- Progress bar -->
+                  @if ((meal.linkedRecipes?.length ?? 0) > 0 && meal.caloricTarget) {
+                    <div class="dmg-bar">
+                      <div class="dmg-bar-fill"
+                        [style.width.%]="mealBalancePctById(meal)"
+                        [style.background]="mealKcalFromLinked(meal) > meal.caloricTarget! ? '#ef4444' : '#22c55e'">
+                      </div>
+                    </div>
+                  }
+
+                  <!-- Expanded recipes list -->
+                  @if (isDietGroupOpen(meal.id)) {
+                    <div class="dmg-recipes">
+                      @if ((meal.linkedRecipes?.length ?? 0) === 0) {
+                        <div class="dmg-no-recipes">Nenhuma receita vinculada ainda.</div>
+                      } @else {
+                        @for (r of meal.linkedRecipes!; track r.recipeId) {
+                          <div class="dmg-recipe-row">
+                            <span class="drr-title">{{ r.title }}</span>
+                            <span class="drr-kcal">{{ r.kcalPerServing * r.servings | number:'1.0-0' }} kcal</span>
+                            <div class="drr-srv">
+                              <button (click)="changeServingsInline(meal, r, -0.5); $event.stopPropagation()" [disabled]="r.servings <= 0.5">−</button>
+                              <span>×{{ r.servings }}</span>
+                              <button (click)="changeServingsInline(meal, r, 0.5); $event.stopPropagation()">+</button>
+                            </div>
+                            <button class="drr-remove" (click)="removeRecipeFromMeal(meal, r.recipeId); $event.stopPropagation()" title="Remover">✕</button>
+                          </div>
+                        }
+                      }
+                      <div class="dmg-actions">
+                        <button class="btn btn-secondary" (click)="openMealPanelById(meal); $event.stopPropagation()">+ Adicionar receita</button>
+                        @if (!meal.isConsumed) {
+                          <button class="btn" (click)="toggleConsumedById(meal); $event.stopPropagation()" [disabled]="togglingMeal()">
+                            {{ togglingMeal() ? '...' : '✓ Marcar consumida' }}
+                          </button>
+                        } @else {
+                          <button class="btn btn-secondary" (click)="toggleConsumedById(meal); $event.stopPropagation()" [disabled]="togglingMeal()">
+                            Desfazer
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+
         } @else if (timeGroups().length === 0) {
           <div style="text-align:center;padding:3rem;color:var(--color-text-muted);font-size:.875rem">Nenhum bloco.<br>Clique em <strong>✨ Gerar Rotina</strong> para começar.</div>
         } @else {
@@ -379,7 +572,7 @@ interface LinkedRecipeView extends LinkedRecipe {
             }
           </div>
         }
-      </div>
+      </div> <!-- end timeline-panel -->
 
       <!-- ── Right panel ─────────────────────────────────────────────────── -->
       <div class="right-panel">
@@ -411,6 +604,25 @@ interface LinkedRecipeView extends LinkedRecipe {
               <div class="macro-bar-row">
                 <div class="mb-header"><span class="name">🥑 Gorduras</span><span class="value">{{ summary()?.totalFat | number:'1.0-0' }}g / {{ metabolic()!.macros.fatG | number:'1.0-0' }}g</span></div>
                 <div class="bar-track"><div class="bar-fill" [style.width.%]="pct(summary()?.totalFat, metabolic()!.macros.fatG)" style="background:#6366f1"></div></div>
+              </div>
+            </div>
+
+            <!-- ── Remaining macros ───────────────────────────────────── -->
+            <div class="remaining-section">
+              <div class="rem-title">⏳ O que ainda falta hoje</div>
+              <div class="rem-pills">
+                <span class="rem-pill" [class.positive]="remainingKcal() > 0" [class.negative]="remainingKcal() < 0" [class.neutral]="remainingKcal() === 0">
+                  🔥 {{ remainingKcal() > 0 ? 'Faltam ' + (remainingKcal() | number:'1.0-0') + ' kcal' : remainingKcal() < 0 ? 'Excedeu ' + (absVal(remainingKcal()) | number:'1.0-0') + ' kcal' : '✓ Meta kcal!' }}
+                </span>
+                <span class="rem-pill" [class.positive]="remainingProtein() > 0" [class.negative]="remainingProtein() < 0" [class.neutral]="remainingProtein() === 0">
+                  🥩 {{ remainingProtein() > 0 ? 'Faltam ' + (remainingProtein() | number:'1.0-0') + 'g prot' : remainingProtein() < 0 ? '+' + (absVal(remainingProtein()) | number:'1.0-0') + 'g prot' : '✓ Prot!' }}
+                </span>
+                <span class="rem-pill" [class.positive]="remainingCarbs() > 0" [class.negative]="remainingCarbs() < 0" [class.neutral]="remainingCarbs() === 0">
+                  🌾 {{ remainingCarbs() > 0 ? 'Faltam ' + (remainingCarbs() | number:'1.0-0') + 'g carb' : remainingCarbs() < 0 ? '+' + (absVal(remainingCarbs()) | number:'1.0-0') + 'g carb' : '✓ Carb!' }}
+                </span>
+                <span class="rem-pill" [class.positive]="remainingFat() > 0" [class.negative]="remainingFat() < 0" [class.neutral]="remainingFat() === 0">
+                  🥑 {{ remainingFat() > 0 ? 'Faltam ' + (remainingFat() | number:'1.0-0') + 'g gord' : remainingFat() < 0 ? '+' + (absVal(remainingFat()) | number:'1.0-0') + 'g gord' : '✓ Gord!' }}
+                </span>
               </div>
             </div>
           } @else {
@@ -550,6 +762,30 @@ interface LinkedRecipeView extends LinkedRecipe {
               }
             </div>
 
+            <!-- Repeat schedule section -->
+            @if (panelRecipes().length > 0) {
+              <div class="repeat-section">
+                <div class="rp-title">🔁 Repetição semanal — selecione os dias para cada receita</div>
+                @for (r of panelRecipes(); track r.recipeId) {
+                  <div class="rp-recipe-row">
+                    <span class="rpr-name">{{ r.title }}</span>
+                    <div class="rpr-days">
+                      @for (day of allDays; track day) {
+                        <button
+                          [class.selected]="isDaySelected(r.recipeId, day)"
+                          (click)="toggleRepeatDay(r, day)">
+                          {{ dayLabel(day) }}
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+                <div style="font-size:.7rem;color:var(--color-text-muted);margin-top:.25rem">
+                  Clique em um dia para ativar/desativar a repetição automática desta receita naquela refeição.
+                </div>
+              </div>
+            }
+
           </div>
 
           <!-- Footer: consumed toggle -->
@@ -571,17 +807,45 @@ interface LinkedRecipeView extends LinkedRecipe {
     @if (xpPopVisible()) {
       <div class="xp-pop" [style.left]="xpPopX + 'px'" [style.top]="xpPopY + 'px'">+{{ lastXp() }} XP ⚡</div>
     }
+
+    <!-- ── Clone Dieta modal ───────────────────────────────────────────── -->
+    @if (cloneModal()) {
+      <div class="clone-overlay" (click)="closeCloneModal()">
+        <div class="clone-modal" (click)="$event.stopPropagation()">
+          <h3>📋 Clonar Dieta</h3>
+          <div class="clone-fields">
+            <label>Data de origem (copiar de)
+              <input type="date" [(ngModel)]="cloneFrom" />
+            </label>
+            <label>Data de destino (copiar para)
+              <input type="date" [(ngModel)]="cloneTo" />
+            </label>
+          </div>
+          <p style="font-size:.75rem;color:var(--color-text-muted);margin-bottom:1rem">
+            Copia todas as refeições e receitas vinculadas da data de origem para a data de destino.
+            Refeições já existentes no destino serão substituídas.
+          </p>
+          <div class="clone-actions">
+            <button class="btn btn-secondary" style="flex:1" (click)="closeCloneModal()">Cancelar</button>
+            <button class="btn" style="flex:1" (click)="cloneDiet()" [disabled]="cloning() || !cloneFrom || !cloneTo">
+              {{ cloning() ? '⏳ Clonando...' : '📋 Clonar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class DashboardComponent implements OnInit, OnDestroy {
-  private profileSvc   = inject(ProfileService);
-  private routineSvc   = inject(RoutineService);
-  private foodSvc      = inject(FoodService);
-  readonly waterSvc    = inject(WaterService);
-  private userSvc      = inject(UserService);
-  private protocolSvc  = inject(ClinicalProtocolService);
-  private recipeSvc    = inject(RecipeService);
-  private scheduledSvc = inject(ScheduledMealService);
+  private profileSvc      = inject(ProfileService);
+  private routineSvc      = inject(RoutineService);
+  private foodSvc         = inject(FoodService);
+  readonly waterSvc       = inject(WaterService);
+  private userSvc         = inject(UserService);
+  private protocolSvc     = inject(ClinicalProtocolService);
+  private recipeSvc       = inject(RecipeService);
+  private scheduledSvc    = inject(ScheduledMealService);
+  private recipeSchedSvc  = inject(RecipeScheduleService);
 
   readonly todayStr      = new Date().toISOString().slice(0, 10);
   readonly showWaterLogs = signal(false);
@@ -605,6 +869,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
   togglingMeal     = signal(false);
   availableRecipes = signal<Recipe[]>([]);
   recipeSearch     = '';
+
+  // ── Diet view ───────────────────────────────────────────────────────────────
+  dietView        = signal(false);
+  /** Set of meal IDs whose recipe list is expanded in diet view */
+  openDietGroups  = signal<Set<string>>(new Set());
+
+  // ── Clone modal ─────────────────────────────────────────────────────────────
+  cloneModal   = signal(false);
+  cloneFrom    = '';
+  cloneTo      = '';
+  cloning      = signal(false);
+
+  // ── Apply schedules ─────────────────────────────────────────────────────────
+  applyingSchedules = signal(false);
+
+  // ── Recipe schedules (weekly repeat) ────────────────────────────────────────
+  recipeSchedules = signal<RecipeSchedule[]>([]);
+
+  /** All days 0-6 for the repeat picker */
+  readonly allDays = [0, 1, 2, 3, 4, 5, 6];
 
   // ── XP pop ─────────────────────────────────────────────────────────────────
   xpPopVisible = signal(false);
@@ -641,6 +925,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly waterBlocks    = computed(() => this.blocks().filter(b => b.type === 'water').length);
   readonly totalProtocols = computed(() => this.protocols().length);
   readonly doneProtocols  = computed(() => this.protocols().filter(p => !!p.log).length);
+
+  // ── Remaining macros ────────────────────────────────────────────────────────
+  readonly remainingKcal    = computed(() => { const m = this.metabolic(); return m ? Math.round(m.dailyCaloricTarget - this.consumedKcal()) : 0; });
+  readonly remainingProtein = computed(() => { const m = this.metabolic(); return m ? Math.round(m.macros.proteinG - (this.summary()?.totalProtein ?? 0)) : 0; });
+  readonly remainingCarbs   = computed(() => { const m = this.metabolic(); return m ? Math.round(m.macros.carbsG   - (this.summary()?.totalCarbs   ?? 0)) : 0; });
+  readonly remainingFat     = computed(() => { const m = this.metabolic(); return m ? Math.round(m.macros.fatG     - (this.summary()?.totalFat     ?? 0)) : 0; });
 
   // ── Panel computed ──────────────────────────────────────────────────────────
   readonly panelRecipes = computed((): LinkedRecipeView[] => {
@@ -681,6 +971,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.waterSvc.loadToday().subscribe({ error: () => {} });
     this.loadProtocols();
     this.loadScheduledMeals(this.selectedDate());
+    this.loadRecipeSchedules();
+    this.cloneFrom = this.selectedDate();
     this.clockInterval = setInterval(() => this.clockMinute.set(this.currentMinuteOfDay()), 30_000);
   }
 
@@ -697,6 +989,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  private loadRecipeSchedules(): void {
+    this.recipeSchedSvc.list().subscribe({
+      next: s => this.recipeSchedules.set(s),
+      error: () => {},
+    });
+  }
+
   private loadProtocols(): void {
     this.protocolSvc.logsForDate(this.selectedDate()).subscribe({
       next: p => this.protocols.set(p.filter(x => x.isActive)),
@@ -707,6 +1006,186 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private reloadSummary(): void {
     this.foodSvc.getSummary(this.selectedDate()).subscribe({ next: s => this.summary.set(s), error: () => {} });
   }
+
+  // ── Apply schedules ──────────────────────────────────────────────────────────
+  applySchedules(): void {
+    this.applyingSchedules.set(true);
+    this.scheduledSvc.applySchedules(this.selectedDate()).subscribe({
+      next: meals => {
+        this.scheduledMeals.set(meals);
+        this.applyingSchedules.set(false);
+        this.reloadSummary();
+      },
+      error: () => this.applyingSchedules.set(false),
+    });
+  }
+
+  // ── Clone diet ───────────────────────────────────────────────────────────────
+  openCloneModal(): void {
+    this.cloneFrom = this.selectedDate();
+    this.cloneTo   = '';
+    this.cloneModal.set(true);
+  }
+
+  closeCloneModal(): void { this.cloneModal.set(false); }
+
+  cloneDiet(): void {
+    if (!this.cloneFrom || !this.cloneTo) return;
+    this.cloning.set(true);
+    this.scheduledSvc.clone(this.cloneFrom, this.cloneTo).subscribe({
+      next: () => {
+        this.cloning.set(false);
+        this.closeCloneModal();
+        // If cloned to selected date, reload meals
+        if (this.cloneTo === this.selectedDate()) {
+          this.loadScheduledMeals(this.selectedDate());
+          this.reloadSummary();
+        }
+      },
+      error: () => this.cloning.set(false),
+    });
+  }
+
+  // ── Diet view helpers ─────────────────────────────────────────────────────────
+  toggleDietGroup(mealId: string): void {
+    this.openDietGroups.update(s => {
+      const next = new Set(s);
+      if (next.has(mealId)) next.delete(mealId); else next.add(mealId);
+      return next;
+    });
+  }
+
+  isDietGroupOpen(mealId: string): boolean {
+    return this.openDietGroups().has(mealId);
+  }
+
+  mealKcalFromLinked(meal: ScheduledMeal): number {
+    return (meal.linkedRecipes ?? []).reduce((s, r) => s + r.kcalPerServing * r.servings, 0);
+  }
+
+  mealBalancePctById(meal: ScheduledMeal): number {
+    const target = Number(meal.caloricTarget) || 0;
+    if (!target) return 0;
+    return Math.min(100, (this.mealKcalFromLinked(meal) / target) * 100);
+  }
+
+  /** Change servings directly from the diet view (bypasses mealPanel state) */
+  changeServingsInline(meal: ScheduledMeal, recipe: LinkedRecipe, delta: number): void {
+    const newServings = Math.max(0.5, recipe.servings + delta);
+    // Optimistic update
+    this.scheduledMeals.update(list => list.map(m =>
+      m.id !== meal.id ? m : {
+        ...m,
+        linkedRecipes: (m.linkedRecipes ?? []).map(r =>
+          r.recipeId === recipe.recipeId ? { ...r, servings: newServings } : r
+        ),
+      }
+    ));
+    this.scheduledSvc.unlinkRecipe(meal.id, recipe.recipeId).subscribe({
+      next: () => {
+        this.scheduledSvc.linkRecipe(meal.id, { recipeId: recipe.recipeId, servings: newServings }).subscribe({
+          next: updated => {
+            this.scheduledMeals.update(list => list.map(m => m.id === updated.id ? updated : m));
+            this.reloadSummary();
+          },
+          error: () => {},
+        });
+      },
+      error: () => {},
+    });
+  }
+
+  /** Remove a recipe directly from the diet view */
+  removeRecipeFromMeal(meal: ScheduledMeal, recipeId: string): void {
+    this.scheduledSvc.unlinkRecipe(meal.id, recipeId).subscribe({
+      next: updated => {
+        this.scheduledMeals.update(list => list.map(m => m.id === updated.id ? updated : m));
+        this.reloadSummary();
+        // If this meal is open in the panel too, refresh it
+        if (this.mealPanel()?.id === updated.id) this.mealPanel.set({ ...updated });
+      },
+      error: () => {},
+    });
+  }
+
+  /** Toggle consumed directly from diet view */
+  toggleConsumedById(meal: ScheduledMeal): void {
+    this.togglingMeal.set(true);
+    this.scheduledSvc.toggle(meal.id).subscribe({
+      next: result => {
+        this.togglingMeal.set(false);
+        this.scheduledMeals.update(list => list.map(m => m.id === result.meal.id ? result.meal : m));
+        this.reloadSummary();
+        if (result.xpGained > 0) this.showXpPop(result.xpGained);
+        if (this.mealPanel()?.id === result.meal.id) this.mealPanel.set({ ...result.meal });
+      },
+      error: () => this.togglingMeal.set(false),
+    });
+  }
+
+  /** Open meal panel from diet view (needs to pass a pseudo-block or find it) */
+  openMealPanelById(meal: ScheduledMeal): void {
+    this.mealPanel.set({ ...meal });
+    this.recipeSearch = '';
+    this.recipeSvc.listMine().subscribe({
+      next: mine => {
+        const existing = this.availableRecipes();
+        const ids = new Set(existing.map(r => r.id));
+        this.availableRecipes.set([...mine, ...existing.filter(r => !ids.has(r.id))]);
+      },
+      error: () => {},
+    });
+    this.recipeSvc.feed(1, 30).subscribe({
+      next: feed => {
+        const existing = this.availableRecipes();
+        const ids = new Set(existing.map(r => r.id));
+        this.availableRecipes.set([...existing, ...feed.filter(r => !ids.has(r.id))]);
+      },
+      error: () => {},
+    });
+  }
+
+  // ── Repeat schedule helpers ──────────────────────────────────────────────────
+  /** Returns true if the recipe+mealName schedule has the given day selected */
+  isDaySelected(recipeId: string, day: number): boolean {
+    const meal = this.mealPanel();
+    if (!meal) return false;
+    return this.recipeSchedules().some(
+      s => s.recipeId === recipeId && s.mealName === meal.name && s.daysOfWeek.includes(day)
+    );
+  }
+
+  /** Toggle a single day for a linked recipe's repeat schedule */
+  toggleRepeatDay(recipe: LinkedRecipeView, day: number): void {
+    const meal = this.mealPanel();
+    if (!meal) return;
+
+    const existing = this.recipeSchedules().find(
+      s => s.recipeId === recipe.recipeId && s.mealName === meal.name
+    );
+    const currentDays = existing?.daysOfWeek ?? [];
+    const newDays = currentDays.includes(day)
+      ? currentDays.filter(d => d !== day)
+      : [...currentDays, day].sort();
+
+    this.recipeSchedSvc.upsert({
+      mealName:   meal.name,
+      recipeId:   recipe.recipeId,
+      servings:   recipe.servings,
+      daysOfWeek: newDays,
+    }).subscribe({
+      next: updated => {
+        this.recipeSchedules.update(list => {
+          const i = list.findIndex(s => s.id === updated.id);
+          if (i >= 0) { const next = [...list]; next[i] = updated; return next; }
+          return [...list, updated];
+        });
+      },
+      error: () => {},
+    });
+  }
+
+  dayLabel(day: number): string { return DAY_LABELS[day] ?? '?'; }
 
   // ── Routine ──────────────────────────────────────────────────────────────────
   generateRoutine(): void {
@@ -730,6 +1209,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.protocolSvc.logsForDate(next).subscribe({ next: p => this.protocols.set(p.filter(x => x.isActive)), error: () => {} });
     this.loadScheduledMeals(next);
     this.closeMealPanel();
+    this.openDietGroups.set(new Set());
+    this.cloneFrom = next;
   }
 
   goToday(): void { this.routineSvc.setDate(this.todayStr); this.changeDate(0); }
@@ -889,6 +1370,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return pid ? this.protocols().some(p => p.id === pid && !!p.log) : false;
   }
   pct(consumed: number | undefined, target: number): number { if (!consumed || !target) return 0; return Math.min(100, (consumed / target) * 100); }
+  absVal(n: number): number { return Math.abs(n); }
   private currentMinuteOfDay(): number { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); }
   private showXpPop(xp: number, event?: MouseEvent): void {
     this.lastXp.set(xp); this.xpPopX = event?.clientX ?? window.innerWidth / 2; this.xpPopY = event?.clientY ?? window.innerHeight / 2;

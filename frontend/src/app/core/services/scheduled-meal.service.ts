@@ -42,4 +42,20 @@ export class ScheduledMealService {
   unlinkRecipe(mealId: string, recipeId: string): Observable<ScheduledMeal> {
     return this.api.delete<ScheduledMeal>(`/scheduled-meals/${mealId}/link-recipe/${recipeId}`);
   }
+
+  /**
+   * Clone all scheduled meals (with linked recipes) from one date to another.
+   * Replaces any existing meals on the target date.
+   */
+  clone(from: string, to: string): Observable<ScheduledMeal[]> {
+    return this.api.post<ScheduledMeal[]>('/scheduled-meals/clone', { from, to });
+  }
+
+  /**
+   * Auto-link recipes from active RecipeSchedules that match the given
+   * date's day-of-week. Returns the updated meal list.
+   */
+  applySchedules(date: string): Observable<ScheduledMeal[]> {
+    return this.api.post<ScheduledMeal[]>('/scheduled-meals/apply-schedules', { date });
+  }
 }

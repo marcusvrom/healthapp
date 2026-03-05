@@ -239,6 +239,8 @@ export interface DailySummary {
   totalCarbs: number;
   totalFat: number;
   totalFiber: number;
+  /** Kcal contributed specifically by consumed recipe-linked scheduled meals */
+  scheduledRecipeKcal?: number;
   byMeal: Array<{ mealType: MealType; calories: number; protein: number; carbs: number; fat: number }>;
 }
 
@@ -392,4 +394,27 @@ export interface RecipeFeedItem extends Recipe {
   reviewCount: number;
   /** Whether the current user has already liked/reviewed */
   myReview?: RecipeReview;
+}
+
+// ── Recipe Schedules (weekly repetitions) ─────────────────────────────────────
+/**
+ * A user-defined rule: auto-link recipe X to meal Y on these days of the week.
+ * Unique per (userId, mealName, recipeId).
+ */
+export interface RecipeSchedule {
+  id: string;
+  userId: string;
+  mealName: string;
+  recipeId: string;
+  title: string;
+  kcalPerServing: number;
+  proteinGPerServing: number;
+  carbsGPerServing: number;
+  fatGPerServing: number;
+  servings: number;
+  /** 0=Sunday … 6=Saturday */
+  daysOfWeek: number[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
