@@ -514,15 +514,57 @@ interface LinkedRecipeView extends LinkedRecipe {
                           </div>
                         }
                       }
+                      <!-- Inline recipe picker -->
+                      @if (inlinePickerMealId() === meal.id) {
+                        <div class="inline-recipe-picker" (click)="$event.stopPropagation()">
+                          <div class="irp-input-row">
+                            <input type="text" placeholder="Buscar receita por nome..." [(ngModel)]="inlineSearch" (input)="onInlineSearch()" autofocus />
+                            <button class="btn btn-secondary" (click)="closeInlinePicker()">✕</button>
+                          </div>
+                          @if (inlinePickerResults().length > 0) {
+                            <div class="irp-results">
+                              @for (r of inlinePickerResults(); track r.id) {
+                                <div class="irp-item">
+                                  <div class="irp-info">
+                                    <div class="irp-title">{{ r.title }}</div>
+                                    <div class="irp-kcal">{{ r.kcal | number:'1.0-0' }} kcal · P:{{ r.proteinG | number:'1.0-0' }}g C:{{ r.carbsG | number:'1.0-0' }}g G:{{ r.fatG | number:'1.0-0' }}g</div>
+                                  </div>
+                                  <button class="irp-add" (click)="addRecipeInline(meal, r)">+ Add</button>
+                                </div>
+                              }
+                            </div>
+                          } @else if (inlineSearch.length > 1) {
+                            <div class="irp-empty">Nenhuma receita encontrada.</div>
+                          } @else {
+                            <div class="irp-results">
+                              @for (r of availableRecipes().slice(0, 6); track r.id) {
+                                <div class="irp-item">
+                                  <div class="irp-info">
+                                    <div class="irp-title">{{ r.title }}</div>
+                                    <div class="irp-kcal">{{ r.kcal | number:'1.0-0' }} kcal · P:{{ r.proteinG | number:'1.0-0' }}g C:{{ r.carbsG | number:'1.0-0' }}g G:{{ r.fatG | number:'1.0-0' }}g</div>
+                                  </div>
+                                  <button class="irp-add" (click)="addRecipeInline(meal, r)">+ Add</button>
+                                </div>
+                              }
+                              @if (availableRecipes().length === 0) {
+                                <div class="irp-empty">Carregando receitas...</div>
+                              }
+                            </div>
+                          }
+                        </div>
+                      }
+
                       <div class="dmg-actions">
-                        <button class="btn btn-secondary" (click)="openMealPanelById(meal); $event.stopPropagation()">+ Adicionar receita</button>
+                        <button class="btn btn-secondary" (click)="openInlinePicker(meal); $event.stopPropagation()">
+                          {{ inlinePickerMealId() === meal.id ? '🔍 Buscando...' : '+ Receita' }}
+                        </button>
                         @if (!meal.isConsumed) {
                           <button class="btn" (click)="toggleConsumedById(meal); $event.stopPropagation()" [disabled]="togglingMeal()">
-                            {{ togglingMeal() ? '...' : '✓ Marcar consumida' }}
+                            {{ togglingMeal() ? '...' : '✓ Consumida' }}
                           </button>
                         } @else {
                           <button class="btn btn-secondary" (click)="toggleConsumedById(meal); $event.stopPropagation()" [disabled]="togglingMeal()">
-                            Desfazer
+                            ↩ Desfazer
                           </button>
                         }
                       </div>
@@ -553,18 +595,22 @@ interface LinkedRecipeView extends LinkedRecipe {
                   @for (b of grp.blocks; track b.id) {
                     <div class="block-card"
                       [class.done]="isDone(b)"
+                      [class.block-completed]="isBlockCompleted(b)"
                       [class.meal-clickable]="b.type === 'meal'"
-                      [style.border-left-color]="mealConsumed(b) ? '#22c55e' : blockMeta(b.type).color"
+                      [style.border-left-color]="blockBorderColor(b)"
                       (click)="b.type === 'meal' ? openMealPanel(b) : null">
 
                       <div class="bc-row">
-                        <div class="bc-icon" [style.background]="blockMeta(b.type).bg" [style.color]="blockMeta(b.type).color">{{ protocolIcon(b) }}</div>
+                        <div class="bc-icon" [style.background]="blockMeta(b.type).bg" [style.color]="isBlockCompleted(b) ? '#16a34a' : blockMeta(b.type).color">{{ protocolIcon(b) }}</div>
                         <div class="bc-body">
-                          <div class="bc-label">{{ b.label }}</div>
+                          <div class="bc-label" [style.text-decoration]="isBlockCompleted(b) ? 'line-through' : 'none'">{{ b.label }}</div>
                           <div class="bc-sub">{{ b.startTime }}–{{ b.endTime }}
                             @if (b.caloricTarget) { &nbsp;·&nbsp;{{ b.caloricTarget | number:'1.0-0' }} kcal alvo }
                             @if (b.waterMl)       { &nbsp;·&nbsp;{{ b.waterMl | number:'1.0-0' }} ml }
                             @if (mealConsumed(b)) { &nbsp;· <span style="color:#16a34a;font-weight:700">✓ consumida</span> }
+                            @if (isBlockCompleted(b) && b.type !== 'meal' && b.type !== 'medication') {
+                              &nbsp;· <span style="color:#16a34a;font-weight:700">✓ concluído</span>
+                            }
                           </div>
 
                           <!-- Recipe chips preview -->
@@ -592,12 +638,23 @@ interface LinkedRecipeView extends LinkedRecipe {
                         <div class="bc-right">
                           @if (b.type === 'medication') {
                             <span class="bc-pill" style="background:#ede9fe;color:#6b21a8">+5 XP</span>
-                            <button class="bc-check" [class.checked]="isDone(b)" (click)="toggleProtocol(b, $event); $event.stopPropagation()" [disabled]="toggling() === b.id">{{ isDone(b) ? '✓' : '○' }}</button>
+                            <button class="bc-check" [class.checked-purple]="isDone(b)" (click)="toggleProtocol(b, $event); $event.stopPropagation()" [disabled]="toggling() === b.id">{{ isDone(b) ? '✓' : '○' }}</button>
                           } @else if (b.type === 'meal') {
                             <span class="bc-pill" [style.background]="mealConsumed(b) ? '#d1fae5' : '#fef3c7'" [style.color]="mealConsumed(b) ? '#065f46' : '#92400e'">
                               {{ mealConsumed(b) ? '✓' : '+10 XP' }}
                             </span>
                             <span style="font-size:.75rem;color:var(--color-text-subtle)" title="Clique para gerenciar receitas">🍳</span>
+                          } @else if (isCompletable(b)) {
+                            @if (!isBlockCompleted(b)) {
+                              <span class="bc-pill" style="background:#dcfce7;color:#166534">+{{ blockXp(b) }} XP</span>
+                            }
+                            <button class="bc-check"
+                              [class.checked]="isBlockCompleted(b)"
+                              (click)="toggleBlockComplete(b, $event); $event.stopPropagation()"
+                              [disabled]="completingBlock() === b.id"
+                              [title]="isBlockCompleted(b) ? 'Desmarcar' : 'Marcar como concluído'">
+                              {{ completingBlock() === b.id ? '…' : isBlockCompleted(b) ? '✓' : '○' }}
+                            </button>
                           }
                         </div>
                       </div>
@@ -928,6 +985,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   /** All days 0-6 for the repeat picker */
   readonly allDays = [0, 1, 2, 3, 4, 5, 6];
+
+  // ── Block completion ────────────────────────────────────────────────────────
+  completingBlock = signal<string | null>(null);
+
+  // ── Inline recipe picker (diet view) ────────────────────────────────────────
+  inlinePickerMealId = signal<string | null>(null);
+  inlineSearch       = '';
+  inlinePickerResults = signal<Recipe[]>([]);
 
   // ── XP pop ─────────────────────────────────────────────────────────────────
   xpPopVisible = signal(false);
@@ -1394,6 +1459,94 @@ export class DashboardComponent implements OnInit, OnDestroy {
       list.map(m => m.id === updated.id ? updated : m)
     );
     this.reloadSummary();
+  }
+
+  // ── Block completion ──────────────────────────────────────────────────────────
+  isCompletable(b: RoutineBlock): boolean {
+    return COMPLETABLE_TYPES.has(b.type);
+  }
+
+  isBlockCompleted(b: RoutineBlock): boolean {
+    return !!b.completedAt;
+  }
+
+  blockXp(b: RoutineBlock): number {
+    return BLOCK_XP[b.type] ?? 5;
+  }
+
+  blockBorderColor(b: RoutineBlock): string {
+    if (this.isBlockCompleted(b)) return '#22c55e';
+    if (this.mealConsumed(b))     return '#22c55e';
+    return BLOCK_META[b.type]?.color ?? '#9ca3af';
+  }
+
+  toggleBlockComplete(b: RoutineBlock, event: MouseEvent): void {
+    this.completingBlock.set(b.id);
+    this.routineSvc.completeBlock(b.id).subscribe({
+      next: result => {
+        this.completingBlock.set(null);
+        if (result.xpGained > 0) this.showXpPop(result.xpGained, event);
+      },
+      error: () => this.completingBlock.set(null),
+    });
+  }
+
+  // ── Inline recipe picker ──────────────────────────────────────────────────────
+  openInlinePicker(meal: ScheduledMeal): void {
+    if (this.inlinePickerMealId() === meal.id) {
+      this.closeInlinePicker();
+      return;
+    }
+    this.inlinePickerMealId.set(meal.id);
+    this.inlineSearch = '';
+    this.inlinePickerResults.set([]);
+    // Ensure recipes are loaded
+    if (this.availableRecipes().length === 0) {
+      this.recipeSvc.listMine().subscribe({
+        next: mine => {
+          this.recipeSvc.feed(1, 30).subscribe({
+            next: feed => {
+              const all = [...mine];
+              const ids = new Set(mine.map(r => r.id));
+              feed.forEach(r => { if (!ids.has(r.id)) all.push(r); });
+              this.availableRecipes.set(all);
+            },
+            error: () => {},
+          });
+        },
+        error: () => {},
+      });
+    }
+  }
+
+  closeInlinePicker(): void {
+    this.inlinePickerMealId.set(null);
+    this.inlineSearch = '';
+    this.inlinePickerResults.set([]);
+  }
+
+  onInlineSearch(): void {
+    const q = this.inlineSearch.toLowerCase().trim();
+    if (q.length < 2) {
+      this.inlinePickerResults.set([]);
+      return;
+    }
+    this.inlinePickerResults.set(
+      this.availableRecipes().filter(r => r.title.toLowerCase().includes(q))
+    );
+  }
+
+  addRecipeInline(meal: ScheduledMeal, recipe: Recipe): void {
+    this.scheduledSvc.linkRecipe(meal.id, { recipeId: recipe.id, servings: 1 }).subscribe({
+      next: updated => {
+        this.scheduledMeals.update(list => list.map(m => m.id === updated.id ? updated : m));
+        this.reloadSummary();
+        // Keep picker open so user can add more; clear search for convenience
+        this.inlineSearch = '';
+        this.inlinePickerResults.set([]);
+      },
+      error: () => {},
+    });
   }
 
   // ── Misc helpers ─────────────────────────────────────────────────────────────
