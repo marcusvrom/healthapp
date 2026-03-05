@@ -10,6 +10,22 @@ import {
 } from "typeorm";
 import { User } from "./User";
 
+/**
+ * A single recipe linked to a ScheduledMeal.
+ * Stores an immutable snapshot of the recipe's per-serving nutrition so
+ * historical records stay accurate even if the recipe is later edited.
+ */
+export interface LinkedRecipe {
+  recipeId: string;
+  title: string;
+  kcalPerServing: number;
+  proteinGPerServing: number;
+  carbsGPerServing: number;
+  fatGPerServing: number;
+  /** Number of servings the user is eating (min 0.5) */
+  servings: number;
+}
+
 export interface ScheduledFoodItem {
   name: string;
   quantityG: number;
@@ -61,6 +77,14 @@ export class ScheduledMeal {
   /** Suggested foods/quantities as a JSON array */
   @Column({ type: "jsonb", nullable: true })
   foods?: ScheduledFoodItem[];
+
+  /**
+   * Recipes the user has linked to this meal.
+   * This is the single source of truth for recipe-based consumption.
+   * Totals (kcal, macros) are derived by summing linkedRecipes × servings.
+   */
+  @Column({ name: "linked_recipes", type: "jsonb", nullable: true })
+  linkedRecipes?: LinkedRecipe[];
 
   @Column({ name: "is_consumed", type: "boolean", default: false })
   isConsumed!: boolean;

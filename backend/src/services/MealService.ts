@@ -3,6 +3,7 @@ import { AppDataSource } from "../config/typeorm.config";
 import { Meal, MealFood } from "../entities/Meal";
 import { Food } from "../entities/Food";
 import { MealType } from "../entities/RoutineBlock";
+import { ScheduledMeal } from "../entities/ScheduledMeal";
 
 export interface AddFoodToMealDto {
   foodId: string;
@@ -131,6 +132,8 @@ export class MealService {
     totalCarbs: number;
     totalFat: number;
     totalFiber: number;
+    /** Kcal contributed specifically by consumed recipe-linked scheduled meals */
+    scheduledRecipeKcal: number;
     byMeal: Array<{
       mealType: MealType;
       calories: number;
@@ -139,22 +142,50 @@ export class MealService {
       fat: number;
     }>;
   }> {
+    // ── Manual food-log meals (Meal entity) ───────────────────────────────────
     const meals = await this.listByDate(userId, date);
-
     const byMeal = meals.map((m) => ({
       mealType: m.mealType,
       calories: m.totalCalories,
-      protein: m.totalProtein,
-      carbs: m.totalCarbs,
-      fat: m.totalFat,
+      protein:  m.totalProtein,
+      carbs:    m.totalCarbs,
+      fat:      m.totalFat,
     }));
 
+    // ── Consumed scheduled meals (recipe-linked) ──────────────────────────────
+    // These are the single source of truth for recipe-based consumption.
+    const scheduledMealRepo = AppDataSource.getRepository(ScheduledMeal);
+    const consumedScheduled = await scheduledMealRepo.find({
+      where: { userId, scheduledDate: date, isConsumed: true },
+    });
+
+    let schedKcal = 0, schedProtein = 0, schedCarbs = 0, schedFat = 0;
+    for (const sm of consumedScheduled) {
+      const linked = sm.linkedRecipes ?? [];
+      if (linked.length > 0) {
+        // Sum recipe snapshots × servings
+        for (const r of linked) {
+          schedKcal    += r.kcalPerServing     * r.servings;
+          schedProtein += r.proteinGPerServing * r.servings;
+          schedCarbs   += r.carbsGPerServing   * r.servings;
+          schedFat     += r.fatGPerServing     * r.servings;
+        }
+      } else {
+        // No recipes linked → count the planned targets as consumed
+        schedKcal    += Number(sm.caloricTarget ?? 0);
+        schedProtein += Number(sm.proteinG     ?? 0);
+        schedCarbs   += Number(sm.carbsG       ?? 0);
+        schedFat     += Number(sm.fatG         ?? 0);
+      }
+    }
+
     return {
-      totalCalories: byMeal.reduce((s, m) => s + m.calories, 0),
-      totalProtein: byMeal.reduce((s, m) => s + m.protein, 0),
-      totalCarbs: byMeal.reduce((s, m) => s + m.carbs, 0),
-      totalFat: byMeal.reduce((s, m) => s + m.fat, 0),
-      totalFiber: meals.reduce((s, m) => s + m.totalFiber, 0),
+      totalCalories:       byMeal.reduce((s, m) => s + m.calories, 0) + schedKcal,
+      totalProtein:        byMeal.reduce((s, m) => s + m.protein, 0)  + schedProtein,
+      totalCarbs:          byMeal.reduce((s, m) => s + m.carbs, 0)    + schedCarbs,
+      totalFat:            byMeal.reduce((s, m) => s + m.fat, 0)      + schedFat,
+      totalFiber:          meals.reduce((s, m) => s + m.totalFiber, 0),
+      scheduledRecipeKcal: schedKcal,
       byMeal,
     };
   }

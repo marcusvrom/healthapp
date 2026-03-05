@@ -94,12 +94,14 @@ router.get("/metrics/streaks",  ...auth(MetricsController.streaks));
 router.get("/clinical/history", ...auth(ClinicalController.history));
 
 // ── Scheduled Meals ───────────────────────────────────────────────────────────
-// NOTE: /scheduled-meals/generate must come before /scheduled-meals/:id
-router.post("/scheduled-meals/generate",    ...auth(ScheduledMealController.generate));
-router.get("/scheduled-meals",              ...auth(ScheduledMealController.list));
-router.post("/scheduled-meals",             ...auth(ScheduledMealController.create));
-router.patch("/scheduled-meals/:id/toggle", ...auth(ScheduledMealController.toggle));
-router.delete("/scheduled-meals/:id",       ...auth(ScheduledMealController.remove));
+// NOTE: static sub-paths (/generate) must come before /scheduled-meals/:id
+router.post("/scheduled-meals/generate",                        ...auth(ScheduledMealController.generate));
+router.get("/scheduled-meals",                                  ...auth(ScheduledMealController.list));
+router.post("/scheduled-meals",                                 ...auth(ScheduledMealController.create));
+router.patch("/scheduled-meals/:id/toggle",                     ...auth(ScheduledMealController.toggle));
+router.post("/scheduled-meals/:id/link-recipe",                 ...auth(ScheduledMealController.linkRecipe));
+router.delete("/scheduled-meals/:id/link-recipe/:recipeId",     ...auth(ScheduledMealController.unlinkRecipe));
+router.delete("/scheduled-meals/:id",                           ...auth(ScheduledMealController.remove));
 
 // ── User Profile & Avatar ─────────────────────────────────────────────────────
 router.get("/users/me",     ...auth(UserController.me));

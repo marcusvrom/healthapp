@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AppDataSource } from "../config/typeorm.config";
-import { RoutineBlock } from "../entities/RoutineBlock";
+import { RoutineBlock, BlockType } from "../entities/RoutineBlock";
 import { ScheduledMeal } from "../entities/ScheduledMeal";
 import { HealthProfile } from "../entities/HealthProfile";
 import { BloodTest } from "../entities/BloodTest";
@@ -130,6 +130,49 @@ export class RoutineController {
         blocks.map((b) => ({ ...b, userId: req.userId }))
       );
       const saved = await routineRepo().save(entities);
+
+      // ── Create one ScheduledMeal per meal block ─────────────────────────────
+      // This links the timeline block to a ScheduledMeal (single source of truth
+      // for recipe links and consumption tracking).
+      const mealBlocksSaved = saved.filter(
+        (b) => b.type === BlockType.MEAL && b.caloricTarget != null
+      );
+
+      if (mealBlocksSaved.length > 0 && metabolic.dailyCaloricTarget > 0) {
+        const scheduledMeals = mealBlocksSaved.map((b) => {
+          const ratio = Number(b.caloricTarget!) / metabolic.dailyCaloricTarget;
+          return mealRepo().create({
+            userId:        req.userId,
+            scheduledDate: date,
+            scheduledTime: b.startTime,
+            name:          b.label,
+            caloricTarget: Number(b.caloricTarget),
+            proteinG:      Math.round(metabolic.macros.proteinG * ratio),
+            carbsG:        Math.round(metabolic.macros.carbsG   * ratio),
+            fatG:          Math.round(metabolic.macros.fatG     * ratio),
+            isConsumed:    false,
+            xpAwarded:     false,
+          });
+        });
+
+        const savedMeals = await mealRepo().save(scheduledMeals);
+
+        // Patch each meal block's metadata with its scheduledMealId so the
+        // frontend can navigate from timeline block → ScheduledMeal.
+        const blocksToUpdate = mealBlocksSaved.map((b, i) => ({
+          ...b,
+          metadata: { ...(b.metadata ?? {}), scheduledMealId: savedMeals[i]!.id },
+        }));
+        await routineRepo().save(blocksToUpdate);
+
+        // Return freshly loaded blocks (with updated metadata).
+        const finalBlocks = await routineRepo().find({
+          where: { userId: req.userId, routineDate: date },
+          order: { sortOrder: "ASC" },
+        });
+        res.status(201).json(finalBlocks);
+        return;
+      }
 
       res.status(201).json(saved);
     } catch (err) {

@@ -312,6 +312,21 @@ export interface ScheduledFoodItem {
   fatG: number;
 }
 
+/**
+ * Immutable snapshot of a recipe linked to a scheduled meal.
+ * Nutrition values are stored at link-time so edits to the recipe never
+ * retroactively change historical consumption records.
+ */
+export interface LinkedRecipe {
+  recipeId: string;
+  title: string;
+  kcalPerServing: number;
+  proteinGPerServing: number;
+  carbsGPerServing: number;
+  fatGPerServing: number;
+  servings: number;
+}
+
 export interface ScheduledMeal {
   id: string;
   userId: string;
@@ -323,6 +338,8 @@ export interface ScheduledMeal {
   carbsG?: number;
   fatG?: number;
   foods?: ScheduledFoodItem[];
+  /** Recipes linked to this meal — single source of truth for recipe consumption */
+  linkedRecipes?: LinkedRecipe[];
   isConsumed: boolean;
   consumedAt?: string;
   xpAwarded: boolean;

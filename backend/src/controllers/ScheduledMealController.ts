@@ -59,4 +59,40 @@ export class ScheduledMealController {
       next(err);
     }
   }
+
+  /**
+   * POST /scheduled-meals/:id/link-recipe
+   * Body: { recipeId: string, servings: number }
+   * Links a recipe to the scheduled meal. If the same recipe is already linked,
+   * its servings are incremented. Returns the updated ScheduledMeal.
+   */
+  static async linkRecipe(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const meal = await ScheduledMealService.linkRecipe(
+        req.params["id"]!,
+        req.userId,
+        { recipeId: req.body.recipeId, servings: req.body.servings ?? 1 }
+      );
+      res.json(meal);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * DELETE /scheduled-meals/:id/link-recipe/:recipeId
+   * Removes a recipe link from the scheduled meal.
+   */
+  static async unlinkRecipe(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const meal = await ScheduledMealService.unlinkRecipe(
+        req.params["id"]!,
+        req.userId,
+        req.params["recipeId"]!
+      );
+      res.json(meal);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

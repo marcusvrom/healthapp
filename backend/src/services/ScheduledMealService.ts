@@ -1,6 +1,7 @@
 import { Repository } from "typeorm";
 import { AppDataSource } from "../config/typeorm.config";
-import { ScheduledMeal, ScheduledFoodItem } from "../entities/ScheduledMeal";
+import { ScheduledMeal, ScheduledFoodItem, LinkedRecipe } from "../entities/ScheduledMeal";
+import { Recipe } from "../entities/Recipe";
 import { HealthProfile } from "../entities/HealthProfile";
 import { GamificationService, XP_REWARDS } from "./GamificationService";
 import { CalculationService } from "./CalculationService";
@@ -100,6 +101,64 @@ export class ScheduledMealService {
     }
 
     return { meal: saved, xpGained, totalXp };
+  }
+
+  // ── Recipe linking ──────────────────────────────────────────────────────────
+
+  /**
+   * Links a recipe to this scheduled meal (single source of truth for consumption).
+   * If the same recipe is already linked, its servings are incremented instead of
+   * creating a duplicate entry.
+   */
+  static async linkRecipe(
+    mealId: string,
+    userId: string,
+    dto: { recipeId: string; servings: number }
+  ): Promise<ScheduledMeal> {
+    const meal = await this.repo.findOneBy({ id: mealId, userId });
+    if (!meal) throw Object.assign(new Error("Refeição não encontrada."), { statusCode: 404 });
+
+    const recipe = await AppDataSource.getRepository(Recipe).findOneBy({
+      id: dto.recipeId,
+      isActive: true,
+    });
+    if (!recipe) throw Object.assign(new Error("Receita não encontrada."), { statusCode: 404 });
+
+    const servings = Math.max(0.5, Number(dto.servings) || 1);
+    const existing = (meal.linkedRecipes ?? []).findIndex(r => r.recipeId === dto.recipeId);
+
+    if (existing >= 0) {
+      // Increment servings on existing entry
+      meal.linkedRecipes![existing]!.servings += servings;
+    } else {
+      const entry: LinkedRecipe = {
+        recipeId:           recipe.id,
+        title:              recipe.title,
+        kcalPerServing:     Number(recipe.kcal),
+        proteinGPerServing: Number(recipe.proteinG),
+        carbsGPerServing:   Number(recipe.carbsG),
+        fatGPerServing:     Number(recipe.fatG),
+        servings,
+      };
+      meal.linkedRecipes = [...(meal.linkedRecipes ?? []), entry];
+    }
+
+    return this.repo.save(meal);
+  }
+
+  /**
+   * Removes a recipe link from this scheduled meal.
+   */
+  static async unlinkRecipe(
+    mealId: string,
+    userId: string,
+    recipeId: string
+  ): Promise<ScheduledMeal> {
+    const meal = await this.repo.findOneBy({ id: mealId, userId });
+    if (!meal) throw Object.assign(new Error("Refeição não encontrada."), { statusCode: 404 });
+
+    meal.linkedRecipes = (meal.linkedRecipes ?? []).filter(r => r.recipeId !== recipeId);
+    return this.repo.save(meal);
   }
 
   static async remove(id: string, userId: string): Promise<void> {
