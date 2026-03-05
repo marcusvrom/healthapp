@@ -126,7 +126,7 @@ interface SnapshotItem { marker: MarkerDef; value: number; status: StatusInfo; }
       cursor: pointer; transition: .15s; text-align: left; min-width: 0;
 
       .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-      .mlabel { font-size: .8rem; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .mlabel { font-size: .8rem; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); }
       .mval   { font-size: .72rem; color: var(--color-text-muted); flex-shrink: 0; }
 
       &.active { border-color: var(--dot-color); background: color-mix(in srgb, var(--dot-color) 10%, transparent); }

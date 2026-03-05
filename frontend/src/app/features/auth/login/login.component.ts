@@ -9,7 +9,9 @@ import { AuthService } from '../../../core/services/auth.service';
   standalone: true,
   imports: [RouterLink, FormsModule],
   styles: [`
+    body: { background: var(--color-bg) !important; }
     .auth-page {
+      background: var(--color-bg) !important;
       min-height: 100vh;
       display: grid;
       grid-template-columns: 1fr 1fr;

@@ -8,7 +8,8 @@ import { AuthService } from '../../../core/services/auth.service';
   standalone: true,
   imports: [RouterLink, FormsModule],
   styles: [`
-    .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    body: { background: var(--color-bg) !important; }
+    .auth-page { background: var(--color-bg) !important; min-height: 100vh; display: flex; align-items: center; justify-content: center;
       padding: 2rem; background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
     }
     .card {

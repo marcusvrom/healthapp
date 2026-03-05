@@ -227,20 +227,6 @@ interface TimeGroup {
           }
         </div>
 
-        <div class="water-card">
-          <div class="card-title">💧 Hidratação</div>
-          @if (metabolic()) {
-            <div class="water-progress">
-              <span class="cur">{{ waterSvc.todayTotal() }}</span><span class="sep">/</span>
-              <span class="tot">{{ metabolic()!.waterMlTotal | number:'1.0-0' }}</span><span class="unit">ml</span>
-            </div>
-            <div class="water-bar"><div class="fill" [style.width.%]="waterPct()"></div></div>
-            <p class="water-hint">{{ waterBlocks() }} lembretes distribuídos no dia</p>
-          } @else {
-            <p style="font-size:.82rem;color:#0369a1">Configure o perfil para ver a meta de água.</p>
-          }
-        </div>
-
         @if (metabolic()) {
           <div class="stats-row">
             <div class="stat-mini"><div class="val" style="color:var(--color-primary)">{{ metabolic()!.bmr | number:'1.0-0' }}</div><div class="lbl">TMB (kcal/dia)</div></div>

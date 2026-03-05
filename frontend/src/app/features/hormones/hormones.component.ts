@@ -70,6 +70,7 @@ const COMMON_NAMES: Record<HormoneCategory, string[]> = {
       /* Category selector */
       .cat-selector { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; }
       .cat-btn {
+        color: var(--color-text);
         padding: .625rem .5rem; border-radius: var(--radius-sm);
         border: 2px solid var(--color-border); background: var(--color-surface-2);
         cursor: pointer; text-align: center; font-size: .78rem; font-weight: 600;
