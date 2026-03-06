@@ -218,14 +218,16 @@ import { WeeklyCheckIn } from '../../core/models';
           <!-- Weight -->
           <div class="form-group">
             <label>Peso atual (kg) *</label>
-            <input type="number" [(ngModel)]="form.currentWeight"
+            <input type="number"
+              [ngModel]="currentWeight()"
+              (ngModelChange)="currentWeight.set($event ? +$event : null)"
               placeholder="ex: 78.5" min="20" max="300" step="0.1" />
           </div>
 
           <!-- Waist -->
           <div class="form-group">
             <label>Circunferência abdominal (cm)</label>
-            <input type="number" [(ngModel)]="form.waistCircumference"
+            <input type="number" [(ngModel)]="waistCircumference"
               placeholder="opcional" min="40" max="200" step="0.5" />
           </div>
 
@@ -264,9 +266,9 @@ import { WeeklyCheckIn } from '../../core/models';
             <!-- Stars (pre-filled from auto-calc, can be overridden) -->
             <div class="star-row">
               @for (s of [1,2,3,4,5]; track s) {
-                <span class="star" [class.active]="s <= form.adherenceScore"
-                  (click)="form.adherenceScore = s">
-                  {{ s <= form.adherenceScore ? '⭐' : '☆' }}
+                <span class="star" [class.active]="s <= adherenceScore()"
+                  (click)="adherenceScore.set(s)">
+                  {{ s <= adherenceScore() ? '⭐' : '☆' }}
                 </span>
               }
             </div>
@@ -279,7 +281,7 @@ import { WeeklyCheckIn } from '../../core/models';
           <!-- Notes -->
           <div class="form-group field-full">
             <label>Observações (opcional)</label>
-            <textarea [(ngModel)]="form.notes" placeholder="Como foi a semana? Algo relevante?"></textarea>
+            <textarea [(ngModel)]="notes" placeholder="Como foi a semana? Algo relevante?"></textarea>
           </div>
         </div>
 
@@ -335,21 +337,22 @@ export class CheckInComponent implements OnInit {
 
   readonly todayLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
-  form = {
-    currentWeight: null as number | null,
-    waistCircumference: null as number | null,
-    adherenceScore: 0,
-    notes: '',
-  };
+  // Reactive fields tracked by computed()
+  currentWeight    = signal<number | null>(null);
+  adherenceScore   = signal(0);
+
+  // Plain fields (not needed in computed)
+  waistCircumference: number | null = null;
+  notes = '';
 
   adherenceLabel = computed(() => {
     const labels = ['', 'Muito ruim — quase nada seguido', 'Ruim — muitos deslizes', 'Regular — alguns deslizes', 'Bom — poucas exceções', 'Perfeito — seguiu tudo!'];
-    return labels[this.form.adherenceScore] ?? '';
+    return labels[this.adherenceScore()] ?? '';
   });
 
   // Only requires weight; adherence is auto-set (but can be overridden, minimum 1 star required)
   canSave = computed(() =>
-    !!this.form.currentWeight && this.form.adherenceScore >= 1
+    !!this.currentWeight() && this.adherenceScore() >= 1
   );
 
   ngOnInit(): void {
@@ -369,9 +372,8 @@ export class CheckInComponent implements OnInit {
     this.svc.adherence().subscribe({
       next: data => {
         this.adherenceData.set(data);
-        // Auto-fill stars from calculation if available
         if (data.adherenceScore !== null) {
-          this.form.adherenceScore = data.adherenceScore;
+          this.adherenceScore.set(data.adherenceScore);
         }
       },
       error: () => { /* fail silently — user can set stars manually */ },
@@ -383,20 +385,19 @@ export class CheckInComponent implements OnInit {
     this.saving.set(true);
     this.svc.create({
       date: new Date().toISOString().slice(0, 10),
-      currentWeight: this.form.currentWeight!,
-      waistCircumference: this.form.waistCircumference ?? undefined,
-      adherenceScore: this.form.adherenceScore,
-      notes: this.form.notes || undefined,
+      currentWeight: this.currentWeight()!,
+      waistCircumference: this.waistCircumference ?? undefined,
+      adherenceScore: this.adherenceScore(),
+      notes: this.notes || undefined,
     }).subscribe({
       next: ci => {
         this.checkIns.update(list => [ci, ...list]);
         this.saving.set(false);
         this.justSaved.set(true);
-        // Reset form
-        this.form.currentWeight = null;
-        this.form.waistCircumference = null;
-        this.form.adherenceScore = this.adherenceData()?.adherenceScore ?? 0;
-        this.form.notes = '';
+        this.currentWeight.set(null);
+        this.waistCircumference = null;
+        this.adherenceScore.set(this.adherenceData()?.adherenceScore ?? 0);
+        this.notes = '';
         setTimeout(() => this.justSaved.set(false), 6000);
       },
       error: () => this.saving.set(false),
