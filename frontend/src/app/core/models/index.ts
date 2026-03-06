@@ -471,17 +471,18 @@ export interface BlockCompleteResult {
 
 /** Social feed item */
 export interface FeedItem {
-  id:           string;
-  userId:       string;
-  userName:     string;
-  avatarUrl:    string | null;
-  blockType:    string | null;
-  photoUrl:     string | null;
-  caption:      string | null;
-  likeCount:    number;
-  commentCount: number;
-  userLiked:    boolean;
-  createdAt:    string;
+  id:            string;
+  userId:        string;
+  userName:      string;
+  avatarUrl:     string | null;
+  blockType:     string | null;
+  photoUrl:      string | null;
+  photoVerified: boolean;
+  caption:       string | null;
+  likeCount:     number;
+  commentCount:  number;
+  userLiked:     boolean;
+  createdAt:     string;
 }
 
 /** Comment on a feed post */
@@ -502,4 +503,65 @@ export interface ToggleResult {
   totalXp:     number;
   level:       UserLevel;
   capReached?: boolean;
+}
+
+// ── Challenges ────────────────────────────────────────────────────────────────
+
+export interface Challenge {
+  id:          string;
+  title:       string;
+  description: string;
+  category:    string;
+  targetCount: number;
+  xpReward:    number;
+  emoji:       string;
+  weekStart:   string;
+  weekEnd:     string;
+  joined:      boolean;
+  progress:    number;
+  completed:   boolean;
+}
+
+// ── Groups ────────────────────────────────────────────────────────────────────
+
+export interface Group {
+  id:          string;
+  name:        string;
+  description: string | null;
+  ownerId:     string;
+  inviteCode:  string;
+  avatarEmoji: string;
+  isActive:    boolean;
+  createdAt:   string;
+  memberCount: number;
+  isOwner:     boolean;
+}
+
+export interface GroupMemberEntry {
+  userId:     string;
+  name:       string;
+  avatarUrl:  string | null;
+  weeklyXp:   number;
+  totalXp:    number;
+  level:      number;
+  levelTitle: string;
+  joinedAt:   string;
+}
+
+export interface GroupChallengeProgress {
+  challengeId:        string;
+  title:              string;
+  emoji:              string;
+  category:           string;
+  collectiveTarget:   number;
+  collectiveProgress: number;
+  completed:          boolean;
+}
+
+export interface GroupDetail {
+  group:              Group;
+  isOwner:            boolean;
+  memberCount:        number;
+  leaderboard:        GroupMemberEntry[];
+  collectiveProgress: GroupChallengeProgress[];
 }

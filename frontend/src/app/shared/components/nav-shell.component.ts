@@ -147,6 +147,12 @@ import { environment } from '../../environments/environment';
           <a routerLink="/feed" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🌐</span> Feed Social
           </a>
+          <a routerLink="/challenges" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">🏆</span> Desafios
+          </a>
+          <a routerLink="/groups" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">👥</span> Grupos
+          </a>
           <a routerLink="/clinical" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🩺</span> Clínico
           </a>

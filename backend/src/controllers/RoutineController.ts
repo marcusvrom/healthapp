@@ -12,6 +12,7 @@ import { RoutineGeneratorService } from "../services/RoutineGeneratorService";
 import { ClinicalProtocolService } from "../services/ClinicalProtocolService";
 import { GamificationService, XP_REWARDS } from "../services/GamificationService";
 import { createBlockPost } from "./SocialController";
+import { ChallengeService } from "../services/ChallengeService";
 import { ExerciseCalcInput } from "../types/calculation.types";
 
 // ── Time-window helpers ────────────────────────────────────────────────────────
@@ -335,6 +336,13 @@ export class RoutineController {
       let photoBonusXp = 0;
 
       if (!isUndoing) {
+        // ── Challenge auto-progress ──────────────────────────────────────────
+        const challengeXp = await ChallengeService.handleBlockCompleted(req.userId, block.type);
+        if (challengeXp > 0) {
+          totalXp   = await GamificationService.getXp(req.userId);
+          xpGained += challengeXp;
+        }
+
         const { photoDataUrl, caption, sharePublic } = req.body as {
           photoDataUrl?: string;
           caption?: string;
@@ -342,21 +350,25 @@ export class RoutineController {
         };
 
         if (photoDataUrl?.startsWith("data:image/")) {
-          const post = await createBlockPost({
-            userId:       req.userId,
-            blockId:      block.id,
-            blockType:    block.type,
+          const { post, photoVerified } = await createBlockPost({
+            userId:           req.userId,
+            blockId:          block.id,
+            blockType:        block.type,
             photoDataUrl,
             caption,
-            isPublic:     sharePublic !== false, // default public
+            isPublic:         sharePublic !== false,
+            blockStartTime:   block.startTime,
+            blockRoutineDate: block.routineDate,
           });
           postId = post.id;
 
           // Award photo bonus XP (not subject to per-category daily cap)
           const bonus = XP_REWARDS.BLOCK_PHOTO;
-          totalXp     = await GamificationService.awardXp(req.userId, bonus, "social", post.id);
+          totalXp      = await GamificationService.awardXp(req.userId, bonus, "social", post.id);
           photoBonusXp = bonus;
-          xpGained += bonus;
+          xpGained    += bonus;
+          // Attach verification result to response
+          (block as unknown as Record<string, unknown>)["photoVerified"] = photoVerified;
         }
       }
 

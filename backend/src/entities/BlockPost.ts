@@ -37,6 +37,13 @@ export class BlockPost {
   @Column({ name: "photo_url", type: "text", nullable: true })
   photoUrl?: string;
 
+  /**
+   * Whether the photo's EXIF DateTimeOriginal is within ±2 hours of the block time.
+   * Informational only — does not block or alter XP.
+   */
+  @Column({ name: "photo_verified", type: "boolean", default: false })
+  photoVerified!: boolean;
+
   @Column({ type: "text", nullable: true })
   caption?: string;
 

@@ -21,6 +21,8 @@ export const XP_REWARDS = {
   BLOCK_CUSTOM:        5,
   // Social bonus
   BLOCK_PHOTO:        10,
+  // Challenge completion (xpReward on Challenge entity overrides this at runtime)
+  CHALLENGE_COMPLETE: 50,
 } as const;
 
 /**

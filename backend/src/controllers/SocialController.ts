@@ -7,6 +7,7 @@ import { BlockPost } from "../entities/BlockPost";
 import { BlockLike } from "../entities/BlockLike";
 import { BlockComment } from "../entities/BlockComment";
 import { User } from "../entities/User";
+import { extractExifDateTimeOriginal } from "../utils/exifParser";
 
 const uploadsDir = path.join(process.cwd(), "uploads", "posts");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
@@ -18,17 +19,18 @@ function userRepo()    { return AppDataSource.getRepository(User); }
 
 /** Shape returned to the feed client */
 interface FeedItem {
-  id: string;
-  userId: string;
-  userName: string;
-  avatarUrl: string | null;
-  blockType: string | null;
-  photoUrl: string | null;
-  caption: string | null;
-  likeCount: number;
-  commentCount: number;
-  userLiked: boolean;
-  createdAt: Date;
+  id:            string;
+  userId:        string;
+  userName:      string;
+  avatarUrl:     string | null;
+  blockType:     string | null;
+  photoUrl:      string | null;
+  photoVerified: boolean;
+  caption:       string | null;
+  likeCount:     number;
+  commentCount:  number;
+  userLiked:     boolean;
+  createdAt:     Date;
 }
 
 export class SocialController {
@@ -87,17 +89,18 @@ export class SocialController {
       const feed: FeedItem[] = posts.map(p => {
         const author = userMap.get(p.userId);
         return {
-          id:           p.id,
-          userId:       p.userId,
-          userName:     author?.name ?? "Usuário",
-          avatarUrl:    author?.avatarUrl ?? null,
-          blockType:    p.blockType ?? null,
-          photoUrl:     p.photoUrl ?? null,
-          caption:      p.caption ?? null,
-          likeCount:    likeCountMap.get(p.id) ?? 0,
-          commentCount: commentCountMap.get(p.id) ?? 0,
-          userLiked:    myLikedSet.has(p.id),
-          createdAt:    p.createdAt,
+          id:            p.id,
+          userId:        p.userId,
+          userName:      author?.name ?? "Usuário",
+          avatarUrl:     author?.avatarUrl ?? null,
+          blockType:     p.blockType ?? null,
+          photoUrl:      p.photoUrl ?? null,
+          photoVerified: p.photoVerified,
+          caption:       p.caption ?? null,
+          likeCount:     likeCountMap.get(p.id) ?? 0,
+          commentCount:  commentCountMap.get(p.id) ?? 0,
+          userLiked:     myLikedSet.has(p.id),
+          createdAt:     p.createdAt,
         };
       });
 
@@ -204,7 +207,14 @@ export class SocialController {
 
 /**
  * Helper used by RoutineController to create a post + optionally save photo.
- * Returns the created post.
+ *
+ * Performs light EXIF timestamp verification:
+ *  - Extracts DateTimeOriginal from the JPEG EXIF data (pure Buffer, no deps)
+ *  - Considers the photo "verified" if its EXIF timestamp is within ±2 hours
+ *    of the block's scheduled time window
+ *  - photoVerified is informational only — does NOT block the post
+ *
+ * Returns { post, photoVerified }.
  */
 export async function createBlockPost(params: {
   userId: string;
@@ -213,28 +223,46 @@ export async function createBlockPost(params: {
   photoDataUrl?: string;
   caption?: string;
   isPublic: boolean;
-}): Promise<BlockPost> {
-  let photoUrl: string | undefined;
+  blockStartTime?: string;  // HH:MM — used for EXIF window check
+  blockRoutineDate?: string; // YYYY-MM-DD — used for EXIF window check
+}): Promise<{ post: BlockPost; photoVerified: boolean }> {
+  let photoUrl:     string | undefined;
+  let photoVerified = false;
 
   if (params.photoDataUrl?.startsWith("data:image/")) {
     const matches = params.photoDataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
     if (matches) {
       const ext      = matches[1]!.split("/")[1]!;
       const data     = matches[2]!;
+      const imgBuf   = Buffer.from(data, "base64");
       const filename = `post-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const filePath = path.join(uploadsDir, filename);
-      fs.writeFileSync(filePath, Buffer.from(data, "base64"));
+      fs.writeFileSync(filePath, imgBuf);
       photoUrl = `/uploads/posts/${filename}`;
+
+      // ── EXIF timestamp verification ───────────────────────────────────────
+      if (params.blockRoutineDate && params.blockStartTime) {
+        const exifDt = extractExifDateTimeOriginal(imgBuf);
+        if (exifDt) {
+          const [hh, mm]     = params.blockStartTime.split(":").map(Number);
+          const blockExpected = new Date(`${params.blockRoutineDate}T${String(hh).padStart(2,"0")}:${String(mm).padStart(2,"0")}:00`);
+          const diffMs        = Math.abs(exifDt.getTime() - blockExpected.getTime());
+          const twoHoursMs    = 2 * 60 * 60 * 1000;
+          photoVerified       = diffMs <= twoHoursMs;
+        }
+      }
     }
   }
 
-  const post = postRepo().create({
-    userId:    params.userId,
-    blockId:   params.blockId,
-    blockType: params.blockType,
+  const post = await postRepo().save(postRepo().create({
+    userId:        params.userId,
+    blockId:       params.blockId,
+    blockType:     params.blockType,
     photoUrl,
-    caption:   params.caption?.trim() || undefined,
-    isPublic:  params.isPublic,
-  });
-  return postRepo().save(post);
+    caption:       params.caption?.trim() || undefined,
+    isPublic:      params.isPublic,
+    photoVerified,
+  }));
+
+  return { post, photoVerified };
 }

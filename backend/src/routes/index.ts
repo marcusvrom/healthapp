@@ -20,6 +20,8 @@ import { CheckInController } from "../controllers/CheckInController";
 import { CopilotController } from "../controllers/CopilotController";
 import { RankingController } from "../controllers/RankingController";
 import { SocialController } from "../controllers/SocialController";
+import { ChallengeController } from "../controllers/ChallengeController";
+import { GroupController } from "../controllers/GroupController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -171,5 +173,17 @@ router.post("/social/posts/:id/like",         ...auth(SocialController.toggleLik
 router.get("/social/posts/:id/comments",      ...auth(SocialController.listComments));
 router.post("/social/posts/:id/comments",     ...auth(SocialController.addComment));
 router.delete("/social/comments/:id",         ...auth(SocialController.deleteComment));
+
+// ── Challenges ────────────────────────────────────────────────────────────────
+router.get("/challenges",              ...auth(ChallengeController.list));
+router.post("/challenges/:id/join",    ...auth(ChallengeController.join));
+router.post("/challenges/:id/check",   ...auth(ChallengeController.check));
+
+// ── Groups ────────────────────────────────────────────────────────────────────
+router.get("/groups",                  ...auth(GroupController.myGroups));
+router.post("/groups",                 ...auth(GroupController.create));
+router.post("/groups/join/:code",      ...auth(GroupController.joinByCode));
+router.get("/groups/:id",              ...auth(GroupController.detail));
+router.delete("/groups/:id/leave",     ...auth(GroupController.leave));
 
 export default router;

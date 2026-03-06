@@ -175,7 +175,16 @@ const BLOCK_EMOJI: Record<string, string> = {
 
             <!-- Photo -->
             @if (post.photoUrl) {
-              <img [src]="apiBase + post.photoUrl" class="post-photo" [alt]="post.caption ?? 'foto'">
+              <div style="position:relative">
+                <img [src]="apiBase + post.photoUrl" class="post-photo" [alt]="post.caption ?? 'foto'">
+                @if (post.photoVerified) {
+                  <span style="position:absolute;bottom:.5rem;right:.5rem;background:rgba(0,0,0,.55);
+                    color:#fff;font-size:.68rem;font-weight:700;padding:.2rem .5rem;
+                    border-radius:99px;display:flex;align-items:center;gap:.25rem;">
+                    ✅ Verificado
+                  </span>
+                }
+              </div>
             }
 
             <!-- Caption -->
