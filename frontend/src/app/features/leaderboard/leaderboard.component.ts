@@ -215,7 +215,7 @@ const LEVEL_COLORS: Record<number, string> = {
       }
     }
 
-    .spinner { text-align: center; padding: 2rem; color: var(--color-text-muted); font-size: .9rem; }
+    .loading-text { text-align: center; padding: 2rem; color: var(--color-text-muted); font-size: .9rem; }
   `],
   template: `
     <div class="page">
@@ -278,7 +278,7 @@ const LEVEL_COLORS: Record<number, string> = {
 
       <!-- Ranking content -->
       @if (loading()) {
-        <div class="spinner">Carregando ranking…</div>
+        <div class="loading-text">Carregando ranking…</div>
       } @else if (rankingList().length === 0) {
         <div class="empty-state">
           <div class="icon">{{ emptyIcon() }}</div>
