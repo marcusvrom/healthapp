@@ -185,7 +185,84 @@ const BLOCK_EMOJI: Record<string, string> = {
           </div>
         } @else {
           @for (post of feed(); track post.id) {
-            <ng-container *ngTemplateOutlet="postCard; context: { $implicit: post, showDelete: false }"></ng-container>
+            <div class="post-card">
+              <div class="post-header">
+                @if (post.avatarUrl) {
+                  <img [src]="apiBase + post.avatarUrl" class="avatar" [alt]="post.userName">
+                } @else {
+                  <div class="avatar">{{ initials(post.userName) }}</div>
+                }
+                <div class="meta">
+                  <div class="name">{{ post.userName }}</div>
+                  <div class="sub"><span>{{ post.createdAt | date:'dd/MM · HH:mm' }}</span></div>
+                </div>
+                @if (post.blockType) {
+                  <span class="block-badge">{{ blockEmoji(post.blockType) }} {{ post.blockType }}</span>
+                }
+              </div>
+
+              @if (post.photoUrl) {
+                <div style="position:relative">
+                  <img [src]="apiBase + post.photoUrl" class="post-photo" [alt]="post.caption ?? 'foto'">
+                  @if (post.photoVerified) {
+                    <span style="position:absolute;bottom:.5rem;right:.5rem;background:rgba(0,0,0,.55);
+                      color:#fff;font-size:.68rem;font-weight:700;padding:.2rem .5rem;
+                      border-radius:99px;">✅ Verificado</span>
+                  }
+                </div>
+              }
+
+              @if (post.caption) {
+                <p class="post-caption">{{ post.caption }}</p>
+              }
+
+              <div class="post-actions">
+                <button class="action-btn" [class.liked]="post.userLiked" (click)="toggleLike(post)">
+                  <span class="icon">{{ post.userLiked ? '❤️' : '🤍' }}</span>
+                  {{ post.likeCount }}
+                </button>
+                <button class="action-btn" (click)="toggleComments(post.id)">
+                  <span class="icon">💬</span>
+                  {{ post.commentCount }}
+                </button>
+              </div>
+
+              @if (openComments().has(post.id)) {
+                <div class="comments-section">
+                  @if (commentsLoading().has(post.id)) {
+                    <p style="font-size:.8rem;color:var(--color-text-muted)">Carregando...</p>
+                  }
+                  @for (c of commentsFor(post.id); track c.id) {
+                    <div class="comment-row">
+                      @if (c.avatarUrl) {
+                        <img [src]="apiBase + c.avatarUrl" class="c-avatar" [alt]="c.userName">
+                      } @else {
+                        <div class="c-avatar">{{ initials(c.userName) }}</div>
+                      }
+                      <div class="c-body">
+                        <span class="c-name">{{ c.userName }}</span>{{ c.body }}
+                      </div>
+                      @if (c.isOwn) {
+                        <button class="c-delete" (click)="deleteComment(post, c)">✕</button>
+                      }
+                    </div>
+                  }
+                  <div class="comment-form">
+                    <input
+                      type="text"
+                      placeholder="Escreva um comentário..."
+                      [(ngModel)]="commentDraft[post.id]"
+                      (keyup.enter)="submitComment(post)"
+                      maxlength="300" />
+                    <button
+                      (click)="submitComment(post)"
+                      [disabled]="!commentDraft[post.id]?.trim() || sendingComment().has(post.id)">
+                      Enviar
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
           }
           @if (!allLoaded()) {
             <button class="load-more" (click)="loadMore()" [disabled]="loading()">
@@ -263,93 +340,6 @@ const BLOCK_EMOJI: Record<string, string> = {
         }
       }
     </div>
-
-    <!-- ── Post card template (community tab) ───────────────────────────────── -->
-    <ng-template #postCard let-post>
-      <div class="post-card">
-        <div class="post-header">
-          @if (post.avatarUrl) {
-            <img [src]="apiBase + post.avatarUrl" class="avatar" [alt]="post.userName">
-          } @else {
-            <div class="avatar">{{ initials(post.userName) }}</div>
-          }
-          <div class="meta">
-            <div class="name">{{ post.userName }}</div>
-            <div class="sub"><span>{{ post.createdAt | date:'dd/MM · HH:mm' }}</span></div>
-          </div>
-          @if (post.blockType) {
-            <span class="block-badge">{{ blockEmoji(post.blockType) }} {{ post.blockType }}</span>
-          }
-        </div>
-
-        @if (post.photoUrl) {
-          <div style="position:relative">
-            <img [src]="apiBase + post.photoUrl" class="post-photo" [alt]="post.caption ?? 'foto'">
-            @if (post.photoVerified) {
-              <span style="position:absolute;bottom:.5rem;right:.5rem;background:rgba(0,0,0,.55);
-                color:#fff;font-size:.68rem;font-weight:700;padding:.2rem .5rem;
-                border-radius:99px;display:flex;align-items:center;gap:.25rem;">
-                ✅ Verificado
-              </span>
-            }
-          </div>
-        }
-
-        @if (post.caption) {
-          <p class="post-caption">{{ post.caption }}</p>
-        }
-
-        <div class="post-actions">
-          <button
-            class="action-btn"
-            [class.liked]="post.userLiked"
-            (click)="toggleLike(post)">
-            <span class="icon">{{ post.userLiked ? '❤️' : '🤍' }}</span>
-            {{ post.likeCount }}
-          </button>
-          <button class="action-btn" (click)="toggleComments(post.id)">
-            <span class="icon">💬</span>
-            {{ post.commentCount }}
-          </button>
-        </div>
-
-        @if (openComments().has(post.id)) {
-          <div class="comments-section">
-            @if (commentsLoading().has(post.id)) {
-              <p style="font-size:.8rem;color:var(--color-text-muted)">Carregando...</p>
-            }
-            @for (c of commentsFor(post.id); track c.id) {
-              <div class="comment-row">
-                @if (c.avatarUrl) {
-                  <img [src]="apiBase + c.avatarUrl" class="c-avatar" [alt]="c.userName">
-                } @else {
-                  <div class="c-avatar">{{ initials(c.userName) }}</div>
-                }
-                <div class="c-body">
-                  <span class="c-name">{{ c.userName }}</span>{{ c.body }}
-                </div>
-                @if (c.isOwn) {
-                  <button class="c-delete" (click)="deleteComment(post, c)">✕</button>
-                }
-              </div>
-            }
-            <div class="comment-form">
-              <input
-                type="text"
-                placeholder="Escreva um comentário..."
-                [(ngModel)]="commentDraft[post.id]"
-                (keyup.enter)="submitComment(post)"
-                maxlength="300" />
-              <button
-                (click)="submitComment(post)"
-                [disabled]="!commentDraft[post.id]?.trim() || sendingComment().has(post.id)">
-                Enviar
-              </button>
-            </div>
-          </div>
-        }
-      </div>
-    </ng-template>
   `,
 })
 export class FeedComponent implements OnInit {
