@@ -23,7 +23,19 @@ function isoWeekEnd(d = new Date()): string {
   return sun.toISOString().slice(0, 10);
 }
 
-// ── Predefined challenge templates ───────────────────────────────────────────
+/**
+ * ISO week number (1–53) for the given date.
+ * Used as the seed for deterministic weekly challenge rotation.
+ */
+function isoWeekNumber(d = new Date()): number {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+// ── Challenge template pool ───────────────────────────────────────────────────
 
 interface ChallengeTemplate {
   title: string;
@@ -34,75 +46,220 @@ interface ChallengeTemplate {
   emoji: string;
 }
 
-const WEEKLY_TEMPLATES: ChallengeTemplate[] = [
+type DifficultyTrio = [ChallengeTemplate, ChallengeTemplate, ChallengeTemplate];
+
+/**
+ * SLOT 1 — Exercício
+ * Apoia o objetivo de saúde mais impactante: movimento físico consistente.
+ */
+const EXERCISE_POOL: DifficultyTrio = [
+  {
+    title:       "Primeiros Passos",
+    description: "Complete 3 treinos esta semana. Todo movimento conta — comece agora!",
+    category:    "exercise", targetCount: 3, xpReward: 40, emoji: "🏃",
+  },
   {
     title:       "Semana Ativa",
-    description: "Complete 5 blocos de exercício esta semana.",
-    category:    "exercise",
-    targetCount: 5,
-    xpReward:    75,
-    emoji:       "🏋️",
+    description: "5 blocos de exercício. Construa o hábito de se mover todos os dias!",
+    category:    "exercise", targetCount: 5, xpReward: 75, emoji: "🏋️",
   },
   {
-    title:       "Hidratação Constante",
-    description: "Complete 5 blocos de água esta semana.",
-    category:    "water",
-    targetCount: 5,
-    xpReward:    50,
-    emoji:       "💧",
-  },
-  {
-    title:       "Mestre do Sono",
-    description: "Registre 5 blocos de sono esta semana.",
-    category:    "sleep",
-    targetCount: 5,
-    xpReward:    50,
-    emoji:       "😴",
-  },
-  {
-    title:       "Vitamina D",
-    description: "Complete 3 blocos de exposição solar esta semana.",
-    category:    "sun_exposure",
-    targetCount: 3,
-    xpReward:    40,
-    emoji:       "☀️",
-  },
-  {
-    title:       "Foco Total",
-    description: "Complete 4 blocos de trabalho esta semana.",
-    category:    "work",
-    targetCount: 4,
-    xpReward:    40,
-    emoji:       "💼",
+    title:       "Atleta da Semana",
+    description: "7 treinos em 7 dias. Apenas para os mais dedicados!",
+    category:    "exercise", targetCount: 7, xpReward: 120, emoji: "🔥",
   },
 ];
 
+/**
+ * SLOT 2 — Sono
+ * Sono de qualidade é o maior acelerador de recuperação e performance hormonal.
+ */
+const SLEEP_POOL: DifficultyTrio = [
+  {
+    title:       "Sono Essencial",
+    description: "Registre 3 noites de sono esta semana. Descanso é parte do treino!",
+    category:    "sleep", targetCount: 3, xpReward: 35, emoji: "😴",
+  },
+  {
+    title:       "Mestre do Sono",
+    description: "5 registros de sono completos. Recuperação total é performance máxima!",
+    category:    "sleep", targetCount: 5, xpReward: 55, emoji: "🌙",
+  },
+  {
+    title:       "Sono Perfeito",
+    description: "7 noites registradas. Quem dorme como atleta, performa como atleta!",
+    category:    "sleep", targetCount: 7, xpReward: 90, emoji: "✨",
+  },
+];
+
+/**
+ * SLOT 3 — Hidratação
+ * Hidratação inadequada reduz performance cognitiva e física em até 20%.
+ */
+const WATER_POOL: DifficultyTrio = [
+  {
+    title:       "Hidratação Básica",
+    description: "Registre 3 blocos de água. Comece a cultivar o hábito da hidratação!",
+    category:    "water", targetCount: 3, xpReward: 30, emoji: "💧",
+  },
+  {
+    title:       "Hidratação Constante",
+    description: "5 registros de hidratação. Água é vida — mantenha o ritmo diário!",
+    category:    "water", targetCount: 5, xpReward: 50, emoji: "🌊",
+  },
+  {
+    title:       "Hidro Máximo",
+    description: "7 dias hidratado. Hidratação de alta performance — sem exceções!",
+    category:    "water", targetCount: 7, xpReward: 80, emoji: "💦",
+  },
+];
+
+/**
+ * SLOT 4 — Wildcard (rotaciona a cada ciclo de 3 semanas)
+ * Exposição solar → saúde hormonal, vitamina D e ritmo circadiano.
+ * Trabalho focado → produtividade saudável e equilíbrio mental.
+ * Lazer/recuperação → prevenção de burnout e resiliência.
+ */
+const WILDCARD_POOLS: DifficultyTrio[] = [
+  // Ciclo A — Exposição Solar (semanas 1–3, 10–12, 19–21…)
+  [
+    {
+      title:       "Sol da Manhã",
+      description: "Expor-se ao sol 2 vezes esta semana. Vitamina D grátis, sem suplemento!",
+      category:    "sun_exposure", targetCount: 2, xpReward: 30, emoji: "☀️",
+    },
+    {
+      title:       "Vitamina D",
+      description: "3 blocos de exposição solar. Equilíbrio hormonal e humor naturais!",
+      category:    "sun_exposure", targetCount: 3, xpReward: 45, emoji: "🌤️",
+    },
+    {
+      title:       "Exposição Solar Total",
+      description: "5 dias de exposição solar consciente. Otimize seus níveis de vitamina D!",
+      category:    "sun_exposure", targetCount: 5, xpReward: 70, emoji: "🌞",
+    },
+  ],
+  // Ciclo B — Trabalho Focado (semanas 4–6, 13–15, 22–24…)
+  [
+    {
+      title:       "Foco no Trabalho",
+      description: "Complete 2 blocos de trabalho focado. Produtividade é um hábito!",
+      category:    "work", targetCount: 2, xpReward: 25, emoji: "💼",
+    },
+    {
+      title:       "Foco Total",
+      description: "4 sessões de trabalho focado. Mente sã em corpo são!",
+      category:    "work", targetCount: 4, xpReward: 45, emoji: "🧠",
+    },
+    {
+      title:       "Workaholic Saudável",
+      description: "6 blocos de trabalho produtivo. Discipline-se sem se destruir!",
+      category:    "work", targetCount: 6, xpReward: 65, emoji: "💪",
+    },
+  ],
+  // Ciclo C — Lazer e Recuperação (semanas 7–9, 16–18, 25–27…)
+  [
+    {
+      title:       "Tempo para Si",
+      description: "Reserve 2 momentos de lazer. Recuperação ativa é tão vital quanto treinar!",
+      category:    "free", targetCount: 2, xpReward: 25, emoji: "🎯",
+    },
+    {
+      title:       "Equilíbrio",
+      description: "4 blocos de lazer e recuperação. Bem-estar vai além da academia!",
+      category:    "free", targetCount: 4, xpReward: 45, emoji: "🧘",
+    },
+    {
+      title:       "Modo Zen",
+      description: "6 momentos de lazer registrados. Quem sabe descansar, sabe viver!",
+      category:    "free", targetCount: 6, xpReward: 65, emoji: "🌿",
+    },
+  ],
+];
+
+/**
+ * SLOT 5 — Presença Geral
+ * Recompensa a consistência independente da atividade — o hábito em si.
+ * "Qualquer bloco" (category = "any") conta, incentivando completar a rotina.
+ */
+const GENERAL_POOL: DifficultyTrio = [
+  {
+    title:       "Rotina em Movimento",
+    description: "Complete qualquer 5 blocos de rotina esta semana. Presença é tudo!",
+    category:    "any", targetCount: 5, xpReward: 40, emoji: "🌱",
+  },
+  {
+    title:       "Rotina Consistente",
+    description: "10 blocos completados. Consistência bate perfeição — apareça todo dia!",
+    category:    "any", targetCount: 10, xpReward: 70, emoji: "⭐",
+  },
+  {
+    title:       "Modo Máquina",
+    description: "15 blocos em 7 dias. Você é uma máquina de hábitos — imparável!",
+    category:    "any", targetCount: 15, xpReward: 120, emoji: "🏆",
+  },
+];
+
+/**
+ * Selects 5 challenges for the current ISO week using deterministic rotation.
+ *
+ * Rotation axes:
+ *  • Difficulty tier   = weekNumber % 3
+ *      0 → Iniciante (easy)   — 1ª, 4ª, 7ª semana do ciclo…
+ *      1 → Consistente (mid)  — 2ª, 5ª, 8ª semana do ciclo…
+ *      2 → Elite (hard)       — 3ª, 6ª, 9ª semana do ciclo…
+ *
+ *  • Wildcard category = Math.floor(weekNumber / 3) % 3
+ *      0 → Exposição Solar (ciclos 0, 3, 6…)
+ *      1 → Trabalho Focado (ciclos 1, 4, 7…)
+ *      2 → Lazer/Recuperação (ciclos 2, 5, 8…)
+ *
+ * Full unique cycle: 9 weeks × 1 per slot = no exact repeat for 9 weeks.
+ * Users feel natural progression: 3 easy → 3 medium → 3 hard → reset.
+ * The wildcard keeps variety even within the same difficulty tier.
+ */
+function selectWeeklyTemplates(): ChallengeTemplate[] {
+  const week     = isoWeekNumber();
+  const tier     = week % 3;                                   // 0 | 1 | 2
+  const wildcard = Math.floor(week / 3) % WILDCARD_POOLS.length; // 0 | 1 | 2
+
+  return [
+    EXERCISE_POOL[tier]!,
+    SLEEP_POOL[tier]!,
+    WATER_POOL[tier]!,
+    WILDCARD_POOLS[wildcard]![tier]!,
+    GENERAL_POOL[tier]!,
+  ];
+}
+
 // ── Repository helpers ────────────────────────────────────────────────────────
 
-function challengeRepo()     { return AppDataSource.getRepository(Challenge); }
-function participantRepo()   { return AppDataSource.getRepository(ChallengeParticipant); }
-function blockRepo()         { return AppDataSource.getRepository(RoutineBlock); }
+function challengeRepo()   { return AppDataSource.getRepository(Challenge); }
+function participantRepo() { return AppDataSource.getRepository(ChallengeParticipant); }
+function blockRepo()       { return AppDataSource.getRepository(RoutineBlock); }
 
 // ── Service ──────────────────────────────────────────────────────────────────
 
 export class ChallengeService {
   /**
-   * Ensures all weekly challenge templates exist for the current week.
+   * Ensures all weekly challenges exist for the current week.
    * Idempotent — safe to call on every request.
+   * Selects templates via deterministic rotation (see selectWeeklyTemplates).
    */
   static async ensureWeeklyChallenges(): Promise<void> {
     const weekStart = isoWeekStart();
     const weekEnd   = isoWeekEnd();
+    const templates = selectWeeklyTemplates();
 
     const existing = await challengeRepo().find({
       where: { weekStart, isActive: true },
     });
 
-    if (existing.length >= WEEKLY_TEMPLATES.length) return;
+    if (existing.length >= templates.length) return;
 
     const existingCategories = new Set(existing.map(c => c.category));
 
-    for (const tpl of WEEKLY_TEMPLATES) {
+    for (const tpl of templates) {
       if (existingCategories.has(tpl.category)) continue;
       await challengeRepo().save(
         challengeRepo().create({ ...tpl, weekStart, weekEnd })
@@ -110,7 +267,7 @@ export class ChallengeService {
     }
   }
 
-  /** Returns all active challenges for the current week with join status. */
+  /** Returns all active challenges for the current week with join status and progress. */
   static async getActiveChallenges(userId: string): Promise<Array<Challenge & {
     joined: boolean;
     progress: number;
@@ -129,7 +286,6 @@ export class ChallengeService {
     });
     const participantMap = new Map(participants.map(p => [p.challengeId, p]));
 
-    // Compute progress for joined challenges in one batch query
     const joinedIds = participants.map(p => p.challengeId);
     const progressMap = new Map<string, number>();
 
@@ -156,6 +312,7 @@ export class ChallengeService {
   /**
    * Counts completed RoutineBlocks matching the challenge category
    * within the challenge's week window for a given user.
+   * category = "any" counts all block types.
    */
   static async computeProgress(userId: string, challenge: Challenge): Promise<number> {
     const qb = blockRepo()
@@ -206,9 +363,9 @@ export class ChallengeService {
   }
 
   /**
-   * After a block completion, checks all joined challenges for the given
-   * category and auto-awards completion XP if thresholds are met.
-   * Called from RoutineController.
+   * Called from RoutineController after every block completion.
+   * Finds joined challenges that match the block type and auto-awards
+   * completion XP if the user just hit the target.
    */
   static async handleBlockCompleted(userId: string, blockType: string): Promise<number> {
     const weekStart = isoWeekStart();
