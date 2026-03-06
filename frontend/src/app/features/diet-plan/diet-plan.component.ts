@@ -110,7 +110,7 @@ function toMinutes(time: string): number {
       &.checking { opacity: .7; pointer-events: none; }
     }
 
-    .proto-card { border-color: #c4b5fd !important; background: #faf5ff !important;
+    .proto-card { border-color: #c4b5fd !important;
       &.done { background: #f5f3ff !important; border-color: #a78bfa !important;
         &::before { background: #7c3aed !important; box-shadow: 0 0 0 2px #c4b5fd !important; }
       }
@@ -170,13 +170,14 @@ function toMinutes(time: string): number {
     <div class="page">
       <div class="page-header">
         <h2>🍽️ Dieta & Protocolos</h2>
-        <p>Sua timeline diária com refeições e protocolos clínicos. Marque cada item e ganhe XP!</p>
+        <p>Sua timeline diária com refeições e protocolos clínicos. Marque cada item e ganhe XP! <br />
+        Importe receitas para manter sua dieta do seu jeito!</p>
       </div>
 
       <div class="controls">
         <input type="date" [value]="selectedDate()" (change)="onDateChange($event)" />
         <button class="btn btn-primary" (click)="generate()" [disabled]="generating()">
-          {{ generating() ? '⏳ Gerando...' : '✨ Gerar Plano do Dia' }}
+          {{ generating() ? '⏳ Gerando...' : '✨ Gerar Planejamento de Exemplo' }}
         </button>
         <button class="btn" (click)="load()">🔄 Recarregar</button>
       </div>

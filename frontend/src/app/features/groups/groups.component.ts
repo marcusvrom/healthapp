@@ -131,6 +131,7 @@ import { environment } from '../../environments/environment';
       .field { margin-bottom: .875rem;
         label { display: block; font-size: .78rem; font-weight: 700; margin-bottom: .35rem; }
         input, select, textarea {
+          color: var(--color-text);
           width: 100%; padding: .5rem .75rem; border: 1.5px solid var(--color-border);
           border-radius: var(--radius-sm); font-size: .875rem; background: var(--color-surface-2);
           &:focus { outline: none; border-color: var(--color-primary); }

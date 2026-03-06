@@ -17,6 +17,8 @@ import { WeeklyCheckIn } from '../../core/models';
       background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
       border-radius: var(--radius-lg); color: #fff; margin-bottom: 2rem;
       position: relative; overflow: hidden;
+      
+      p { color: var(--color-text) }
 
       &::before {
         content: ''; position: absolute; inset: 0;

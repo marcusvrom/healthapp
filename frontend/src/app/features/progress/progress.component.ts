@@ -140,10 +140,10 @@ import { WeeklyCheckIn, CopilotInsight, RankingEntry, DailyCap } from '../../cor
       border-left: 4px solid transparent;
       display: flex; gap: .875rem; align-items: flex-start;
 
-      &.warning { background: #fffbeb; border-left-color: #f59e0b; }
-      &.success { background: #f0fdf4; border-left-color: #22c55e; }
-      &.tip     { background: #eff6ff; border-left-color: #3b82f6; }
-      &.info    { background: #faf5ff; border-left-color: #8b5cf6; }
+      &.warning { background: var(--color-secondary); border-left-color: #f59e0b; }
+      &.success { background: var(--color-secondary); border-left-color: #22c55e; }
+      &.tip     { background: var(--color-secondary); border-left-color: #3b82f6; }
+      &.info    { background: var(--color-secondary); border-left-color: #8b5cf6; }
 
       .ic-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; margin-top: .1rem; }
       .ic-body  { flex: 1; min-width: 0;
@@ -160,6 +160,7 @@ import { WeeklyCheckIn, CopilotInsight, RankingEntry, DailyCap } from '../../cor
     }
 
     .checkin-chart-card {
+      margin-top: 24px;
       background: var(--color-surface); border: 1px solid var(--color-border);
       border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;
 
@@ -185,11 +186,11 @@ import { WeeklyCheckIn, CopilotInsight, RankingEntry, DailyCap } from '../../cor
     .ranking-item {
       display: flex; align-items: center; gap: .875rem; padding: .75rem 1rem;
       border: 1px solid var(--color-border); border-radius: var(--radius-md);
-      background: var(--color-surface); transition: box-shadow .15s;
+      background: var(--color-bg); transition: box-shadow .15s;
       &:hover { box-shadow: var(--shadow-sm); }
-      &.rank-1 { border-color: #fcd34d; background: #fffbeb; }
-      &.rank-2 { border-color: #d1d5db; background: #f9fafb; }
-      &.rank-3 { border-color: #fed7aa; background: #fff7ed; }
+      &.rank-1 { border-color: #fcd34d; }
+      &.rank-2 { border-color: #d1d5db; }
+      &.rank-3 { border-color: #b66303; }
       &.is-me  { border-color: var(--color-primary); }
 
       .rank-pos { font-size: 1.1rem; font-weight: 800; min-width: 28px; text-align: center; }

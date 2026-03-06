@@ -7,6 +7,7 @@ import { User } from "../entities/User";
 import { XpLog } from "../entities/XpLog";
 import { ChallengeService } from "../services/ChallengeService";
 import { GamificationService } from "../services/GamificationService";
+import { RoutineBlock } from "../entities/RoutineBlock";
 
 function groupRepo()  { return AppDataSource.getRepository(Group); }
 function memberRepo() { return AppDataSource.getRepository(GroupMember); }
@@ -207,7 +208,6 @@ export class GroupController {
       const collectiveProgress = await Promise.all(
         activeChallenges.map(async c => {
           // Sum completions for all members
-          const { RoutineBlock } = await import("../entities/RoutineBlock");
           const count = await AppDataSource.getRepository(RoutineBlock)
             .createQueryBuilder("b")
             .where("b.user_id IN (:...uids)", { uids: userIds })
