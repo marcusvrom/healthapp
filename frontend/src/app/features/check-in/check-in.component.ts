@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router } from '@angular/router';
@@ -187,6 +187,21 @@ import { WeeklyCheckIn } from '../../core/models';
       .sb-text h4 { font-weight: 700; color: #065f46; }
       .sb-text p  { font-size: .85rem; color: #047857; margin-top: .2rem; }
     }
+
+    .week-done-banner {
+      background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+      border: 1px solid #c4b5fd; border-radius: var(--radius-md);
+      padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 1rem;
+
+      .sb-icon { font-size: 2rem; }
+      .sb-text h4 { font-weight: 700; color: #4c1d95; }
+      .sb-text p  { font-size: .85rem; color: #6d28d9; margin-top: .2rem; }
+    }
+
+    .form-card.disabled {
+      opacity: .55; pointer-events: none;
+    }
   `],
   template: `
     <div class="page">
@@ -210,8 +225,19 @@ import { WeeklyCheckIn } from '../../core/models';
         </div>
       }
 
+      <!-- Already checked in this week -->
+      @if (alreadyCheckedInThisWeek()) {
+        <div class="week-done-banner">
+          <span class="sb-icon">✅</span>
+          <div class="sb-text">
+            <h4>Check-in da semana já realizado</h4>
+            <p>Você registrou em {{ alreadyCheckedInThisWeek()! | date:'dd/MM/yyyy' }}. O próximo check-in estará disponível na segunda-feira.</p>
+          </div>
+        </div>
+      }
+
       <!-- Check-in form -->
-      <div class="form-card">
+      <div class="form-card" [class.disabled]="alreadyCheckedInThisWeek()">
         <h3>⚖️ Dados de hoje · {{ todayLabel }}</h3>
 
         <div class="fields-grid">
@@ -352,8 +378,27 @@ export class CheckInComponent implements OnInit {
 
   // Only requires weight; adherence is auto-set (but can be overridden, minimum 1 star required)
   canSave = computed(() =>
-    !!this.currentWeight() && this.adherenceScore() >= 1
+    !!this.currentWeight() && this.adherenceScore() >= 1 && !this.alreadyCheckedInThisWeek()
   );
+
+  /** Returns the date string of the check-in already done this week, or null */
+  alreadyCheckedInThisWeek = computed<string | null>(() => {
+    const today = new Date();
+    const day = today.getDay(); // 0=Sun … 6=Sat
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const found = this.checkIns().find(ci => {
+      const d = new Date(ci.date + 'T12:00:00');
+      return d >= monday && d <= sunday;
+    });
+    return found ? found.date : null;
+  });
 
   ngOnInit(): void {
     this.loadHistory();
@@ -400,7 +445,13 @@ export class CheckInComponent implements OnInit {
         this.notes = '';
         setTimeout(() => this.justSaved.set(false), 6000);
       },
-      error: () => this.saving.set(false),
+      error: (err) => {
+        this.saving.set(false);
+        // 409 = already checked in this week — reload list so computed picks it up
+        if (err?.status === 409) {
+          this.loadHistory();
+        }
+      },
     });
   }
 

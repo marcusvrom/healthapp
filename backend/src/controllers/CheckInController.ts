@@ -3,7 +3,23 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { AppDataSource } from "../config/typeorm.config";
 import { WeeklyCheckIn } from "../entities/WeeklyCheckIn";
 import { RoutineBlock } from "../entities/RoutineBlock";
+import { MetricsService } from "../services/MetricsService";
 import { Between } from "typeorm";
+
+/** Returns ISO week boundaries (Monday–Sunday) for a given YYYY-MM-DD date */
+function weekBounds(dateStr: string): { weekStart: string; weekEnd: string } {
+  const d = new Date(dateStr + "T12:00:00Z");
+  const day = d.getUTCDay(); // 0=Sun … 6=Sat
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setUTCDate(d.getUTCDate() + diffToMonday);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return {
+    weekStart: monday.toISOString().slice(0, 10),
+    weekEnd:   sunday.toISOString().slice(0, 10),
+  };
+}
 
 function repo() {
   return AppDataSource.getRepository(WeeklyCheckIn);
@@ -58,9 +74,24 @@ export class CheckInController {
         return;
       }
 
+      // ── Enforce one check-in per ISO week ─────────────────────────────────
+      const checkInDate = date ?? new Date().toISOString().slice(0, 10);
+      const { weekStart, weekEnd } = weekBounds(checkInDate);
+      const existing = await repo().findOne({
+        where: { userId: req.userId, date: Between(weekStart, weekEnd) },
+      });
+      if (existing) {
+        res.status(409).json({
+          message: "Você já fez um check-in nesta semana.",
+          existingId: existing.id,
+          existingDate: existing.date,
+        });
+        return;
+      }
+
       const checkIn = repo().create({
         userId: req.userId,
-        date: date ?? new Date().toISOString().slice(0, 10),
+        date: checkInDate,
         currentWeight,
         waistCircumference: waistCircumference ?? undefined,
         adherenceScore,
@@ -68,6 +99,10 @@ export class CheckInController {
       });
 
       await repo().save(checkIn);
+
+      // ── Mirror weight into the weight-history log ─────────────────────────
+      await MetricsService.logWeight(req.userId, currentWeight, checkInDate, "check-in semanal");
+
       res.status(201).json(checkIn);
     } catch (err) {
       next(err);
