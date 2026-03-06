@@ -80,7 +80,8 @@ export class RoutineController {
         profile.gender,
         profile.activityFactor,
         exerciseInputs,
-        profile.primaryGoal
+        profile.primaryGoal,
+        profile.targetWeight ? Number(profile.targetWeight) : undefined
       );
 
       // Analyse latest blood test if available

@@ -93,7 +93,9 @@ export class BloodTestController {
       profile.age,
       profile.gender,
       profile.activityFactor,
-      exercises
+      exercises,
+      profile.primaryGoal,
+      profile.targetWeight ? Number(profile.targetWeight) : undefined
     );
 
     return BloodTestAnalysisService.analyse(

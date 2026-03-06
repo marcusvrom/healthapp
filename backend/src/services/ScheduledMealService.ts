@@ -311,7 +311,8 @@ export class ScheduledMealService {
             durationMinutes: ex.durationMinutes,
             hypertrophyScore: ex.hypertrophyScore,
           })),
-          profile.primaryGoal
+          profile.primaryGoal,
+          profile.targetWeight ? Number(profile.targetWeight) : undefined
         );
         dailyCal = profile.caloricGoal
           ? Number(profile.caloricGoal)

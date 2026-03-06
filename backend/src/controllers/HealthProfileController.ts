@@ -75,7 +75,8 @@ export class HealthProfileController {
         profile.gender,
         profile.activityFactor,
         exercises,
-        profile.primaryGoal
+        profile.primaryGoal,
+        profile.targetWeight ? Number(profile.targetWeight) : undefined
       );
 
       res.json(result);
