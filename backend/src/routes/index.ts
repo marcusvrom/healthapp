@@ -23,6 +23,7 @@ import { SocialController } from "../controllers/SocialController";
 import { ChallengeController } from "../controllers/ChallengeController";
 import { GroupController } from "../controllers/GroupController";
 import { FriendshipController } from "../controllers/FriendshipController";
+import { CommunityController } from "../controllers/CommunityController";
 import { DailyMissionController } from "../controllers/DailyMissionController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
@@ -200,6 +201,11 @@ router.post("/friends/request",        ...auth(FriendshipController.sendRequest)
 router.patch("/friends/:id/accept",    ...auth(FriendshipController.accept));
 router.patch("/friends/:id/decline",   ...auth(FriendshipController.decline));
 router.delete("/friends/:id",          ...auth(FriendshipController.remove));
+
+// ── Community (public profiles + search) ──────────────────────────────────────
+// NOTE: /community/search must come BEFORE /community/profile/:id
+router.get("/community/search",        ...auth(CommunityController.search));
+router.get("/community/profile/:id",   ...auth(CommunityController.profile));
 
 // ── Daily Missions ────────────────────────────────────────────────────────────
 router.get("/missions/today",          ...auth(DailyMissionController.today));
