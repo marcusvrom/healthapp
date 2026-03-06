@@ -14,6 +14,7 @@ const __dirname = path.dirname(__filename);
 async function bootstrap(): Promise<void> {
   // ── Database connection ──────────────────────────────────────────────────
   await AppDataSource.initialize();
+  await AppDataSource.runMigrations();
   console.log("[DB] Conectado ao PostgreSQL.");
 
   // ── Express setup ────────────────────────────────────────────────────────
