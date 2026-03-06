@@ -135,7 +135,8 @@ const LEVEL_COLORS: Record<number, string> = {
           <div class="icon">😕</div>
           <p>Usuário não encontrado.</p>
         </div>
-      } @else if (profile(); as p) {
+      } @else {
+        @if (profile(); as p) {
 
         <!-- Hero card -->
         <div class="hero-card">
@@ -199,7 +200,8 @@ const LEVEL_COLORS: Record<number, string> = {
             }
           }
         </div>
-      }
+        } <!-- end @if profile -->
+      } <!-- end @else -->
     </div>
   `,
 })
