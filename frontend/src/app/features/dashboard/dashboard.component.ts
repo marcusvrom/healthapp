@@ -1682,9 +1682,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
   onPhotoFileChange(ev: Event): void {
     const file = (ev.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => this.photoDraftDataUrl.set(reader.result as string);
-    reader.readAsDataURL(file);
+    this.compressImage(file).then(dataUrl => this.photoDraftDataUrl.set(dataUrl));
+  }
+
+  /** Resize + JPEG-compress to keep upload well under the 10 MB server limit. */
+  private compressImage(file: File, maxDim = 1280, quality = 0.82): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+          else { width = Math.round(width * maxDim / height); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(img.src);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = URL.createObjectURL(file);
+    });
   }
 
   submitWithPhoto(): void {

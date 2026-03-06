@@ -5,6 +5,7 @@ import { Group } from "../entities/Group";
 import { GroupMember } from "../entities/GroupMember";
 import { User } from "../entities/User";
 import { XpLog } from "../entities/XpLog";
+import { RoutineBlock } from "../entities/RoutineBlock";
 import { ChallengeService } from "../services/ChallengeService";
 import { GamificationService } from "../services/GamificationService";
 import { RoutineBlock } from "../entities/RoutineBlock";
