@@ -203,6 +203,89 @@ export class SocialController {
       next(err);
     }
   }
+
+  /**
+   * GET /social/posts/mine?page=1&limit=20
+   * Returns the authenticated user's own posts, newest first.
+   */
+  static async myPosts(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const page  = Math.max(1, Number(req.query["page"]  ?? 1));
+      const limit = Math.min(50, Math.max(1, Number(req.query["limit"] ?? 20)));
+      const skip  = (page - 1) * limit;
+
+      const posts = await postRepo().find({
+        where: { userId: req.userId },
+        order: { createdAt: "DESC" },
+        take: limit,
+        skip,
+      });
+
+      if (!posts.length) { res.json([]); return; }
+
+      const postIds = posts.map(p => p.id);
+
+      const likeCounts = await likeRepo()
+        .createQueryBuilder("l")
+        .select("l.post_id", "postId")
+        .addSelect("COUNT(*)", "cnt")
+        .where("l.post_id IN (:...ids)", { ids: postIds })
+        .groupBy("l.post_id")
+        .getRawMany<{ postId: string; cnt: string }>();
+      const likeCountMap = new Map(likeCounts.map(r => [r.postId, Number(r.cnt)]));
+
+      const commentCounts = await commentRepo()
+        .createQueryBuilder("c")
+        .select("c.post_id", "postId")
+        .addSelect("COUNT(*)", "cnt")
+        .where("c.post_id IN (:...ids)", { ids: postIds })
+        .groupBy("c.post_id")
+        .getRawMany<{ postId: string; cnt: string }>();
+      const commentCountMap = new Map(commentCounts.map(r => [r.postId, Number(r.cnt)]));
+
+      const user = await userRepo().findOneBy({ id: req.userId });
+
+      const result: FeedItem[] = posts.map(p => ({
+        id:            p.id,
+        userId:        p.userId,
+        userName:      user?.name ?? "Você",
+        avatarUrl:     user?.avatarUrl ?? null,
+        blockType:     p.blockType ?? null,
+        photoUrl:      p.photoUrl ?? null,
+        photoVerified: p.photoVerified,
+        caption:       p.caption ?? null,
+        likeCount:     likeCountMap.get(p.id) ?? 0,
+        commentCount:  commentCountMap.get(p.id) ?? 0,
+        userLiked:     false,
+        createdAt:     p.createdAt,
+      }));
+
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * DELETE /social/posts/:id — delete own post (removes DB row + photo file)
+   */
+  static async deletePost(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const post = await postRepo().findOneBy({ id: req.params["id"]!, userId: req.userId });
+      if (!post) { res.status(404).json({ message: "Post não encontrado." }); return; }
+
+      // Remove photo file from disk if present
+      if (post.photoUrl) {
+        const filePath = path.join(process.cwd(), post.photoUrl);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
+
+      await postRepo().remove(post);
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 /**

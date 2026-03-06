@@ -168,7 +168,10 @@ router.get("/gamification/ranking", ...auth(RankingController.weekly));
 router.get("/gamification/caps",    ...auth(RankingController.caps));
 
 // ── Social feed ───────────────────────────────────────────────────────────────
+// NOTE: /social/posts/mine must come BEFORE /social/posts/:id
 router.get("/social/feed",                    ...auth(SocialController.feed));
+router.get("/social/posts/mine",              ...auth(SocialController.myPosts));
+router.delete("/social/posts/:id",            ...auth(SocialController.deletePost));
 router.post("/social/posts/:id/like",         ...auth(SocialController.toggleLike));
 router.get("/social/posts/:id/comments",      ...auth(SocialController.listComments));
 router.post("/social/posts/:id/comments",     ...auth(SocialController.addComment));

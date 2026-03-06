@@ -26,4 +26,12 @@ export class SocialService {
   deleteComment(commentId: string): Observable<void> {
     return this.api.delete<void>(`/social/comments/${commentId}`);
   }
+
+  getMyPosts(page = 1, limit = 20): Observable<FeedItem[]> {
+    return this.api.get<FeedItem[]>('/social/posts/mine', { page: String(page), limit: String(limit) });
+  }
+
+  deletePost(postId: string): Observable<void> {
+    return this.api.delete<void>(`/social/posts/${postId}`);
+  }
 }
