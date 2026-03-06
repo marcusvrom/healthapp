@@ -7,6 +7,7 @@ import { WaterDayStats } from '../../core/services/water.service';
 import { CheckInService } from '../../core/services/check-in.service';
 import { CopilotService } from '../../core/services/copilot.service';
 import { GamificationService } from '../../core/services/gamification.service';
+import { ApiService } from '../../core/services/api.service';
 import { WeeklyCheckIn, CopilotInsight, RankingEntry, DailyCap } from '../../core/models';
 
 @Component({
@@ -574,7 +575,7 @@ import { WeeklyCheckIn, CopilotInsight, RankingEntry, DailyCap } from '../../cor
                 [class.rank-3]="i === 2" [class.is-me]="entry.userId === myUserId()">
                 <span class="rank-pos">{{ rankMedal(i) }}</span>
                 @if (entry.avatarUrl) {
-                  <img class="rank-avatar" [src]="entry.avatarUrl" [alt]="entry.name">
+                  <img class="rank-avatar" [src]="img(entry.avatarUrl)" [alt]="entry.name">
                 } @else {
                   <div class="rank-avatar">{{ entry.name.charAt(0).toUpperCase() }}</div>
                 }
@@ -600,6 +601,8 @@ export class ProgressComponent implements OnInit {
   private checkInSvc      = inject(CheckInService);
   private copilotSvc      = inject(CopilotService);
   private gamificationSvc = inject(GamificationService);
+  private api             = inject(ApiService);
+  img = (path: string | null | undefined) => this.api.storageUrl(path);
 
   streaks        = signal<StreakData | null>(null);
   waterHistory   = signal<WaterDayStats[]>([]);

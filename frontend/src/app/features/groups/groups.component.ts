@@ -2,8 +2,8 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { GroupService } from '../../core/services/group.service';
+import { ApiService } from '../../core/services/api.service';
 import { Group, GroupDetail } from '../../core/models';
-import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-groups',
@@ -229,7 +229,7 @@ import { environment } from '../../environments/environment';
               <div class="lb-row">
                 <span class="lb-rank">{{ rankMedal(i) }}</span>
                 @if (m.avatarUrl) {
-                  <img [src]="apiBase + m.avatarUrl" class="lb-avatar" [alt]="m.name">
+                  <img [src]="img(m.avatarUrl)" class="lb-avatar" [alt]="m.name">
                 } @else {
                   <div class="lb-avatar">{{ initials(m.name) }}</div>
                 }
@@ -329,8 +329,8 @@ import { environment } from '../../environments/environment';
 })
 export class GroupsComponent implements OnInit {
   private svc = inject(GroupService);
-
-  readonly apiBase = environment.apiUrl.replace('/api', '');
+  private api = inject(ApiService);
+  img = (path: string | null | undefined) => this.api.storageUrl(path);
 
   readonly EMOJI_OPTIONS = ['👥','🔥','💪','🏃','🧠','⚡','🌿','🎯','🏆','🦁','🐉','🚀'];
 

@@ -1,8 +1,8 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { DatePipe, NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { environment } from '../../environments/environment';
 import { SocialService } from '../../core/services/social.service';
+import { ApiService } from '../../core/services/api.service';
 import { FeedItem, FeedComment } from '../../core/models';
 
 const BLOCK_EMOJI: Record<string, string> = {
@@ -188,7 +188,7 @@ const BLOCK_EMOJI: Record<string, string> = {
             <div class="post-card">
               <div class="post-header">
                 @if (post.avatarUrl) {
-                  <img [src]="apiBase + post.avatarUrl" class="avatar" [alt]="post.userName">
+                  <img [src]="img(post.avatarUrl)" class="avatar" [alt]="post.userName">
                 } @else {
                   <div class="avatar">{{ initials(post.userName) }}</div>
                 }
@@ -203,7 +203,7 @@ const BLOCK_EMOJI: Record<string, string> = {
 
               @if (post.photoUrl) {
                 <div style="position:relative">
-                  <img [src]="apiBase + post.photoUrl" class="post-photo" [alt]="post.caption ?? 'foto'">
+                  <img [src]="img(post.photoUrl)" class="post-photo" [alt]="post.caption ?? 'foto'">
                   @if (post.photoVerified) {
                     <span style="position:absolute;bottom:.5rem;right:.5rem;background:rgba(0,0,0,.55);
                       color:#fff;font-size:.68rem;font-weight:700;padding:.2rem .5rem;
@@ -235,7 +235,7 @@ const BLOCK_EMOJI: Record<string, string> = {
                   @for (c of commentsFor(post.id); track c.id) {
                     <div class="comment-row">
                       @if (c.avatarUrl) {
-                        <img [src]="apiBase + c.avatarUrl" class="c-avatar" [alt]="c.userName">
+                        <img [src]="img(c.avatarUrl)" class="c-avatar" [alt]="c.userName">
                       } @else {
                         <div class="c-avatar">{{ initials(c.userName) }}</div>
                       }
@@ -286,7 +286,7 @@ const BLOCK_EMOJI: Record<string, string> = {
             <div class="post-card">
               <div class="post-header">
                 @if (post.avatarUrl) {
-                  <img [src]="apiBase + post.avatarUrl" class="avatar" [alt]="post.userName">
+                  <img [src]="img(post.avatarUrl)" class="avatar" [alt]="post.userName">
                 } @else {
                   <div class="avatar">{{ initials(post.userName) }}</div>
                 }
@@ -308,7 +308,7 @@ const BLOCK_EMOJI: Record<string, string> = {
 
               @if (post.photoUrl) {
                 <div style="position:relative">
-                  <img [src]="apiBase + post.photoUrl" class="post-photo" [alt]="post.caption ?? 'foto'">
+                  <img [src]="img(post.photoUrl)" class="post-photo" [alt]="post.caption ?? 'foto'">
                   @if (post.photoVerified) {
                     <span style="position:absolute;bottom:.5rem;right:.5rem;background:rgba(0,0,0,.55);
                       color:#fff;font-size:.68rem;font-weight:700;padding:.2rem .5rem;
@@ -345,7 +345,8 @@ const BLOCK_EMOJI: Record<string, string> = {
 export class FeedComponent implements OnInit {
   private svc = inject(SocialService);
 
-  readonly apiBase = environment.apiUrl.replace('/api', '');
+  private api    = inject(ApiService);
+  img = (path: string | null | undefined) => this.api.storageUrl(path);
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   tab = signal<'community' | 'mine'>('community');
