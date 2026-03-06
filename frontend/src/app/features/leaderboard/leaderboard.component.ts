@@ -357,7 +357,7 @@ export class LeaderboardComponent implements OnInit {
   }
 
   activeTab    = signal<Tab>('global');
-  loading      = signal(false);
+  loading      = signal(true);
   ranking      = signal<RankingEntry[]>([]);
   pending      = signal<PendingRequest[]>([]);
   searchQuery  = '';
