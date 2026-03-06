@@ -439,6 +439,8 @@ export interface CopilotInsight {
 }
 
 // ── Gamification / Ranking ────────────────────────────────────────────────────
+export type RankingScope = 'global' | 'regional' | 'friends';
+
 export interface RankingEntry {
   userId:     string;
   name:       string;
@@ -447,6 +449,9 @@ export interface RankingEntry {
   totalXp:    number;
   level:      number;
   levelTitle: string;
+  city?:      string | null;
+  state?:     string | null;
+  rank?:      number;
 }
 
 export interface DailyCap {
@@ -454,6 +459,60 @@ export interface DailyCap {
   cap:       number;
   earned:    number;
   remaining: number;
+}
+
+// ── Friendships ────────────────────────────────────────────────────────────────
+export type FriendshipStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED';
+
+export interface FriendEntry {
+  userId:     string;
+  name:       string;
+  avatarUrl:  string | null;
+  level:      number;
+  levelTitle: string;
+  totalXp:    number;
+  city?:      string | null;
+  state?:     string | null;
+}
+
+export interface PendingRequest {
+  friendshipId: string;
+  userId:       string;
+  name:         string;
+  avatarUrl:    string | null;
+  createdAt:    string;
+}
+
+export interface UserSearchResult {
+  userId:    string;
+  name:      string;
+  avatarUrl: string | null;
+  city?:     string | null;
+  state?:    string | null;
+}
+
+// ── Daily Missions ─────────────────────────────────────────────────────────────
+export type MissionType =
+  | 'WATER_GOAL' | 'ALL_MEALS' | 'ACTIVITY'
+  | 'WEIGHT_LOG' | 'BLOOD_TEST' | 'SLEEP_BLOCK' | 'CHECK_IN';
+
+export interface DailyMission {
+  id:           string;
+  userId:       string;
+  date:         string;
+  title:        string;
+  xpReward:     number;
+  isCompleted:  boolean;
+  missionType:  MissionType;
+  completedAt?: string;
+  createdAt:    string;
+}
+
+export interface MissionCompleteResult {
+  mission:  DailyMission;
+  xpGained: number;
+  totalXp:  number;
+  level:    UserLevel;
 }
 
 /** Extended block complete result including anti-cheat feedback */

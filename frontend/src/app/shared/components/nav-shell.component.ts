@@ -150,6 +150,9 @@ import { environment } from '../../environments/environment';
           <a routerLink="/challenges" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🏆</span> Desafios
           </a>
+          <a routerLink="/leaderboard" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">🥇</span> Ranking
+          </a>
           <a routerLink="/groups" routerLinkActive="active-link" class="nav-item">
             <span class="icon">👥</span> Grupos
           </a>

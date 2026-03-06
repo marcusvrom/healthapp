@@ -22,6 +22,8 @@ import { RankingController } from "../controllers/RankingController";
 import { SocialController } from "../controllers/SocialController";
 import { ChallengeController } from "../controllers/ChallengeController";
 import { GroupController } from "../controllers/GroupController";
+import { FriendshipController } from "../controllers/FriendshipController";
+import { DailyMissionController } from "../controllers/DailyMissionController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -188,5 +190,19 @@ router.post("/groups",                 ...auth(GroupController.create));
 router.post("/groups/join/:code",      ...auth(GroupController.joinByCode));
 router.get("/groups/:id",              ...auth(GroupController.detail));
 router.delete("/groups/:id/leave",     ...auth(GroupController.leave));
+
+// ── Friendships ───────────────────────────────────────────────────────────────
+// NOTE: static sub-paths (/pending, /search) must come BEFORE /friends/:id
+router.get("/friends/pending",         ...auth(FriendshipController.pending));
+router.get("/friends/search",          ...auth(FriendshipController.search));
+router.get("/friends",                 ...auth(FriendshipController.list));
+router.post("/friends/request",        ...auth(FriendshipController.sendRequest));
+router.patch("/friends/:id/accept",    ...auth(FriendshipController.accept));
+router.patch("/friends/:id/decline",   ...auth(FriendshipController.decline));
+router.delete("/friends/:id",          ...auth(FriendshipController.remove));
+
+// ── Daily Missions ────────────────────────────────────────────────────────────
+router.get("/missions/today",          ...auth(DailyMissionController.today));
+router.post("/missions/:id/complete",  ...auth(DailyMissionController.complete));
 
 export default router;

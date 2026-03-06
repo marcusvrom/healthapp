@@ -34,6 +34,12 @@ export class User {
   @Column({ type: "int", default: 0 })
   xp!: number;
 
+  @Column({ type: "varchar", length: 80, nullable: true })
+  city?: string;
+
+  @Column({ type: "varchar", length: 80, nullable: true })
+  state?: string;
+
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
 

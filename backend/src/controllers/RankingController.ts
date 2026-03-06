@@ -4,34 +4,30 @@ import { GamificationService } from "../services/GamificationService";
 
 export class RankingController {
   /**
-   * GET /gamification/ranking?limit=20
-   * Returns the weekly leaderboard — top users sorted by XP earned
-   * in the last 7 days.
+   * GET /gamification/ranking?scope=global|regional|friends&limit=50
    */
-  static async weekly(
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  static async weekly(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const limit   = Math.min(50, Number(req.query["limit"] ?? 20));
-      const ranking = await GamificationService.getWeeklyRanking(limit);
+      const limit = Math.min(50, Number(req.query["limit"] ?? 50));
+      const scope = String(req.query["scope"] ?? "global") as "global" | "regional" | "friends";
+
+      let ranking;
+      if (scope === "regional") {
+        ranking = await GamificationService.getRegionalRanking(req.userId, limit);
+      } else if (scope === "friends") {
+        ranking = await GamificationService.getFriendsRanking(req.userId, limit);
+      } else {
+        ranking = await GamificationService.getWeeklyRanking(limit);
+      }
+
       res.json(ranking);
-    } catch (err) {
-      next(err);
-    }
+    } catch (err) { next(err); }
   }
 
   /**
    * GET /gamification/caps
-   * Returns the daily XP caps and how much the current user has earned today
-   * in each capped category — so the UI can show remaining budget.
    */
-  static async caps(
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
+  static async caps(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { DAILY_XP_CAPS } = await import("../services/GamificationService");
       const today   = new Date().toISOString().slice(0, 10);
@@ -43,8 +39,6 @@ export class RankingController {
         })
       );
       res.json(entries);
-    } catch (err) {
-      next(err);
-    }
+    } catch (err) { next(err); }
   }
 }

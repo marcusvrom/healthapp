@@ -1,6 +1,7 @@
 import { AppDataSource } from "../config/typeorm.config";
 import { User } from "../entities/User";
 import { XpLog } from "../entities/XpLog";
+import { Friendship, FriendshipStatus } from "../entities/Friendship";
 
 export const XP_REWARDS = {
   MEAL_CONSUMED:      10,
@@ -41,13 +42,16 @@ export const DAILY_XP_CAPS: Partial<Record<string, number>> = {
 };
 
 export interface RankingEntry {
-  userId: string;
-  name: string;
-  avatarUrl: string | null;
-  weeklyXp: number;
-  totalXp: number;
-  level: number;
+  userId:     string;
+  name:       string;
+  avatarUrl:  string | null;
+  weeklyXp:   number;
+  totalXp:    number;
+  level:      number;
   levelTitle: string;
+  city?:      string | null;
+  state?:     string | null;
+  rank?:      number;
 }
 
 export class GamificationService {
@@ -57,6 +61,24 @@ export class GamificationService {
 
   private static get logRepo() {
     return AppDataSource.getRepository(XpLog);
+  }
+
+  private static get friendRepo() {
+    return AppDataSource.getRepository(Friendship);
+  }
+
+  /**
+   * Returns the start of the current ISO week (Monday 00:00:00 UTC).
+   * Rankings reset every Monday so new users can compete.
+   */
+  private static getWeekStart(): Date {
+    const now = new Date();
+    const day = now.getUTCDay(); // 0=Sun … 6=Sat
+    const daysFromMonday = day === 0 ? 6 : day - 1;
+    const monday = new Date(now);
+    monday.setUTCDate(now.getUTCDate() - daysFromMonday);
+    monday.setUTCHours(0, 0, 0, 0);
+    return monday;
   }
 
   /**
@@ -133,32 +155,35 @@ export class GamificationService {
   }
 
   /**
-   * Weekly leaderboard — top N users sorted by XP earned in the last 7 days.
+   * Shared query builder: aggregates weekly XP from the current Monday reset.
    */
-  static async getWeeklyRanking(limit = 20): Promise<RankingEntry[]> {
-    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  private static async buildRanking(
+    limit: number,
+    userIds?: string[]
+  ): Promise<RankingEntry[]> {
+    const since = this.getWeekStart();
 
-    const rows = await this.logRepo
+    let qb = this.logRepo
       .createQueryBuilder("l")
       .select("l.user_id", "userId")
       .addSelect("COALESCE(SUM(l.amount), 0)", "weeklyXp")
       .where("l.awarded_at >= :since", { since })
       .groupBy("l.user_id")
       .orderBy('"weeklyXp"', "DESC")
-      .limit(limit)
-      .getRawMany<{ userId: string; weeklyXp: string }>();
+      .limit(limit);
 
+    if (userIds && userIds.length > 0) {
+      qb = qb.andWhere("l.user_id IN (:...userIds)", { userIds });
+    }
+
+    const rows = await qb.getRawMany<{ userId: string; weeklyXp: string }>();
     if (!rows.length) return [];
 
-    const userIds = rows.map(r => r.userId);
-    const users = await this.userRepo
-      .createQueryBuilder("u")
-      .whereInIds(userIds)
-      .getMany();
-
+    const ids = rows.map(r => r.userId);
+    const users = await this.userRepo.createQueryBuilder("u").whereInIds(ids).getMany();
     const userMap = new Map(users.map(u => [u.id, u]));
 
-    return rows.map(row => {
+    return rows.map((row, idx) => {
       const user = userMap.get(row.userId);
       const weeklyXp = Number(row.weeklyXp);
       const { level, title } = this.levelFromXp(user?.xp ?? 0);
@@ -170,8 +195,53 @@ export class GamificationService {
         totalXp:    user?.xp ?? 0,
         level,
         levelTitle: title,
+        city:       user?.city ?? null,
+        state:      user?.state ?? null,
+        rank:       idx + 1,
       };
     });
+  }
+
+  /**
+   * Global leaderboard — Top 50 by XP since last Monday.
+   */
+  static async getWeeklyRanking(limit = 50): Promise<RankingEntry[]> {
+    return this.buildRanking(limit);
+  }
+
+  /**
+   * Regional leaderboard — Top 50 users in the same city as the requesting user.
+   */
+  static async getRegionalRanking(userId: string, limit = 50): Promise<RankingEntry[]> {
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user?.city) return [];
+
+    const cityUsers = await this.userRepo
+      .createQueryBuilder("u")
+      .select("u.id")
+      .where("LOWER(u.city) = LOWER(:city)", { city: user.city })
+      .getMany();
+
+    if (!cityUsers.length) return [];
+    return this.buildRanking(limit, cityUsers.map(u => u.id));
+  }
+
+  /**
+   * Friends leaderboard — Rankings among accepted friends + the user themselves.
+   */
+  static async getFriendsRanking(userId: string, limit = 50): Promise<RankingEntry[]> {
+    const friendships = await this.friendRepo
+      .createQueryBuilder("f")
+      .where("f.status = :s", { s: FriendshipStatus.ACCEPTED })
+      .andWhere("(f.requester_id = :uid OR f.addressee_id = :uid)", { uid: userId })
+      .getMany();
+
+    const friendIds = friendships.map(f =>
+      f.requesterId === userId ? f.addresseeId : f.requesterId
+    );
+    // include self
+    const allIds = [...new Set([userId, ...friendIds])];
+    return this.buildRanking(limit, allIds);
   }
 
   /** Returns a human-readable level title based on XP. */

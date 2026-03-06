@@ -6,6 +6,7 @@ import { DecimalPipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, Subject, switchMap, of } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { DailyMissionsWidgetComponent } from '../../shared/components/daily-missions-widget.component';
 
 import { ProfileService }           from '../../core/services/profile.service';
 import { RoutineService }            from '../../core/services/routine.service';
@@ -85,7 +86,7 @@ interface LinkedRecipeView extends LinkedRecipe {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [DecimalPipe, DatePipe, RouterLink, WaterTrackerComponent, FormsModule],
+  imports: [DecimalPipe, DatePipe, RouterLink, WaterTrackerComponent, FormsModule, DailyMissionsWidgetComponent],
   styles: [`
     /* ── Layout ─────────────────────────────────────────────────────────────── */
     .dashboard { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 1.5rem; background: var(--color-bg) !important;
@@ -847,12 +848,16 @@ interface LinkedRecipeView extends LinkedRecipe {
 
         <app-water-tracker [showLogs]="showWaterLogs" />
 
+        <!-- Daily missions widget -->
+        <app-daily-missions-widget />
+
         <div class="card" style="display:flex;flex-direction:column;gap:.5rem">
           <div style="font-size:.82rem;font-weight:700;margin-bottom:.125rem">⚡ Ações rápidas</div>
-          <a routerLink="/nutrition" class="btn btn-secondary w-full">🍽️ Registrar refeição</a>
-          <a routerLink="/protocols" class="btn btn-secondary w-full">💊 Protocolos clínicos</a>
-          <a routerLink="/recipes"   class="btn btn-secondary w-full">📖 Receitas da comunidade</a>
-          <a routerLink="/progress"  class="btn btn-secondary w-full">📊 Ver progresso</a>
+          <a routerLink="/nutrition"   class="btn btn-secondary w-full">🍽️ Registrar refeição</a>
+          <a routerLink="/protocols"   class="btn btn-secondary w-full">💊 Protocolos clínicos</a>
+          <a routerLink="/recipes"     class="btn btn-secondary w-full">📖 Receitas da comunidade</a>
+          <a routerLink="/leaderboard" class="btn btn-secondary w-full">🏆 Ver ranking semanal</a>
+          <a routerLink="/progress"    class="btn btn-secondary w-full">📊 Ver progresso</a>
         </div>
       </div>
     </div>

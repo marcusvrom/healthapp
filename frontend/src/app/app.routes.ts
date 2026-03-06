@@ -42,6 +42,7 @@ export const routes: Routes = [
       { path: 'feed',         loadComponent: () => import('./features/feed/feed.component').then(m => m.FeedComponent) },
       { path: 'challenges',   loadComponent: () => import('./features/challenges/challenges.component').then(m => m.ChallengesComponent) },
       { path: 'groups',       loadComponent: () => import('./features/groups/groups.component').then(m => m.GroupsComponent) },
+      { path: 'leaderboard',  loadComponent: () => import('./features/leaderboard/leaderboard.component').then(m => m.LeaderboardComponent) },
     ],
   },
 
