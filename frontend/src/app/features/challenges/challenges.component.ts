@@ -98,6 +98,12 @@ const CATEGORY_LABEL: Record<string, string> = {
       text-align: center; padding: 3rem 1rem;
       .emoji { font-size: 3rem; display: block; margin-bottom: 1rem; }
       p { color: var(--color-text-muted); }
+      .retry-btn {
+        margin-top: 1rem; padding: .5rem 1.25rem; border-radius: var(--radius-sm);
+        background: var(--color-primary); color: #fff; font-weight: 700;
+        border: none; cursor: pointer; font-size: .875rem;
+        &:hover { opacity: .9; }
+      }
     }
   `],
   template: `
@@ -113,6 +119,12 @@ const CATEGORY_LABEL: Record<string, string> = {
 
       @if (loading()) {
         <div class="empty-state"><span class="emoji">⏳</span><p>Carregando desafios...</p></div>
+      } @else if (error()) {
+        <div class="empty-state">
+          <span class="emoji">⚠️</span>
+          <p>Não foi possível carregar os desafios.<br>Verifique sua conexão e tente novamente.</p>
+          <button class="retry-btn" (click)="load()">Tentar novamente</button>
+        </div>
       } @else if (challenges().length === 0) {
         <div class="empty-state"><span class="emoji">🏆</span><p>Nenhum desafio ativo esta semana.</p></div>
       } @else {
@@ -176,15 +188,17 @@ export class ChallengesComponent implements OnInit {
 
   challenges = signal<Challenge[]>([]);
   loading    = signal(true);
+  error      = signal(false);
   joining    = signal<Set<string>>(new Set());
 
   ngOnInit(): void { this.load(); }
 
-  private load(): void {
+  load(): void {
     this.loading.set(true);
+    this.error.set(false);
     this.svc.list().subscribe({
       next: list => { this.challenges.set(list); this.loading.set(false); },
-      error: ()  => this.loading.set(false),
+      error: ()  => { this.loading.set(false); this.error.set(true); },
     });
   }
 
