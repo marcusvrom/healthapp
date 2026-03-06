@@ -16,6 +16,7 @@ import { ClinicalProtocolService }   from '../../core/services/clinical-protocol
 import { RecipeService }             from '../../core/services/recipe.service';
 import { ScheduledMealService }      from '../../core/services/scheduled-meal.service';
 import { RecipeScheduleService }     from '../../core/services/recipe-schedule.service';
+import { CheckInService }            from '../../core/services/check-in.service';
 
 import {
   RoutineBlock, BlockType, DailySummary, ClinicalProtocolWithLog,
@@ -399,6 +400,35 @@ interface LinkedRecipeView extends LinkedRecipe {
     /* ── XP pop ──────────────────────────────────────────────────────────────── */
     @keyframes xpPop { 0% { transform:scale(1);opacity:1; } 50% { transform:scale(1.5) translateY(-12px);opacity:1; } 100% { transform:scale(1) translateY(-28px);opacity:0; } }
     .xp-pop { position:fixed;pointer-events:none;z-index:999;font-size:1.1rem;font-weight:800;color:#7c3aed;animation:xpPop .9s ease forwards; }
+
+    /* ── Check-in banner ─────────────────────────────────────────────────────── */
+    .checkin-banner {
+      grid-column: 1 / -1;
+      display: flex; align-items: center; gap: 1rem;
+      background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
+      color: #fff; border-radius: var(--radius-md); padding: .875rem 1.25rem;
+      animation: fadeIn .4s ease;
+
+      .cb-emoji { font-size: 1.75rem; flex-shrink: 0; }
+      .cb-text  { flex: 1;
+        h3 { font-size: .95rem; font-weight: 700; color: #fff; }
+        p  { font-size: .78rem; color: rgba(255,255,255,.8); margin-top: .1rem; }
+      }
+      .cb-actions { display: flex; gap: .5rem; align-items: center; flex-shrink: 0; }
+      .cb-btn {
+        background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.4);
+        color: #fff; padding: .4rem 1rem; border-radius: var(--radius-sm);
+        cursor: pointer; font-weight: 600; font-size: .8rem; text-decoration: none;
+        white-space: nowrap; transition: background .15s;
+        &:hover { background: rgba(255,255,255,.35); }
+      }
+      .cb-dismiss {
+        background: none; border: none; cursor: pointer; color: rgba(255,255,255,.6);
+        font-size: 1.1rem; line-height: 1; padding: .2rem;
+        &:hover { color: #fff; }
+      }
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
   `],
   template: `
     <div class="dashboard">
@@ -417,6 +447,21 @@ interface LinkedRecipeView extends LinkedRecipe {
           }
         </div>
       </div>
+
+      <!-- ── Check-in overdue banner ─────────────────────────────────────── -->
+      @if (showCheckInBanner()) {
+        <div class="checkin-banner">
+          <span class="cb-emoji">📸</span>
+          <div class="cb-text">
+            <h3>Chegou o dia do seu Check-in Semanal!</h3>
+            <p>Registre seu peso e adesão para que o Copiloto possa analisar sua evolução.</p>
+          </div>
+          <div class="cb-actions">
+            <a class="cb-btn" routerLink="/check-in">Fazer Check-in</a>
+            <button class="cb-dismiss" (click)="dismissCheckInBanner()" title="Dispensar">✕</button>
+          </div>
+        </div>
+      }
 
       <!-- ── Generate bar ────────────────────────────────────────────────── -->
       @if (blocks().length === 0 && !loading()) {
@@ -942,9 +987,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private recipeSvc       = inject(RecipeService);
   private scheduledSvc    = inject(ScheduledMealService);
   private recipeSchedSvc  = inject(RecipeScheduleService);
+  private checkInSvc      = inject(CheckInService);
 
   readonly todayStr      = new Date().toISOString().slice(0, 10);
   readonly showWaterLogs = signal(false);
+
+  // ── Check-in banner ─────────────────────────────────────────────────────────
+  private lastCheckInDate = signal<string | null>(null);
+  private bannerDismissed = signal(false);
+  showCheckInBanner = computed(() => {
+    if (this.bannerDismissed()) return false;
+    const last = this.lastCheckInDate();
+    if (!last) return true; // never did a check-in
+    const msDiff = new Date().getTime() - new Date(last + 'T12:00:00').getTime();
+    const daysDiff = msDiff / (1000 * 60 * 60 * 24);
+    return daysDiff >= 7;
+  });
 
   blocks         = this.routineSvc.blocks;
   selectedDate   = this.routineSvc.selectedDate;
@@ -1078,6 +1136,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadRecipeSchedules();
     this.cloneFrom = this.selectedDate();
     this.clockInterval = setInterval(() => this.clockMinute.set(this.currentMinuteOfDay()), 30_000);
+    this.checkInSvc.latest().subscribe({ next: ci => this.lastCheckInDate.set(ci?.date ?? null), error: () => {} });
   }
 
   ngOnDestroy(): void { if (this.clockInterval) clearInterval(this.clockInterval); }
@@ -1548,6 +1607,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       error: () => {},
     });
   }
+
+  dismissCheckInBanner(): void { this.bannerDismissed.set(true); }
 
   // ── Misc helpers ─────────────────────────────────────────────────────────────
   blockMeta(type: BlockType) { return BLOCK_META[type] ?? BLOCK_META.custom; }

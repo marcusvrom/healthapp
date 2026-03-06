@@ -16,6 +16,8 @@ import { MedicationController } from "../controllers/MedicationController";
 import { ClinicalProtocolController } from "../controllers/ClinicalProtocolController";
 import { RecipeController } from "../controllers/RecipeController";
 import { RecipeScheduleController } from "../controllers/RecipeScheduleController";
+import { CheckInController } from "../controllers/CheckInController";
+import { CopilotController } from "../controllers/CopilotController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -145,5 +147,15 @@ router.delete("/recipes/:id",        ...auth(RecipeController.remove));
 router.post("/recipes/:id/import",   ...auth(RecipeController.importRecipe));
 router.post("/recipes/:id/review",   ...auth(RecipeController.review));
 router.patch("/recipes/:id/like",    ...auth(RecipeController.toggleLike));
+
+// ── Weekly Check-ins ─────────────────────────────────────────────────────────
+// NOTE: /check-ins/latest must come BEFORE /check-ins/:id
+router.get("/check-ins/latest", ...auth(CheckInController.latest));
+router.get("/check-ins",        ...auth(CheckInController.list));
+router.post("/check-ins",       ...auth(CheckInController.create));
+router.delete("/check-ins/:id", ...auth(CheckInController.remove));
+
+// ── Copilot Insights ──────────────────────────────────────────────────────────
+router.get("/copilot/insights", ...auth(CopilotController.insights));
 
 export default router;

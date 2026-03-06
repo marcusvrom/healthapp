@@ -428,3 +428,26 @@ export interface RecipeSchedule {
   createdAt: string;
   updatedAt: string;
 }
+
+// ── Weekly Check-in ───────────────────────────────────────────────────────────
+export interface WeeklyCheckIn {
+  id: string;
+  userId: string;
+  date: string;
+  currentWeight: number;
+  waistCircumference?: number;
+  /** 1–5 stars */
+  adherenceScore: number;
+  notes?: string;
+  createdAt: string;
+}
+
+// ── Copilot ───────────────────────────────────────────────────────────────────
+export type InsightType = 'warning' | 'success' | 'tip' | 'info';
+
+export interface CopilotInsight {
+  type: InsightType;
+  title: string;
+  message: string;
+  action?: string;
+}

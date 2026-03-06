@@ -38,6 +38,7 @@ export const routes: Routes = [
       { path: 'protocols',    loadComponent: () => import('./features/protocols/protocols.component').then(m => m.ProtocolsComponent) },
       { path: 'recipes',      loadComponent: () => import('./features/recipes/recipe-community.component').then(m => m.RecipeCommunityComponent) },
       { path: 'glossary',     loadComponent: () => import('./features/glossary/glossary.component').then(m => m.GlossaryComponent) },
+      { path: 'check-in',     loadComponent: () => import('./features/check-in/check-in.component').then(m => m.CheckInComponent) },
     ],
   },
 

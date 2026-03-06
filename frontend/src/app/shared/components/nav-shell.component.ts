@@ -141,6 +141,9 @@ import { environment } from '../../environments/environment';
           <a routerLink="/progress" routerLinkActive="active-link" class="nav-item">
             <span class="icon">📊</span> Progresso
           </a>
+          <a routerLink="/check-in" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">📸</span> Check-in
+          </a>
           <a routerLink="/clinical" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🩺</span> Clínico
           </a>

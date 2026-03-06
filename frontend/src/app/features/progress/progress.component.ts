@@ -1,13 +1,17 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe, DatePipe, NgStyle } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { MetricsService, WeightPoint, StreakData } from '../../core/services/metrics.service';
 import { WaterDayStats } from '../../core/services/water.service';
+import { CheckInService } from '../../core/services/check-in.service';
+import { CopilotService } from '../../core/services/copilot.service';
+import { WeeklyCheckIn, CopilotInsight } from '../../core/models';
 
 @Component({
   selector: 'app-progress',
   standalone: true,
-  imports: [FormsModule, DecimalPipe, DatePipe, NgStyle],
+  imports: [FormsModule, DecimalPipe, DatePipe, NgStyle, RouterLink],
   styles: [`
     .page { padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
     .page-header { margin-bottom: 1.5rem; h2 { font-size: 1.5rem; } p { color: var(--color-text-muted); } }
@@ -114,6 +118,64 @@ import { WaterDayStats } from '../../core/services/water.service';
       border: 1.5px solid var(--color-border); background: var(--color-surface-2);
       cursor: pointer; transition: .15s;
       &.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    }
+
+    /* ── Copilot section ─────────────────────────────────────────────────────── */
+    .copilot-section {
+      margin-top: 2rem;
+
+      .section-header {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 1rem;
+        h2 { font-size: 1.05rem; font-weight: 700; }
+        a { font-size: .8rem; }
+      }
+    }
+
+    .insight-cards { display: flex; flex-direction: column; gap: .875rem; }
+
+    .insight-card {
+      border-radius: var(--radius-md); padding: 1rem 1.25rem;
+      border-left: 4px solid transparent;
+      display: flex; gap: .875rem; align-items: flex-start;
+
+      &.warning { background: #fffbeb; border-left-color: #f59e0b; }
+      &.success { background: #f0fdf4; border-left-color: #22c55e; }
+      &.tip     { background: #eff6ff; border-left-color: #3b82f6; }
+      &.info    { background: #faf5ff; border-left-color: #8b5cf6; }
+
+      .ic-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; margin-top: .1rem; }
+      .ic-body  { flex: 1; min-width: 0;
+        h4 { font-size: .88rem; font-weight: 700; margin-bottom: .3rem; }
+        p  { font-size: .82rem; line-height: 1.5; color: var(--color-text-muted); }
+        .ic-action {
+          display: inline-block; margin-top: .5rem;
+          font-size: .75rem; font-weight: 700; color: var(--color-primary);
+          text-decoration: none;
+          background: var(--color-primary-light); padding: .2rem .6rem;
+          border-radius: 99px; cursor: pointer;
+        }
+      }
+    }
+
+    .checkin-chart-card {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;
+
+      .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;
+        h3 { font-size: .95rem; font-weight: 700; }
+        a  { font-size: .78rem; font-weight: 600; }
+      }
+    }
+
+    .checkin-table {
+      margin-top: 1rem;
+      table { width: 100%; border-collapse: collapse; font-size: .78rem;
+        th { text-align: left; color: var(--color-text-subtle); font-weight: 600; padding: .25rem .5rem; border-bottom: 1px solid var(--color-border); }
+        td { padding: .35rem .5rem; border-bottom: 1px solid var(--color-border); }
+        tr:last-child td { border-bottom: none; }
+        .stars { letter-spacing: 1px; }
+      }
     }
   `],
   template: `
@@ -311,19 +373,116 @@ import { WaterDayStats } from '../../core/services/water.service';
           </div>
         }
       </div>
+
+      <!-- ── Check-in weight chart ──────────────────────────────────────────── -->
+      @if (checkIns().length > 0) {
+        <div class="checkin-chart-card">
+          <div class="chart-header">
+            <h3>📸 Progresso por Check-in Semanal</h3>
+            <a routerLink="/check-in">+ Novo Check-in</a>
+          </div>
+
+          @if (checkIns().length >= 2) {
+            <div class="chart-container">
+              <svg class="svg-chart" [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                  <linearGradient id="ciAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#8b5cf6" stop-opacity=".4"/>
+                    <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                @for (tick of ciYTicks(); track tick.y) {
+                  <line class="grid-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="tick.y" [attr.y2]="tick.y"/>
+                  <text class="axis-label" [attr.x]="padL - 4" [attr.y]="tick.y + 3" text-anchor="end">{{ tick.label }}</text>
+                }
+                @for (pt of ciXLabels(); track pt.x) {
+                  <text class="axis-label" [attr.x]="pt.x" [attr.y]="svgH - padB + 14" text-anchor="middle">{{ pt.label }}</text>
+                }
+                <path style="fill:url(#ciAreaGrad);opacity:.25" [attr.d]="ciAreaPath()"/>
+                <path style="fill:none;stroke:#8b5cf6;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round" [attr.d]="ciLinePath()"/>
+                @for (pt of ciDots(); track pt.x) {
+                  <circle [attr.cx]="pt.x" [attr.cy]="pt.y" r="4" fill="#8b5cf6"/>
+                  @if (pt.adherence) {
+                    <text class="data-label" [attr.x]="pt.x" [attr.y]="pt.y - 7" text-anchor="middle">{{ pt.adherence }}★</text>
+                  }
+                }
+                <line class="axis-line" [attr.x1]="padL" [attr.x2]="padL" [attr.y1]="padT" [attr.y2]="svgH - padB"/>
+                <line class="axis-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="svgH - padB" [attr.y2]="svgH - padB"/>
+              </svg>
+            </div>
+          } @else {
+            <div class="chart-empty">
+              <span class="emoji">📸</span>
+              <p>Faça pelo menos 2 check-ins para ver o gráfico de evolução.</p>
+            </div>
+          }
+
+          <div class="checkin-table">
+            <table>
+              <thead>
+                <tr><th>Data</th><th>Peso (kg)</th><th>Cintura</th><th>Adesão</th><th>Notas</th></tr>
+              </thead>
+              <tbody>
+                @for (ci of checkIns(); track ci.id) {
+                  <tr>
+                    <td>{{ ci.date | date:'dd/MM/yy' }}</td>
+                    <td>{{ ci.currentWeight | number:'1.1-1' }}</td>
+                    <td>{{ ci.waistCircumference ? (ci.waistCircumference + ' cm') : '—' }}</td>
+                    <td class="stars">{{ starsFor(ci.adherenceScore) }}</td>
+                    <td style="color:var(--color-text-muted);font-size:.72rem">{{ ci.notes || '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      <!-- ── Copilot insights ────────────────────────────────────────────────── -->
+      <div class="copilot-section">
+        <div class="section-header">
+          <h2>🤖 Insights do Copiloto</h2>
+          <a routerLink="/check-in">Fazer Check-in</a>
+        </div>
+
+        @if (insightsLoading()) {
+          <div style="text-align:center;padding:2rem"><span class="spinner"></span></div>
+        } @else {
+          <div class="insight-cards">
+            @for (ins of insights(); track ins.title) {
+              <div class="insight-card" [class]="ins.type">
+                <span class="ic-icon">{{ insightIcon(ins.type) }}</span>
+                <div class="ic-body">
+                  <h4>{{ ins.title }}</h4>
+                  <p>{{ ins.message }}</p>
+                  @if (ins.action) {
+                    <a class="ic-action" routerLink="/check-in">{{ ins.action }}</a>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
     </div>
   `,
 })
 export class ProgressComponent implements OnInit {
-  private metricsSvc = inject(MetricsService);
+  private metricsSvc  = inject(MetricsService);
+  private checkInSvc  = inject(CheckInService);
+  private copilotSvc  = inject(CopilotService);
 
-  streaks      = signal<StreakData | null>(null);
-  waterHistory = signal<WaterDayStats[]>([]);
-  weightPoints = signal<WeightPoint[]>([]);
-  waterLoading = signal(false);
-  weightLoading= signal(false);
-  savingWeight = signal(false);
-  waterDays    = signal(7);
+  streaks        = signal<StreakData | null>(null);
+  waterHistory   = signal<WaterDayStats[]>([]);
+  weightPoints   = signal<WeightPoint[]>([]);
+  checkIns       = signal<WeeklyCheckIn[]>([]);
+  insights       = signal<CopilotInsight[]>([]);
+  waterLoading   = signal(false);
+  weightLoading  = signal(false);
+  insightsLoading= signal(false);
+  savingWeight   = signal(false);
+  waterDays      = signal(7);
   newWeightVal: number | null = null;
 
   // ── SVG layout constants ─────────────────────────────────────────────────────
@@ -420,6 +579,74 @@ export class ProgressComponent implements OnInit {
       .filter((_, i) => i % every === 0 || i === pts.length - 1);
   });
 
+  // ── Check-in SVG computed ────────────────────────────────────────────────────
+  private ciRange = computed(() => {
+    const pts = this.checkIns();
+    if (!pts.length) return { min: 60, max: 80 };
+    const vals = pts.map(p => Number(p.currentWeight));
+    const min = Math.floor(Math.min(...vals) - 1);
+    const max = Math.ceil(Math.max(...vals) + 1);
+    return { min, max };
+  });
+
+  private ciScaleY = computed(() => {
+    const { min, max } = this.ciRange();
+    const h = this.svgH - this.padT - this.padB;
+    return (v: number) => this.padT + h - ((v - min) / (max - min)) * h;
+  });
+
+  private ciScaleX = computed(() => {
+    const pts = this.checkIns();
+    const w = this.svgW - this.padL - this.padR;
+    // Sort ascending for chart (list from API is newest first)
+    return (i: number) => this.padL + (i / Math.max(pts.length - 1, 1)) * w;
+  });
+
+  ciDots = computed(() => {
+    const pts = [...this.checkIns()].reverse(); // oldest first
+    const sx = this.ciScaleX();
+    const sy = this.ciScaleY();
+    return pts.map((p, i) => ({
+      x: sx(i),
+      y: sy(Number(p.currentWeight)),
+      adherence: p.adherenceScore,
+    }));
+  });
+
+  ciLinePath = computed(() => {
+    const dots = this.ciDots();
+    if (!dots.length) return '';
+    return dots.map((d, i) => `${i === 0 ? 'M' : 'L'}${d.x.toFixed(1)},${d.y.toFixed(1)}`).join(' ');
+  });
+
+  ciAreaPath = computed(() => {
+    const dots = this.ciDots();
+    if (!dots.length) return '';
+    const base = this.svgH - this.padB;
+    const line = dots.map((d, i) => `${i === 0 ? 'M' : 'L'}${d.x.toFixed(1)},${d.y.toFixed(1)}`).join(' ');
+    const last  = dots[dots.length - 1]!;
+    const first = dots[0]!;
+    return `${line} L${last.x.toFixed(1)},${base} L${first.x.toFixed(1)},${base} Z`;
+  });
+
+  ciYTicks = computed(() => {
+    const { min, max } = this.ciRange();
+    const sy = this.ciScaleY();
+    const step = Math.ceil((max - min) / 4);
+    const ticks: { y: number; label: string }[] = [];
+    for (let v = min; v <= max; v += step) ticks.push({ y: sy(v), label: String(v) });
+    return ticks;
+  });
+
+  ciXLabels = computed(() => {
+    const pts = [...this.checkIns()].reverse();
+    const sx = this.ciScaleX();
+    const every = Math.max(1, Math.floor(pts.length / 6));
+    return pts
+      .map((p, i) => ({ x: sx(i), label: this.shortDate(p.date), i }))
+      .filter((_, i) => i % every === 0 || i === pts.length - 1);
+  });
+
   // ── Water SVG computed ───────────────────────────────────────────────────────
   private waterMaxVal = computed(() => {
     const h = this.waterHistory();
@@ -470,6 +697,12 @@ export class ProgressComponent implements OnInit {
     this.metricsSvc.streaks().subscribe({ next: s => this.streaks.set(s), error: () => {} });
     this.loadWeight();
     this.loadWater();
+    this.checkInSvc.list().subscribe({ next: list => this.checkIns.set(list), error: () => {} });
+    this.insightsLoading.set(true);
+    this.copilotSvc.getInsights().subscribe({
+      next: ins => { this.insights.set(ins); this.insightsLoading.set(false); },
+      error: () => this.insightsLoading.set(false),
+    });
   }
 
   private loadWeight(): void {
@@ -511,5 +744,16 @@ export class ProgressComponent implements OnInit {
   shortDate(dateStr: string): string {
     const d = new Date(dateStr + 'T12:00:00');
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  }
+
+  starsFor(score: number): string {
+    return '⭐'.repeat(score) + '☆'.repeat(5 - score);
+  }
+
+  insightIcon(type: string): string {
+    const icons: Record<string, string> = {
+      warning: '⚠️', success: '✅', tip: '💡', info: 'ℹ️',
+    };
+    return icons[type] ?? 'ℹ️';
   }
 }
