@@ -19,6 +19,8 @@ export const XP_REWARDS = {
   BLOCK_WORK:          5,
   BLOCK_FREE:          5,
   BLOCK_CUSTOM:        5,
+  // Social bonus
+  BLOCK_PHOTO:        10,
 } as const;
 
 /**

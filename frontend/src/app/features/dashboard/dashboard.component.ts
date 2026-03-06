@@ -401,6 +401,59 @@ interface LinkedRecipeView extends LinkedRecipe {
     @keyframes xpPop { 0% { transform:scale(1);opacity:1; } 50% { transform:scale(1.5) translateY(-12px);opacity:1; } 100% { transform:scale(1) translateY(-28px);opacity:0; } }
     .xp-pop { position:fixed;pointer-events:none;z-index:999;font-size:1.1rem;font-weight:800;color:#7c3aed;animation:xpPop .9s ease forwards; }
 
+    /* ── Photo share prompt ──────────────────────────────────────────────────── */
+    .photo-overlay {
+      position: fixed; inset: 0; z-index: 900;
+      background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
+    }
+    .photo-modal {
+      background: var(--color-surface); border-radius: var(--radius-md);
+      padding: 1.5rem; width: 100%; max-width: 400px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.25);
+
+      h3 { font-size: 1.05rem; font-weight: 800; margin-bottom: .25rem; }
+      .subtitle { font-size: .82rem; color: var(--color-text-muted); margin-bottom: 1.25rem; }
+
+      .photo-preview {
+        width: 100%; height: 180px; object-fit: cover;
+        border-radius: var(--radius-sm); margin-bottom: .75rem;
+      }
+      .photo-pick-btn {
+        display: block; width: 100%; padding: .6rem; border: 2px dashed var(--color-border);
+        border-radius: var(--radius-sm); background: var(--color-surface-2);
+        text-align: center; cursor: pointer; font-size: .82rem; color: var(--color-text-muted);
+        margin-bottom: .75rem; transition: .15s;
+        &:hover { border-color: var(--color-primary); color: var(--color-primary); }
+      }
+      .caption-input {
+        width: 100%; padding: .5rem .75rem; border: 1.5px solid var(--color-border);
+        border-radius: var(--radius-sm); font-size: .82rem; margin-bottom: 1rem;
+        background: var(--color-surface-2);
+        &:focus { outline: none; border-color: var(--color-primary); }
+      }
+      .share-toggle {
+        display: flex; align-items: center; gap: .5rem;
+        font-size: .82rem; color: var(--color-text-muted); margin-bottom: 1rem;
+        input { width: 16px; height: 16px; cursor: pointer; }
+      }
+      .photo-actions {
+        display: flex; gap: .625rem;
+        .btn-skip  { flex: 1; padding: .625rem; border-radius: var(--radius-sm);
+          border: 1.5px solid var(--color-border); background: none;
+          font-size: .875rem; cursor: pointer; color: var(--color-text-muted);
+          &:hover { background: var(--color-surface-2); } }
+        .btn-share { flex: 1; padding: .625rem; border-radius: var(--radius-sm);
+          border: none; background: var(--color-primary); color: #fff;
+          font-size: .875rem; font-weight: 700; cursor: pointer;
+          &:disabled { opacity: .5; cursor: not-allowed; } }
+      }
+      .xp-hint {
+        text-align: center; font-size: .75rem; color: #7c3aed; font-weight: 700;
+        margin-top: .75rem;
+      }
+    }
+
     /* ── Anti-cheat toast ────────────────────────────────────────────────────── */
     .xp-block-toast {
       position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
@@ -966,6 +1019,46 @@ interface LinkedRecipeView extends LinkedRecipe {
       <div class="xp-block-toast">🚫 {{ xpBlockToast() }}</div>
     }
 
+    <!-- ── Photo share prompt ─────────────────────────────────────────── -->
+    @if (photoPromptBlock()) {
+      <div class="photo-overlay" (click)="skipPhoto()">
+        <div class="photo-modal" (click)="$event.stopPropagation()">
+          <h3>📸 Compartilhar conquista?</h3>
+          <p class="subtitle">Adicione uma foto opcional e ganhe <strong>+10 XP</strong> bônus!</p>
+
+          @if (photoDraftDataUrl()) {
+            <img [src]="photoDraftDataUrl()!" class="photo-preview" alt="preview">
+          }
+
+          <label class="photo-pick-btn">
+            {{ photoDraftDataUrl() ? '🔄 Trocar foto' : '📷 Escolher foto' }}
+            <input type="file" accept="image/*" style="display:none"
+              (change)="onPhotoFileChange($event)">
+          </label>
+
+          <input type="text" class="caption-input"
+            placeholder="Legenda (opcional)..."
+            [(ngModel)]="photoDraftCaption"
+            maxlength="280">
+
+          <label class="share-toggle">
+            <input type="checkbox" [(ngModel)]="photoSharePublic">
+            Visível no feed público
+          </label>
+
+          <div class="photo-actions">
+            <button class="btn-skip" (click)="skipPhoto()">Pular</button>
+            <button class="btn-share"
+              (click)="submitWithPhoto()"
+              [disabled]="!photoDraftDataUrl() || sharingPhoto()">
+              {{ sharingPhoto() ? '...' : '✨ Compartilhar +10 XP' }}
+            </button>
+          </div>
+          <p class="xp-hint">Foto é opcional — clique em "Pular" para concluir sem compartilhar</p>
+        </div>
+      </div>
+    }
+
     <!-- ── Clone Dieta modal ───────────────────────────────────────────── -->
     @if (cloneModal()) {
       <div class="clone-overlay" (click)="closeCloneModal()">
@@ -1063,6 +1156,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ── Block completion ────────────────────────────────────────────────────────
   completingBlock = signal<string | null>(null);
+
+  // ── Photo share prompt ───────────────────────────────────────────────────────
+  photoPromptBlock  = signal<{ id: string; event: MouseEvent } | null>(null);
+  photoDraftDataUrl = signal<string | null>(null);
+  photoDraftCaption = '';
+  photoSharePublic  = true;
+  sharingPhoto      = signal(false);
 
   // ── Inline recipe picker (diet view) ────────────────────────────────────────
   inlinePickerMealId = signal<string | null>(null);
@@ -1560,10 +1660,55 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   toggleBlockComplete(b: RoutineBlock, event: MouseEvent): void {
-    this.completingBlock.set(b.id);
-    this.routineSvc.completeBlock(b.id).subscribe({
+    // If undoing, call immediately without photo prompt
+    if (b.completedAt) {
+      this._doCompleteBlock(b.id, event);
+      return;
+    }
+    // New completion: show photo share prompt
+    this.photoPromptBlock.set({ id: b.id, event });
+    this.photoDraftDataUrl.set(null);
+    this.photoDraftCaption = '';
+    this.photoSharePublic  = true;
+  }
+
+  skipPhoto(): void {
+    const p = this.photoPromptBlock();
+    if (!p) return;
+    this.photoPromptBlock.set(null);
+    this._doCompleteBlock(p.id, p.event);
+  }
+
+  onPhotoFileChange(ev: Event): void {
+    const file = (ev.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => this.photoDraftDataUrl.set(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  submitWithPhoto(): void {
+    const p = this.photoPromptBlock();
+    if (!p || !this.photoDraftDataUrl()) return;
+    this.sharingPhoto.set(true);
+    this._doCompleteBlock(p.id, p.event, {
+      photoDataUrl: this.photoDraftDataUrl()!,
+      caption:      this.photoDraftCaption || undefined,
+      sharePublic:  this.photoSharePublic,
+    });
+  }
+
+  private _doCompleteBlock(
+    blockId: string,
+    event: MouseEvent,
+    photo?: { photoDataUrl: string; caption?: string; sharePublic?: boolean }
+  ): void {
+    this.photoPromptBlock.set(null);
+    this.completingBlock.set(blockId);
+    this.routineSvc.completeBlock(blockId, photo).subscribe({
       next: result => {
         this.completingBlock.set(null);
+        this.sharingPhoto.set(false);
         if (result.xpGained > 0) {
           this.showXpPop(result.xpGained, event);
         } else if (result.message && (result.capReached || result.outOfWindow)) {
@@ -1572,6 +1717,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.completingBlock.set(null);
+        this.sharingPhoto.set(false);
         const msg = err?.error?.message as string | undefined;
         if (msg) this.showXpBlockToast(msg);
       },

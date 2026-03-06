@@ -11,6 +11,7 @@ import { BloodTestAnalysisService } from "../services/BloodTestAnalysisService";
 import { RoutineGeneratorService } from "../services/RoutineGeneratorService";
 import { ClinicalProtocolService } from "../services/ClinicalProtocolService";
 import { GamificationService, XP_REWARDS } from "../services/GamificationService";
+import { createBlockPost } from "./SocialController";
 import { ExerciseCalcInput } from "../types/calculation.types";
 
 // ── Time-window helpers ────────────────────────────────────────────────────────
@@ -329,8 +330,38 @@ export class RoutineController {
 
       await routineRepo().save(block);
 
+      // ── Optional social photo (only on first completion, not undo) ────────
+      let postId: string | undefined;
+      let photoBonusXp = 0;
+
+      if (!isUndoing) {
+        const { photoDataUrl, caption, sharePublic } = req.body as {
+          photoDataUrl?: string;
+          caption?: string;
+          sharePublic?: boolean;
+        };
+
+        if (photoDataUrl?.startsWith("data:image/")) {
+          const post = await createBlockPost({
+            userId:       req.userId,
+            blockId:      block.id,
+            blockType:    block.type,
+            photoDataUrl,
+            caption,
+            isPublic:     sharePublic !== false, // default public
+          });
+          postId = post.id;
+
+          // Award photo bonus XP (not subject to per-category daily cap)
+          const bonus = XP_REWARDS.BLOCK_PHOTO;
+          totalXp     = await GamificationService.awardXp(req.userId, bonus, "social", post.id);
+          photoBonusXp = bonus;
+          xpGained += bonus;
+        }
+      }
+
       const level = GamificationService.levelFromXp(totalXp);
-      res.json({ block, xpGained, totalXp, level, capReached, outOfWindow, message });
+      res.json({ block, xpGained, totalXp, level, capReached, outOfWindow, message, postId, photoBonusXp });
     } catch (err) {
       next(err);
     }

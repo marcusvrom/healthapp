@@ -27,11 +27,16 @@ export class RoutineService {
 
   /**
    * Toggle completion of a non-meal/non-medication routine block.
+   * Optionally attach a photo for the social feed (+10 XP bonus).
    * Awards XP on first completion; returns updated block + XP info.
    * Also patches the local blocks signal.
    */
-  completeBlock(blockId: string): Observable<BlockCompleteResult> {
-    return this.api.patch<BlockCompleteResult>(`/routine/blocks/${blockId}/complete`, {}).pipe(
+  completeBlock(blockId: string, photo?: {
+    photoDataUrl: string;
+    caption?: string;
+    sharePublic?: boolean;
+  }): Observable<BlockCompleteResult> {
+    return this.api.patch<BlockCompleteResult>(`/routine/blocks/${blockId}/complete`, photo ?? {}).pipe(
       tap(result => {
         this.blocks.update(list =>
           list.map(b => b.id === result.block.id ? result.block : b)

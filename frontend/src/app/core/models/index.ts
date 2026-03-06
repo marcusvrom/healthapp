@@ -458,13 +458,41 @@ export interface DailyCap {
 
 /** Extended block complete result including anti-cheat feedback */
 export interface BlockCompleteResult {
-  block:        RoutineBlock;
-  xpGained:     number;
-  totalXp:      number;
-  level:        UserLevel;
-  capReached?:  boolean;
-  outOfWindow?: boolean;
-  message?:     string;
+  block:         RoutineBlock;
+  xpGained:      number;
+  totalXp:       number;
+  level:         UserLevel;
+  capReached?:   boolean;
+  outOfWindow?:  boolean;
+  message?:      string;
+  postId?:       string;
+  photoBonusXp?: number;
+}
+
+/** Social feed item */
+export interface FeedItem {
+  id:           string;
+  userId:       string;
+  userName:     string;
+  avatarUrl:    string | null;
+  blockType:    string | null;
+  photoUrl:     string | null;
+  caption:      string | null;
+  likeCount:    number;
+  commentCount: number;
+  userLiked:    boolean;
+  createdAt:    string;
+}
+
+/** Comment on a feed post */
+export interface FeedComment {
+  id:        string;
+  userId:    string;
+  userName:  string;
+  avatarUrl: string | null;
+  body:      string;
+  createdAt: string;
+  isOwn:     boolean;
 }
 
 /** Extended meal toggle result */

@@ -144,6 +144,9 @@ import { environment } from '../../environments/environment';
           <a routerLink="/check-in" routerLinkActive="active-link" class="nav-item">
             <span class="icon">📸</span> Check-in
           </a>
+          <a routerLink="/feed" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">🌐</span> Feed Social
+          </a>
           <a routerLink="/clinical" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🩺</span> Clínico
           </a>

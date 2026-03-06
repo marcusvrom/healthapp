@@ -19,6 +19,7 @@ import { RecipeScheduleController } from "../controllers/RecipeScheduleControlle
 import { CheckInController } from "../controllers/CheckInController";
 import { CopilotController } from "../controllers/CopilotController";
 import { RankingController } from "../controllers/RankingController";
+import { SocialController } from "../controllers/SocialController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -163,5 +164,12 @@ router.get("/copilot/insights", ...auth(CopilotController.insights));
 // ── Gamification (ranking + daily caps) ───────────────────────────────────────
 router.get("/gamification/ranking", ...auth(RankingController.weekly));
 router.get("/gamification/caps",    ...auth(RankingController.caps));
+
+// ── Social feed ───────────────────────────────────────────────────────────────
+router.get("/social/feed",                    ...auth(SocialController.feed));
+router.post("/social/posts/:id/like",         ...auth(SocialController.toggleLike));
+router.get("/social/posts/:id/comments",      ...auth(SocialController.listComments));
+router.post("/social/posts/:id/comments",     ...auth(SocialController.addComment));
+router.delete("/social/comments/:id",         ...auth(SocialController.deleteComment));
 
 export default router;
