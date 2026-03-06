@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { GamificationService } from '../../core/services/gamification.service';
 import { FriendshipService }   from '../../core/services/friendship.service';
 import { UserService }         from '../../core/services/user.service';
+import { ApiService }          from '../../core/services/api.service';
 import { RankingEntry, RankingScope, FriendEntry, PendingRequest, UserSearchResult } from '../../core/models';
 
 type Tab = 'global' | 'regional' | 'friends';
@@ -131,23 +132,44 @@ const LEVEL_COLORS: Record<number, string> = {
       display: flex; flex-direction: column; align-items: center; gap: .5rem; flex: 1;
       max-width: 160px;
 
+      /* Container: fixed size so broken images don't collapse it.
+         overflow: visible so the crown emoji sits above the circle. */
       .podium-avatar {
-        position: relative;
-        .avatar-img { width: 56px; height: 56px; border-radius: 50%;
-          object-fit: cover; border: 3px solid transparent; }
-        .avatar-placeholder { width: 56px; height: 56px; border-radius: 50%;
+        position: relative; overflow: visible;
+        width: 56px; height: 56px;
+        display: flex; align-items: center; justify-content: center;
+
+        .avatar-img {
+          width: 56px; height: 56px; border-radius: 50%;
+          object-fit: cover; border: 3px solid #64748b;
+          /* Hide browser's broken-image alt-text oval */
+          display: block; background: var(--color-surface-2);
+        }
+        .avatar-placeholder {
+          width: 56px; height: 56px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
           font-size: 1.4rem; font-weight: 800; color: #fff;
-          border: 3px solid transparent; }
-        &.rank-1 .avatar-img, &.rank-1 .avatar-placeholder { border-color: #f59e0b; width: 68px; height: 68px; }
-        .crown { position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
-          font-size: 1.3rem; }
+          border: 3px solid #64748b; flex-shrink: 0;
+        }
+
+        .crown {
+          position: absolute; top: -18px; left: 50%;
+          transform: translateX(-50%);
+          font-size: 1.2rem; line-height: 1; pointer-events: none;
+        }
+      }
+
+      /* First place: larger avatar + gold ring */
+      &.rank-1 .podium-avatar {
+        width: 68px; height: 68px;
+        .avatar-img       { width: 68px; height: 68px; border-color: #f59e0b; border-width: 3px; }
+        .avatar-placeholder { width: 68px; height: 68px; border-color: #f59e0b; border-width: 3px; }
       }
 
       .podium-info {
         text-align: center;
         .podium-name { font-size: .78rem; font-weight: 700; color: var(--color-text);
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
         .podium-xp   { font-size: .7rem; color: var(--color-text-muted); font-weight: 600; }
         .level-badge {
           display: inline-block; padding: .1rem .45rem; border-radius: 99px;
@@ -237,8 +259,8 @@ const LEVEL_COLORS: Record<number, string> = {
             <div class="search-results">
               @for (u of searchResults(); track u.userId) {
                 <div class="result-item">
-                  @if (u.avatarUrl) {
-                    <img [src]="u.avatarUrl" class="avatar" [alt]="u.name" />
+                  @if (avatar(u.avatarUrl); as src) {
+                    <img [src]="src" class="avatar" [alt]="u.name" />
                   } @else {
                     <div class="avatar">{{ u.name.charAt(0).toUpperCase() }}</div>
                   }
@@ -270,8 +292,8 @@ const LEVEL_COLORS: Record<number, string> = {
               <div class="podium-slot" [class]="'rank-' + slot.rank">
                 <div class="podium-avatar" [class]="'rank-' + slot.rank">
                   @if (slot.rank === 1) { <span class="crown">👑</span> }
-                  @if (slot.avatarUrl) {
-                    <img [src]="slot.avatarUrl" class="avatar-img" [alt]="slot.name" />
+                  @if (avatar(slot.avatarUrl); as src) {
+                    <img [src]="src" class="avatar-img" [alt]="slot.name" />
                   } @else {
                     <div class="avatar-placeholder"
                          [style.background]="levelColor(slot.level)">
@@ -298,8 +320,8 @@ const LEVEL_COLORS: Record<number, string> = {
             @for (entry of rest(); track entry.userId) {
               <div class="rank-row" [class.is-me]="entry.userId === currentUserId()">
                 <div class="rank-num">#{{ entry.rank }}</div>
-                @if (entry.avatarUrl) {
-                  <img [src]="entry.avatarUrl" class="avatar" [alt]="entry.name" />
+                @if (avatar(entry.avatarUrl); as src) {
+                  <img [src]="src" class="avatar" [alt]="entry.name" />
                 } @else {
                   <div class="avatar" [style.background]="levelColor(entry.level)">
                     {{ entry.name.charAt(0).toUpperCase() }}
@@ -325,8 +347,14 @@ export class LeaderboardComponent implements OnInit {
   private gamification = inject(GamificationService);
   private friendSvc    = inject(FriendshipService);
   private userSvc      = inject(UserService);
+  private api          = inject(ApiService);
 
   readonly TABS = TABS;
+
+  /** Prepend the Express static-file base URL for relative avatar paths. */
+  avatar(url: string | null | undefined): string | null {
+    return this.api.storageUrl(url);
+  }
 
   activeTab    = signal<Tab>('global');
   loading      = signal(false);
