@@ -462,7 +462,32 @@ export interface DailyCap {
 }
 
 // ── Friendships ────────────────────────────────────────────────────────────────
-export type FriendshipStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED';
+export type FriendshipStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'BLOCKED';
+
+// ── Community / Public Profiles ───────────────────────────────────────────────
+export interface PublicProfile {
+  id:                     string;
+  name:                   string;
+  avatarUrl:              string | null;
+  city:                   string | null;
+  state:                  string | null;
+  level:                  number;
+  levelTitle:             string;
+  xp:                     number;
+  totalMissionsCompleted: number;
+  primaryGoal:            string | null;
+  primaryGoalLabel:       string | null;
+}
+
+export interface FriendshipContext {
+  status:       FriendshipStatus | 'NONE';
+  friendshipId: string | null;
+  iAmRequester: boolean;
+}
+
+export interface PublicProfileWithFriendship extends PublicProfile {
+  friendship: FriendshipContext;
+}
 
 export interface FriendEntry {
   userId:     string;

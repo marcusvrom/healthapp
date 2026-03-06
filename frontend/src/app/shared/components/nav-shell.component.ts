@@ -156,6 +156,9 @@ import { environment } from '../../environments/environment';
           <a routerLink="/groups" routerLinkActive="active-link" class="nav-item">
             <span class="icon">👥</span> Grupos
           </a>
+          <a routerLink="/comunidade" routerLinkActive="active-link" class="nav-item">
+            <span class="icon">🌍</span> Comunidade
+          </a>
           <a routerLink="/clinical" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🩺</span> Clínico
           </a>
@@ -205,6 +208,7 @@ import { environment } from '../../environments/environment';
       <a routerLink="/diet"        routerLinkActive="active-link"><span class="bn-icon">🍽️</span>Dieta</a>
       <a routerLink="/protocols"   routerLinkActive="active-link"><span class="bn-icon">💊</span>Protocolos</a>
       <a routerLink="/progress"    routerLinkActive="active-link"><span class="bn-icon">📊</span>Progresso</a>
+      <a routerLink="/comunidade"  routerLinkActive="active-link"><span class="bn-icon">🌍</span>Comunidade</a>
       <a routerLink="/profile"     routerLinkActive="active-link"><span class="bn-icon">👤</span>Perfil</a>
     </nav>
   `,
