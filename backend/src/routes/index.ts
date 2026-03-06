@@ -150,8 +150,9 @@ router.post("/recipes/:id/review",   ...auth(RecipeController.review));
 router.patch("/recipes/:id/like",    ...auth(RecipeController.toggleLike));
 
 // ── Weekly Check-ins ─────────────────────────────────────────────────────────
-// NOTE: /check-ins/latest must come BEFORE /check-ins/:id
-router.get("/check-ins/latest", ...auth(CheckInController.latest));
+// NOTE: static paths (/latest, /adherence) must come BEFORE /check-ins/:id
+router.get("/check-ins/latest",    ...auth(CheckInController.latest));
+router.get("/check-ins/adherence", ...auth(CheckInController.adherence));
 router.get("/check-ins",        ...auth(CheckInController.list));
 router.post("/check-ins",       ...auth(CheckInController.create));
 router.delete("/check-ins/:id", ...auth(CheckInController.remove));

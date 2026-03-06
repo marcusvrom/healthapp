@@ -11,6 +11,19 @@ export interface CreateCheckInDto {
   notes?: string;
 }
 
+export interface AdherenceStatDay {
+  date: string;
+  total: number;
+  completed: number;
+  pct: number;
+}
+
+export interface AdherenceResult {
+  adherenceScore: number | null;
+  weekPct: number | null;
+  dailyStats: AdherenceStatDay[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class CheckInService {
   private api = inject(ApiService);
@@ -29,5 +42,9 @@ export class CheckInService {
 
   remove(id: string): Observable<void> {
     return this.api.delete<void>(`/check-ins/${id}`);
+  }
+
+  adherence(): Observable<AdherenceResult> {
+    return this.api.get<AdherenceResult>('/check-ins/adherence');
   }
 }

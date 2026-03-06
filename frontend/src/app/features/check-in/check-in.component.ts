@@ -2,7 +2,7 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router } from '@angular/router';
-import { CheckInService } from '../../core/services/check-in.service';
+import { CheckInService, AdherenceResult } from '../../core/services/check-in.service';
 import { WeeklyCheckIn } from '../../core/models';
 
 @Component({
@@ -20,7 +20,7 @@ import { WeeklyCheckIn } from '../../core/models';
 
       &::before {
         content: ''; position: absolute; inset: 0;
-        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E");
         pointer-events: none;
       }
 
@@ -66,6 +66,42 @@ import { WeeklyCheckIn } from '../../core/models';
       textarea { min-height: 72px; resize: vertical; }
     }
 
+    /* Adherence auto-calc banner */
+    .adherence-auto {
+      background: var(--color-surface-2); border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); padding: .75rem 1rem; margin-bottom: .5rem;
+      display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+
+      .auto-label { font-size: .75rem; color: var(--color-text-muted); font-weight: 600; flex: 1 0 100%; }
+      .auto-pct { font-size: 1.4rem; font-weight: 800; color: var(--color-primary); }
+      .auto-desc { font-size: .8rem; color: var(--color-text-muted); }
+    }
+
+    /* Daily breakdown */
+    .daily-breakdown {
+      display: flex; gap: .4rem; margin-top: .5rem; flex-wrap: wrap;
+
+      .day-pill {
+        display: flex; flex-direction: column; align-items: center; gap: .15rem;
+        padding: .35rem .5rem; border-radius: var(--radius-sm); min-width: 42px;
+        font-size: .7rem; border: 1px solid var(--color-border);
+        background: var(--color-surface-2);
+
+        .day-name { font-weight: 600; color: var(--color-text-muted); }
+        .day-pct  { font-weight: 700; }
+        .day-bar  {
+          width: 28px; height: 4px; border-radius: 2px; background: var(--color-border);
+          position: relative;
+          .fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px; }
+        }
+
+        &.pct-high   { border-color: #6ee7b7; background: #ecfdf5; .day-pct { color: #059669; } .fill { background: #10b981; } }
+        &.pct-mid    { border-color: #fcd34d; background: #fffbeb; .day-pct { color: #d97706; } .fill { background: #f59e0b; } }
+        &.pct-low    { border-color: #fca5a5; background: #fef2f2; .day-pct { color: #dc2626; } .fill { background: #ef4444; } }
+        &.pct-none   { opacity: .45; }
+      }
+    }
+
     /* Star rating */
     .star-row {
       display: flex; gap: .5rem; align-items: center; margin-top: .25rem;
@@ -80,6 +116,10 @@ import { WeeklyCheckIn } from '../../core/models';
 
     .adherence-label {
       font-size: .78rem; color: var(--color-text-muted); margin-top: .25rem; min-height: 1.1em;
+    }
+
+    .override-hint {
+      font-size: .72rem; color: var(--color-text-subtle); margin-top: .2rem;
     }
 
     /* Submit button */
@@ -172,15 +212,9 @@ import { WeeklyCheckIn } from '../../core/models';
 
       <!-- Check-in form -->
       <div class="form-card">
-        <h3>⚖️ Dados desta semana</h3>
+        <h3>⚖️ Dados de hoje · {{ todayLabel }}</h3>
 
         <div class="fields-grid">
-          <!-- Date -->
-          <div class="form-group">
-            <label>Data do check-in</label>
-            <input type="date" [(ngModel)]="form.date" />
-          </div>
-
           <!-- Weight -->
           <div class="form-group">
             <label>Peso atual (kg) *</label>
@@ -195,9 +229,39 @@ import { WeeklyCheckIn } from '../../core/models';
               placeholder="opcional" min="40" max="200" step="0.5" />
           </div>
 
-          <!-- Adherence stars -->
-          <div class="form-group">
+          <!-- Adherence — auto-calculated + optional override -->
+          <div class="form-group field-full">
             <label>Adesão ao plano esta semana *</label>
+
+            @if (adherenceData(); as data) {
+              @if (data.weekPct !== null) {
+                <!-- Auto-calc result -->
+                <div class="adherence-auto">
+                  <span class="auto-label">Calculado automaticamente pelos blocos concluídos</span>
+                  <span class="auto-pct">{{ data.weekPct }}%</span>
+                  <span class="auto-desc">de média semanal ({{ data.dailyStats.length }} dia(s) com rotina)</span>
+
+                  <!-- Daily breakdown pills -->
+                  @if (data.dailyStats.length > 0) {
+                    <div class="daily-breakdown">
+                      @for (d of data.dailyStats; track d.date) {
+                        <div class="day-pill"
+                          [class.pct-high]="d.pct >= 70"
+                          [class.pct-mid]="d.pct >= 35 && d.pct < 70"
+                          [class.pct-low]="d.pct > 0 && d.pct < 35"
+                          [class.pct-none]="d.pct === 0">
+                          <span class="day-name">{{ dayLabel(d.date) }}</span>
+                          <div class="day-bar"><div class="fill" [style.width.%]="d.pct"></div></div>
+                          <span class="day-pct">{{ d.pct }}%</span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            }
+
+            <!-- Stars (pre-filled from auto-calc, can be overridden) -->
             <div class="star-row">
               @for (s of [1,2,3,4,5]; track s) {
                 <span class="star" [class.active]="s <= form.adherenceScore"
@@ -207,6 +271,9 @@ import { WeeklyCheckIn } from '../../core/models';
               }
             </div>
             <div class="adherence-label">{{ adherenceLabel() }}</div>
+            @if (adherenceData()?.weekPct !== null) {
+              <div class="override-hint">Clique nas estrelas para corrigir se desejar.</div>
+            }
           </div>
 
           <!-- Notes -->
@@ -260,13 +327,15 @@ export class CheckInComponent implements OnInit {
   private svc    = inject(CheckInService);
   private router = inject(Router);
 
-  checkIns  = signal<WeeklyCheckIn[]>([]);
-  loading   = signal(false);
-  saving    = signal(false);
-  justSaved = signal(false);
+  checkIns     = signal<WeeklyCheckIn[]>([]);
+  loading      = signal(false);
+  saving       = signal(false);
+  justSaved    = signal(false);
+  adherenceData = signal<AdherenceResult | null>(null);
+
+  readonly todayLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
   form = {
-    date: new Date().toISOString().slice(0, 10),
     currentWeight: null as number | null,
     waistCircumference: null as number | null,
     adherenceScore: 0,
@@ -278,12 +347,14 @@ export class CheckInComponent implements OnInit {
     return labels[this.form.adherenceScore] ?? '';
   });
 
+  // Only requires weight; adherence is auto-set (but can be overridden, minimum 1 star required)
   canSave = computed(() =>
     !!this.form.currentWeight && this.form.adherenceScore >= 1
   );
 
   ngOnInit(): void {
     this.loadHistory();
+    this.loadAdherence();
   }
 
   private loadHistory(): void {
@@ -294,11 +365,24 @@ export class CheckInComponent implements OnInit {
     });
   }
 
+  private loadAdherence(): void {
+    this.svc.adherence().subscribe({
+      next: data => {
+        this.adherenceData.set(data);
+        // Auto-fill stars from calculation if available
+        if (data.adherenceScore !== null) {
+          this.form.adherenceScore = data.adherenceScore;
+        }
+      },
+      error: () => { /* fail silently — user can set stars manually */ },
+    });
+  }
+
   save(): void {
     if (!this.canSave()) return;
     this.saving.set(true);
     this.svc.create({
-      date: this.form.date,
+      date: new Date().toISOString().slice(0, 10),
       currentWeight: this.form.currentWeight!,
       waistCircumference: this.form.waistCircumference ?? undefined,
       adherenceScore: this.form.adherenceScore,
@@ -311,9 +395,8 @@ export class CheckInComponent implements OnInit {
         // Reset form
         this.form.currentWeight = null;
         this.form.waistCircumference = null;
-        this.form.adherenceScore = 0;
+        this.form.adherenceScore = this.adherenceData()?.adherenceScore ?? 0;
         this.form.notes = '';
-        this.form.date = new Date().toISOString().slice(0, 10);
         setTimeout(() => this.justSaved.set(false), 6000);
       },
       error: () => this.saving.set(false),
@@ -328,5 +411,11 @@ export class CheckInComponent implements OnInit {
 
   starsFor(score: number): string {
     return '⭐'.repeat(score) + '☆'.repeat(5 - score);
+  }
+
+  /** Returns short weekday label (e.g. "Seg") from an ISO date string */
+  dayLabel(date: string): string {
+    const d = new Date(date + 'T12:00:00');
+    return d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
   }
 }
