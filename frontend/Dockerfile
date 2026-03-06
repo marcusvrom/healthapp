@@ -9,4 +9,5 @@ COPY . .
 
 EXPOSE 4200
 
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["npm", "start"]

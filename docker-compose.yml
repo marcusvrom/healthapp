@@ -44,6 +44,7 @@ services:
       - "${PORT:-3000}:3000"
     volumes:
       - ./backend:/app
+      - uploads_data:/app/uploads   # named volume keeps uploads across deploys
     networks:
       - healthapp_net
 
@@ -67,6 +68,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  uploads_data:
     driver: local
 
 networks:
