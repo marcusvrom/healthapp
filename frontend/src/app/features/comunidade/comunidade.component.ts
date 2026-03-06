@@ -84,9 +84,10 @@ const LEVEL_COLORS: Record<number, string> = {
       &:hover { border-color: var(--color-primary); box-shadow: var(--shadow-sm); }
 
       .avatar {
-        width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
-        object-fit: cover; display: flex; align-items: center; justify-content: center;
+        width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
         font-size: 1.1rem; font-weight: 700; color: #fff;
+        &:is(img) { display: block; object-fit: cover; }
+        &:is(div) { display: flex; align-items: center; justify-content: center; }
       }
       .info { flex: 1; min-width: 0;
         .name  { font-weight: 600; font-size: .9rem; color: var(--color-text); }
@@ -127,9 +128,10 @@ const LEVEL_COLORS: Record<number, string> = {
       background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-md);
 
       .avatar {
-        width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
-        object-fit: cover; display: flex; align-items: center; justify-content: center;
+        width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
         background: #fde68a; font-size: 1.1rem; font-weight: 700; color: #92400e;
+        &:is(img) { display: block; object-fit: cover; }
+        &:is(div) { display: flex; align-items: center; justify-content: center; }
       }
       .info { flex: 1; min-width: 0;
         .name { font-weight: 600; font-size: .9rem; color: #92400e; }
@@ -160,9 +162,10 @@ const LEVEL_COLORS: Record<number, string> = {
       &:hover { border-color: var(--color-primary); box-shadow: var(--shadow-sm); }
 
       .avatar {
-        width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
-        object-fit: cover; display: flex; align-items: center; justify-content: center;
+        width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
         font-size: 1.1rem; font-weight: 700; color: #fff;
+        &:is(img) { display: block; object-fit: cover; }
+        &:is(div) { display: flex; align-items: center; justify-content: center; }
       }
       .info { flex: 1; min-width: 0;
         .name  { font-weight: 600; font-size: .9rem; color: var(--color-text); }

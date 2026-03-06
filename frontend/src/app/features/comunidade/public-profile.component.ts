@@ -45,11 +45,12 @@ const LEVEL_COLORS: Record<number, string> = {
       margin-bottom: 1rem;
 
       .hero-avatar {
-        width: 88px; height: 88px; border-radius: 50%;
-        object-fit: cover; font-size: 2.2rem; font-weight: 800; color: #fff;
-        display: flex; align-items: center; justify-content: center;
+        width: 88px; height: 88px; border-radius: 50%; overflow: hidden;
+        font-size: 2.2rem; font-weight: 800; color: #fff;
         border: 3px solid var(--color-border);
         box-shadow: var(--shadow-md);
+        &:is(img) { display: block; object-fit: cover; }
+        &:is(div) { display: flex; align-items: center; justify-content: center; }
       }
       .hero-name {
         font-size: 1.5rem; font-weight: 800; color: var(--color-text); line-height: 1.1;
