@@ -18,6 +18,7 @@ import { RecipeController } from "../controllers/RecipeController";
 import { RecipeScheduleController } from "../controllers/RecipeScheduleController";
 import { CheckInController } from "../controllers/CheckInController";
 import { CopilotController } from "../controllers/CopilotController";
+import { RankingController } from "../controllers/RankingController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -157,5 +158,9 @@ router.delete("/check-ins/:id", ...auth(CheckInController.remove));
 
 // ── Copilot Insights ──────────────────────────────────────────────────────────
 router.get("/copilot/insights", ...auth(CopilotController.insights));
+
+// ── Gamification (ranking + daily caps) ───────────────────────────────────────
+router.get("/gamification/ranking", ...auth(RankingController.weekly));
+router.get("/gamification/caps",    ...auth(RankingController.caps));
 
 export default router;

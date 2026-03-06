@@ -197,7 +197,7 @@ export class RecipeService {
     const saved = await mealRepo().save(meal);
 
     const xpGained = XP_REWARDS.RECIPE_IMPORTED ?? 15;
-    const totalXp  = await GamificationService.awardXp(requesterId, xpGained);
+    const totalXp  = await GamificationService.awardXp(requesterId, xpGained, "recipe");
 
     return { meal: saved, xpGained, totalXp };
   }

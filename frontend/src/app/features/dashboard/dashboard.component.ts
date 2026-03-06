@@ -401,6 +401,18 @@ interface LinkedRecipeView extends LinkedRecipe {
     @keyframes xpPop { 0% { transform:scale(1);opacity:1; } 50% { transform:scale(1.5) translateY(-12px);opacity:1; } 100% { transform:scale(1) translateY(-28px);opacity:0; } }
     .xp-pop { position:fixed;pointer-events:none;z-index:999;font-size:1.1rem;font-weight:800;color:#7c3aed;animation:xpPop .9s ease forwards; }
 
+    /* ── Anti-cheat toast ────────────────────────────────────────────────────── */
+    .xp-block-toast {
+      position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+      z-index: 1000; background: #1e293b; color: #f1f5f9;
+      padding: .75rem 1.25rem; border-radius: var(--radius-md);
+      font-size: .82rem; max-width: 340px; text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,.3);
+      animation: toastIn .25s ease; pointer-events: none;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    @keyframes toastIn { from { opacity:0; transform: translateX(-50%) translateY(12px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+
     /* ── Check-in banner ─────────────────────────────────────────────────────── */
     .checkin-banner {
       grid-column: 1 / -1;
@@ -949,6 +961,11 @@ interface LinkedRecipeView extends LinkedRecipe {
       <div class="xp-pop" [style.left]="xpPopX + 'px'" [style.top]="xpPopY + 'px'">+{{ lastXp() }} XP ⚡</div>
     }
 
+    <!-- Anti-cheat toast (cap reached / out of window) -->
+    @if (xpBlockToast()) {
+      <div class="xp-block-toast">🚫 {{ xpBlockToast() }}</div>
+    }
+
     <!-- ── Clone Dieta modal ───────────────────────────────────────────── -->
     @if (cloneModal()) {
       <div class="clone-overlay" (click)="closeCloneModal()">
@@ -1056,6 +1073,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   xpPopVisible = signal(false);
   lastXp       = signal(0);
   xpPopX = 0; xpPopY = 0;
+
+  // ── Anti-cheat toast ────────────────────────────────────────────────────────
+  xpBlockToast  = signal<string | null>(null);
 
   private clockInterval: ReturnType<typeof setInterval> | null = null;
   private clockMinute = signal(this.currentMinuteOfDay());
@@ -1544,10 +1564,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.routineSvc.completeBlock(b.id).subscribe({
       next: result => {
         this.completingBlock.set(null);
-        if (result.xpGained > 0) this.showXpPop(result.xpGained, event);
+        if (result.xpGained > 0) {
+          this.showXpPop(result.xpGained, event);
+        } else if (result.message && (result.capReached || result.outOfWindow)) {
+          this.showXpBlockToast(result.message);
+        }
       },
-      error: () => this.completingBlock.set(null),
+      error: (err) => {
+        this.completingBlock.set(null);
+        const msg = err?.error?.message as string | undefined;
+        if (msg) this.showXpBlockToast(msg);
+      },
     });
+  }
+
+  private showXpBlockToast(msg: string): void {
+    this.xpBlockToast.set(msg);
+    setTimeout(() => this.xpBlockToast.set(null), 4000);
   }
 
   // ── Inline recipe picker ──────────────────────────────────────────────────────

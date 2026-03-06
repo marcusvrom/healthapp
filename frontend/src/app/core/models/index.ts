@@ -190,13 +190,6 @@ export interface RoutineBlock {
   xpAwarded?: boolean;
 }
 
-export interface BlockCompleteResult {
-  block: RoutineBlock;
-  xpGained: number;
-  totalXp: number;
-  level: UserLevel;
-}
-
 // ── Food ──────────────────────────────────────────────────────────────────────
 export type FoodSource = 'TACO' | 'TBCA' | 'OpenFoodFacts' | 'UserCustom';
 
@@ -358,13 +351,6 @@ export interface ScheduledMeal {
   notes?: string;
 }
 
-export interface ToggleResult {
-  meal: ScheduledMeal;
-  xpGained: number;
-  totalXp: number;
-  level: UserLevel;
-}
-
 // ── Recipes (Community) ───────────────────────────────────────────────────────
 export interface Recipe {
   id: string;
@@ -450,4 +436,42 @@ export interface CopilotInsight {
   title: string;
   message: string;
   action?: string;
+}
+
+// ── Gamification / Ranking ────────────────────────────────────────────────────
+export interface RankingEntry {
+  userId:     string;
+  name:       string;
+  avatarUrl:  string | null;
+  weeklyXp:   number;
+  totalXp:    number;
+  level:      number;
+  levelTitle: string;
+}
+
+export interface DailyCap {
+  category:  string;
+  cap:       number;
+  earned:    number;
+  remaining: number;
+}
+
+/** Extended block complete result including anti-cheat feedback */
+export interface BlockCompleteResult {
+  block:        RoutineBlock;
+  xpGained:     number;
+  totalXp:      number;
+  level:        UserLevel;
+  capReached?:  boolean;
+  outOfWindow?: boolean;
+  message?:     string;
+}
+
+/** Extended meal toggle result */
+export interface ToggleResult {
+  meal:        ScheduledMeal;
+  xpGained:    number;
+  totalXp:     number;
+  level:       UserLevel;
+  capReached?: boolean;
 }

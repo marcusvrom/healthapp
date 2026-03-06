@@ -79,29 +79,38 @@ export class ScheduledMealService {
   static async toggleConsumed(
     id: string,
     userId: string
-  ): Promise<{ meal: ScheduledMeal; xpGained: number; totalXp: number }> {
+  ): Promise<{ meal: ScheduledMeal; xpGained: number; totalXp: number; capReached: boolean }> {
     const meal = await this.repo.findOneBy({ id, userId });
     if (!meal) throw Object.assign(new Error("Refeição não encontrada."), { statusCode: 404 });
 
     meal.isConsumed = !meal.isConsumed;
     meal.consumedAt = meal.isConsumed ? new Date() : undefined;
 
-    let xpGained = 0;
+    let xpGained   = 0;
+    let totalXp    = 0;
+    let capReached = false;
+
     if (meal.isConsumed && !meal.xpAwarded) {
-      meal.xpAwarded = true;
-      xpGained = XP_REWARDS.MEAL_CONSUMED;
+      const today     = new Date().toISOString().slice(0, 10);
+      const remaining = await GamificationService.remainingDailyXp(userId, today, "meal");
+
+      if (remaining > 0) {
+        const reward     = Math.min(XP_REWARDS.MEAL_CONSUMED, remaining);
+        totalXp          = await GamificationService.awardXp(userId, reward, "meal", meal.id);
+        xpGained         = reward;
+        meal.xpAwarded   = true;
+      } else {
+        capReached = true;
+      }
     }
 
     const saved = await this.repo.save(meal);
 
-    let totalXp = 0;
-    if (xpGained > 0) {
-      totalXp = await GamificationService.awardXp(userId, xpGained);
-    } else {
+    if (totalXp === 0) {
       totalXp = await GamificationService.getXp(userId);
     }
 
-    return { meal: saved, xpGained, totalXp };
+    return { meal: saved, xpGained, totalXp, capReached };
   }
 
   // ── Recipe linking ──────────────────────────────────────────────────────────

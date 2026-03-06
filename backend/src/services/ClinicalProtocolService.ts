@@ -97,7 +97,7 @@ export class ClinicalProtocolService {
       takenAt: new Date(),
       xpAwarded: true,
     }));
-    const newTotalXp = await GamificationService.awardXp(userId, XP_REWARDS.MEDICATION_TAKEN);
+    const newTotalXp = await GamificationService.awardXp(userId, XP_REWARDS.MEDICATION_TAKEN, "medication");
     return { taken: true, xpGained: XP_REWARDS.MEDICATION_TAKEN, totalXp: newTotalXp };
   }
 }

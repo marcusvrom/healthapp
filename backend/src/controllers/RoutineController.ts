@@ -13,6 +13,56 @@ import { ClinicalProtocolService } from "../services/ClinicalProtocolService";
 import { GamificationService, XP_REWARDS } from "../services/GamificationService";
 import { ExerciseCalcInput } from "../types/calculation.types";
 
+// ── Time-window helpers ────────────────────────────────────────────────────────
+
+function timeToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+
+/**
+ * Validates that the block belongs to today and is completed within a
+ * generous window around its scheduled slot.
+ *
+ * Hard reject  → routineDate != today  (prevents backdating — main anti-cheat)
+ * Soft reject  → outside [start − 90min, end + 120min] (block still marked done, no XP)
+ */
+function checkTimeWindow(block: { routineDate: string; startTime: string; endTime: string }): {
+  allowed:     boolean;
+  outOfWindow: boolean;
+  reason?:     string;
+} {
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (block.routineDate !== today) {
+    return {
+      allowed:     false,
+      outOfWindow: true,
+      reason:      "Somente blocos do dia atual podem ser concluídos.",
+    };
+  }
+
+  const now    = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const start  = timeToMinutes(block.startTime);
+  let   end    = timeToMinutes(block.endTime);
+  if (end < start) end += 24 * 60; // midnight-crossing block
+
+  const BEFORE = 90;
+  const AFTER  = 120;
+  const effectiveNow = end > 24 * 60 && nowMin < start ? nowMin + 24 * 60 : nowMin;
+
+  if (effectiveNow < start - BEFORE || effectiveNow > end + AFTER) {
+    return {
+      allowed:     true,  // user still marks it done, no XP awarded
+      outOfWindow: true,
+      reason:      `Bloco concluído fora da janela horária (${block.startTime}–${block.endTime}). XP não concedido — conclua próximo ao horário agendado.`,
+    };
+  }
+
+  return { allowed: true, outOfWindow: false };
+}
+
 const routineRepo   = () => AppDataSource.getRepository(RoutineBlock);
 const mealRepo      = () => AppDataSource.getRepository(ScheduledMeal);
 const profileRepo   = () => AppDataSource.getRepository(HealthProfile);
@@ -184,9 +234,15 @@ export class RoutineController {
 
   /**
    * PATCH /routine/blocks/:id/complete
-   * Toggles the completedAt timestamp (complete ↔ undo).
-   * Awards XP on first completion based on block type.
-   * Returns { block, xpGained, totalXp, level }
+   * Toggles completedAt (complete ↔ undo).
+   *
+   * XP is awarded on first completion ONLY when:
+   *  1. routineDate === today          (anti-backdating)
+   *  2. Current time within window     (anti-preemptive completion)
+   *  3. Daily XP cap not yet reached   (anti-farming)
+   *
+   * The block is still marked as done even when XP is denied (soft rejection).
+   * Returns { block, xpGained, totalXp, level, capReached, outOfWindow, message }
    */
   static async completeBlock(
     req: AuthenticatedRequest,
@@ -204,10 +260,18 @@ export class RoutineController {
         return;
       }
 
+      // ── Hard reject: cannot complete blocks from other days ───────────────
+      const today = new Date().toISOString().slice(0, 10);
+      if (block.routineDate !== today) {
+        res.status(409).json({
+          message: "Somente blocos do dia atual podem ser concluídos.",
+        });
+        return;
+      }
+
       const isUndoing = !!block.completedAt;
       block.completedAt = isUndoing ? undefined : new Date();
 
-      // XP per block type — only award once (first completion)
       const XP_FOR_TYPE: Partial<Record<BlockType, number>> = {
         [BlockType.EXERCISE]:     XP_REWARDS.BLOCK_EXERCISE,
         [BlockType.WATER]:        XP_REWARDS.BLOCK_WATER,
@@ -218,24 +282,55 @@ export class RoutineController {
         [BlockType.CUSTOM]:       XP_REWARDS.BLOCK_CUSTOM,
       };
 
-      let xpGained = 0;
-      let totalXp  = 0;
+      let xpGained    = 0;
+      let totalXp     = 0;
+      let capReached  = false;
+      let outOfWindow = false;
+      let message: string | undefined;
 
       if (!isUndoing && !block.xpAwarded) {
-        const reward = XP_FOR_TYPE[block.type] ?? 5;
-        totalXp    = await GamificationService.awardXp(req.userId, reward);
-        xpGained   = reward;
-        block.xpAwarded = true;
-      } else {
-        // Read current XP without changing it
-        const user = await GamificationService["repo"].findOneBy({ id: req.userId });
-        totalXp = user?.xp ?? 0;
+        // ── Time-window check ──────────────────────────────────────────────
+        const window = checkTimeWindow(block);
+        outOfWindow  = window.outOfWindow;
+
+        if (!window.allowed) {
+          // Hard reject returned only for the "other day" case above, so this
+          // branch currently is unreachable, but kept for safety.
+          res.status(409).json({ message: window.reason });
+          return;
+        }
+
+        if (!outOfWindow) {
+          // ── Daily cap check ──────────────────────────────────────────────
+          const category = block.type as string; // e.g. "exercise"
+          const remaining = await GamificationService.remainingDailyXp(
+            req.userId, today, category
+          );
+
+          if (remaining <= 0) {
+            capReached = true;
+            message    = `Limite diário de XP para '${block.type}' atingido. Tente novamente amanhã!`;
+          } else {
+            const reward = Math.min(XP_FOR_TYPE[block.type] ?? 5, remaining);
+            totalXp      = await GamificationService.awardXp(
+              req.userId, reward, category, block.id
+            );
+            xpGained      = reward;
+            block.xpAwarded = true;
+          }
+        } else {
+          message = window.reason;
+        }
+      }
+
+      if (totalXp === 0) {
+        totalXp = await GamificationService.getXp(req.userId);
       }
 
       await routineRepo().save(block);
 
       const level = GamificationService.levelFromXp(totalXp);
-      res.json({ block, xpGained, totalXp, level });
+      res.json({ block, xpGained, totalXp, level, capReached, outOfWindow, message });
     } catch (err) {
       next(err);
     }

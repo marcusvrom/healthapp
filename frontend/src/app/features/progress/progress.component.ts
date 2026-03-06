@@ -6,7 +6,8 @@ import { MetricsService, WeightPoint, StreakData } from '../../core/services/met
 import { WaterDayStats } from '../../core/services/water.service';
 import { CheckInService } from '../../core/services/check-in.service';
 import { CopilotService } from '../../core/services/copilot.service';
-import { WeeklyCheckIn, CopilotInsight } from '../../core/models';
+import { GamificationService } from '../../core/services/gamification.service';
+import { WeeklyCheckIn, CopilotInsight, RankingEntry, DailyCap } from '../../core/models';
 
 @Component({
   selector: 'app-progress',
@@ -166,6 +167,66 @@ import { WeeklyCheckIn, CopilotInsight } from '../../core/models';
         h3 { font-size: .95rem; font-weight: 700; }
         a  { font-size: .78rem; font-weight: 600; }
       }
+    }
+
+    /* ── Ranking section ─────────────────────────────────────────────────────── */
+    .ranking-section {
+      margin-top: 2rem;
+
+      .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;
+        h2 { font-size: 1.05rem; font-weight: 700; }
+        .period-pill { font-size: .72rem; font-weight: 600; background: var(--color-primary-light);
+          color: var(--color-primary-dark); padding: .2rem .65rem; border-radius: 99px; }
+      }
+    }
+
+    .ranking-list { display: flex; flex-direction: column; gap: .5rem; }
+
+    .ranking-item {
+      display: flex; align-items: center; gap: .875rem; padding: .75rem 1rem;
+      border: 1px solid var(--color-border); border-radius: var(--radius-md);
+      background: var(--color-surface); transition: box-shadow .15s;
+      &:hover { box-shadow: var(--shadow-sm); }
+      &.rank-1 { border-color: #fcd34d; background: #fffbeb; }
+      &.rank-2 { border-color: #d1d5db; background: #f9fafb; }
+      &.rank-3 { border-color: #fed7aa; background: #fff7ed; }
+      &.is-me  { border-color: var(--color-primary); }
+
+      .rank-pos { font-size: 1.1rem; font-weight: 800; min-width: 28px; text-align: center; }
+      .rank-avatar {
+        width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+        background: var(--color-primary-light); display: flex; align-items: center;
+        justify-content: center; font-size: .9rem; font-weight: 700;
+        color: var(--color-primary-dark); flex-shrink: 0;
+      }
+      .rank-info { flex: 1; min-width: 0;
+        .rank-name  { font-size: .88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rank-level { font-size: .72rem; color: var(--color-text-muted); }
+      }
+      .rank-xp { text-align: right; flex-shrink: 0;
+        .xp-val   { font-size: 1rem; font-weight: 800; color: var(--color-primary); }
+        .xp-label { font-size: .65rem; color: var(--color-text-muted); }
+      }
+    }
+
+    /* ── Daily caps widget ───────────────────────────────────────────────────── */
+    .caps-card {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;
+
+      h3 { font-size: .95rem; font-weight: 700; margin-bottom: 1rem; }
+    }
+
+    .cap-rows { display: flex; flex-direction: column; gap: .625rem; }
+
+    .cap-row {
+      display: flex; align-items: center; gap: .75rem;
+      .cap-icon { font-size: 1rem; width: 1.25rem; text-align: center; flex-shrink: 0; }
+      .cap-label { font-size: .78rem; font-weight: 600; min-width: 90px; }
+      .cap-bar-track { flex: 1; height: 6px; background: var(--color-border); border-radius: 99px; overflow: hidden;
+        .cap-bar-fill { height: 100%; border-radius: 99px; transition: width .4s; }
+      }
+      .cap-text { font-size: .72rem; color: var(--color-text-muted); min-width: 60px; text-align: right; }
     }
 
     .checkin-table {
@@ -465,22 +526,92 @@ import { WeeklyCheckIn, CopilotInsight } from '../../core/models';
         }
       </div>
 
+      <!-- ── Daily XP Caps ────────────────────────────────────────────────── -->
+      @if (dailyCaps().length > 0) {
+        <div class="caps-card" style="margin-top:2rem">
+          <h3>⚡ Orçamento de XP de Hoje</h3>
+          <div class="cap-rows">
+            @for (c of dailyCaps(); track c.category) {
+              <div class="cap-row">
+                <span class="cap-icon">{{ capIcon(c.category) }}</span>
+                <span class="cap-label">{{ capLabel(c.category) }}</span>
+                <div class="cap-bar-track">
+                  <div class="cap-bar-fill"
+                    [style.width]="capPct(c) + '%'"
+                    [style.background]="c.remaining === 0 ? '#ef4444' : 'var(--color-primary)'">
+                  </div>
+                </div>
+                <span class="cap-text">
+                  @if (c.remaining === 0) { Limite ✓ }
+                  @else { +{{ c.remaining }} XP }
+                </span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- ── Weekly Ranking ────────────────────────────────────────────────── -->
+      <div class="ranking-section">
+        <div class="section-header">
+          <h2>🏆 Ranking Semanal</h2>
+          <span class="period-pill">Últimos 7 dias</span>
+        </div>
+
+        @if (rankingLoading()) {
+          <div style="text-align:center;padding:2rem"><span class="spinner"></span></div>
+        } @else if (ranking().length === 0) {
+          <div class="chart-empty">
+            <span class="emoji">🏆</span>
+            <p>Nenhum XP registrado esta semana ainda. Seja o primeiro!</p>
+          </div>
+        } @else {
+          <div class="ranking-list">
+            @for (entry of ranking(); track entry.userId; let i = $index) {
+              <div class="ranking-item"
+                [class.rank-1]="i === 0" [class.rank-2]="i === 1"
+                [class.rank-3]="i === 2" [class.is-me]="entry.userId === myUserId()">
+                <span class="rank-pos">{{ rankMedal(i) }}</span>
+                @if (entry.avatarUrl) {
+                  <img class="rank-avatar" [src]="entry.avatarUrl" [alt]="entry.name">
+                } @else {
+                  <div class="rank-avatar">{{ entry.name.charAt(0).toUpperCase() }}</div>
+                }
+                <div class="rank-info">
+                  <div class="rank-name">{{ entry.name }}{{ entry.userId === myUserId() ? ' (você)' : '' }}</div>
+                  <div class="rank-level">Nível {{ entry.level }} · {{ entry.levelTitle }}</div>
+                </div>
+                <div class="rank-xp">
+                  <div class="xp-val">{{ entry.weeklyXp }}</div>
+                  <div class="xp-label">XP na semana</div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
     </div>
   `,
 })
 export class ProgressComponent implements OnInit {
-  private metricsSvc  = inject(MetricsService);
-  private checkInSvc  = inject(CheckInService);
-  private copilotSvc  = inject(CopilotService);
+  private metricsSvc      = inject(MetricsService);
+  private checkInSvc      = inject(CheckInService);
+  private copilotSvc      = inject(CopilotService);
+  private gamificationSvc = inject(GamificationService);
 
   streaks        = signal<StreakData | null>(null);
   waterHistory   = signal<WaterDayStats[]>([]);
   weightPoints   = signal<WeightPoint[]>([]);
   checkIns       = signal<WeeklyCheckIn[]>([]);
   insights       = signal<CopilotInsight[]>([]);
+  ranking        = signal<RankingEntry[]>([]);
+  dailyCaps      = signal<DailyCap[]>([]);
+  myUserId       = signal<string | null>(null);
   waterLoading   = signal(false);
   weightLoading  = signal(false);
   insightsLoading= signal(false);
+  rankingLoading = signal(false);
   savingWeight   = signal(false);
   waterDays      = signal(7);
   newWeightVal: number | null = null;
@@ -698,11 +829,30 @@ export class ProgressComponent implements OnInit {
     this.loadWeight();
     this.loadWater();
     this.checkInSvc.list().subscribe({ next: list => this.checkIns.set(list), error: () => {} });
+
     this.insightsLoading.set(true);
     this.copilotSvc.getInsights().subscribe({
       next: ins => { this.insights.set(ins); this.insightsLoading.set(false); },
       error: () => this.insightsLoading.set(false),
     });
+
+    this.rankingLoading.set(true);
+    this.gamificationSvc.getWeeklyRanking().subscribe({
+      next: r => { this.ranking.set(r); this.rankingLoading.set(false); },
+      error: () => this.rankingLoading.set(false),
+    });
+
+    this.gamificationSvc.getDailyCaps().subscribe({
+      next: caps => this.dailyCaps.set(caps),
+      error: () => {},
+    });
+
+    // Resolve current user id from localStorage JWT payload (quick, no extra API call)
+    try {
+      const token = localStorage.getItem('token') ?? '';
+      const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as { userId?: string };
+      if (payload.userId) this.myUserId.set(payload.userId);
+    } catch { /* ignore */ }
   }
 
   private loadWeight(): void {
@@ -755,5 +905,30 @@ export class ProgressComponent implements OnInit {
       warning: '⚠️', success: '✅', tip: '💡', info: 'ℹ️',
     };
     return icons[type] ?? 'ℹ️';
+  }
+
+  rankMedal(i: number): string {
+    return ['🥇', '🥈', '🥉'][i] ?? String(i + 1);
+  }
+
+  capIcon(cat: string): string {
+    const map: Record<string, string> = {
+      exercise: '💪', meal: '🍽️', water: '💧', sleep: '😴',
+      sun_exposure: '☀️', work: '💼', free: '⬜', custom: '📌',
+    };
+    return map[cat] ?? '⚡';
+  }
+
+  capLabel(cat: string): string {
+    const map: Record<string, string> = {
+      exercise: 'Exercício', meal: 'Refeições', water: 'Água', sleep: 'Sono',
+      sun_exposure: 'Sol', work: 'Trabalho', free: 'Livre', custom: 'Custom',
+    };
+    return map[cat] ?? cat;
+  }
+
+  capPct(c: DailyCap): number {
+    if (c.cap === 0) return 0;
+    return Math.min(100, Math.round((c.earned / c.cap) * 100));
   }
 }

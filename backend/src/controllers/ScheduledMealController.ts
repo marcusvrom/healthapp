@@ -39,12 +39,12 @@ export class ScheduledMealController {
   /** PATCH /scheduled-meals/:id/toggle */
   static async toggle(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { meal, xpGained, totalXp } = await ScheduledMealService.toggleConsumed(
+      const { meal, xpGained, totalXp, capReached } = await ScheduledMealService.toggleConsumed(
         req.params["id"]!,
         req.userId
       );
       const level = GamificationService.levelFromXp(totalXp);
-      res.json({ meal, xpGained, totalXp, level });
+      res.json({ meal, xpGained, totalXp, level, capReached });
     } catch (err) {
       next(err);
     }

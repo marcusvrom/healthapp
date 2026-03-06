@@ -103,7 +103,7 @@ export class MedicationService {
     });
     await this.logRepo.save(log);
 
-    const totalXp = await GamificationService.awardXp(userId, XP_REWARDS.MEDICATION_TAKEN);
+    const totalXp = await GamificationService.awardXp(userId, XP_REWARDS.MEDICATION_TAKEN, "medication");
     return { taken: true, xpGained: XP_REWARDS.MEDICATION_TAKEN, totalXp };
   }
 }
