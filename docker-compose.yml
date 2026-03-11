@@ -57,12 +57,11 @@ services:
     depends_on:
       - backend
     environment:
+      # Browser-facing URL — must be reachable from the user's device.
+      # Override with the server's public IP/domain when deploying remotely.
       API_URL: ${API_URL:-http://localhost:3000}
     ports:
-      - "${FRONTEND_PORT:-4200}:4200"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "${FRONTEND_PORT:-4200}:80"
     networks:
       - healthapp_net
 
