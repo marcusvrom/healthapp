@@ -34,6 +34,13 @@ export const ACTIVITY_MULTIPLIERS: Record<ActivityFactor, number> = {
   [ActivityFactor.EXTRA_ACTIVE]: 1.9,
 };
 
+export enum MainActivity {
+  WORK    = "work",
+  STUDY   = "study",
+  MIXED   = "mixed",
+  FLEXIBLE = "flexible",
+}
+
 export enum PrimaryGoal {
   EMAGRECIMENTO = "emagrecimento",
   GANHO_MASSA   = "ganho_massa",
@@ -89,11 +96,14 @@ export class HealthProfile {
   @Column({ name: "sleep_time", default: "23:00", type: "text" })
   sleepTime!: string;
 
-  @Column({ name: "work_start_time", default: "09:00", type: "text" })
-  workStartTime!: string;
+  @Column({ name: "main_activity", type: "text", nullable: true })
+  mainActivity?: MainActivity;
 
-  @Column({ name: "work_end_time", default: "18:00", type: "text" })
-  workEndTime!: string;
+  @Column({ name: "work_start_time", default: "09:00", type: "text", nullable: true })
+  workStartTime?: string;
+
+  @Column({ name: "work_end_time", default: "18:00", type: "text", nullable: true })
+  workEndTime?: string;
 
   // ── Caloric goal (overridden by blood-test analysis when present) ──────────
   @Column({

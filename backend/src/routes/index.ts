@@ -25,6 +25,7 @@ import { GroupController } from "../controllers/GroupController";
 import { FriendshipController } from "../controllers/FriendshipController";
 import { CommunityController } from "../controllers/CommunityController";
 import { DailyMissionController } from "../controllers/DailyMissionController";
+import { OnboardingController } from "../controllers/OnboardingController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -210,6 +211,9 @@ router.delete("/friends/:id",          ...auth(FriendshipController.remove));
 // NOTE: /community/search must come BEFORE /community/profile/:id
 router.get("/community/search",        ...auth(CommunityController.search));
 router.get("/community/profile/:id",   ...auth(CommunityController.profile));
+
+// ── Onboarding ───────────────────────────────────────────────────────────────
+router.post("/onboarding/complete",    ...auth(OnboardingController.complete));
 
 // ── Daily Missions ────────────────────────────────────────────────────────────
 router.get("/missions/today",          ...auth(DailyMissionController.today));

@@ -20,6 +20,8 @@ export type ActivityFactor =
 
 export type PrimaryGoal = 'emagrecimento' | 'ganho_massa' | 'manutencao' | 'saude_geral' | 'diabetico';
 
+export type MainActivity = 'work' | 'study' | 'mixed' | 'flexible';
+
 export interface HealthProfile {
   id: string;
   userId: string;
@@ -28,10 +30,11 @@ export interface HealthProfile {
   height: number;
   gender: Gender;
   activityFactor: ActivityFactor;
+  mainActivity?: MainActivity;
   wakeUpTime: string;
   sleepTime: string;
-  workStartTime: string;
-  workEndTime: string;
+  workStartTime?: string;
+  workEndTime?: string;
   caloricGoal?: number;
   proteinGoalG?: number;
   carbsGoalG?: number;
