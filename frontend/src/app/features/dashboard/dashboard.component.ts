@@ -91,7 +91,8 @@ interface LinkedRecipeView extends LinkedRecipe {
   imports: [DecimalPipe, DatePipe, RouterLink, WaterTrackerComponent, FormsModule, DailyMissionsWidgetComponent],
   styles: [`
     /* ── Layout ─────────────────────────────────────────────────────────────── */
-    .dashboard { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 1.5rem; background: var(--color-bg) !important;
+    :host { display: block; overflow-x: hidden; width: 100%; }
+    .dashboard { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 1.5rem; background: var(--color-bg) !important; max-width: 100%; overflow-x: hidden;
       @media (max-width: 960px) { grid-template-columns: 1fr; padding: 1rem; gap: 1rem; }
       @media (max-width: 480px) { padding: .75rem .5rem; gap: .75rem; }
     }
@@ -115,15 +116,19 @@ interface LinkedRecipeView extends LinkedRecipe {
     }
     /* ── Canvas bar ───────────────────────────────────────────────────────────── */
     .canvas-bar { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); padding: .75rem 1.25rem;
-      .cb-info { h3 { font-size: .9rem; font-weight: 700; } p { font-size: .75rem; color: var(--color-text-muted); } }
+      .cb-info { flex: 1; min-width: 0; h3 { font-size: .9rem; font-weight: 700; } p { font-size: .75rem; color: var(--color-text-muted); } }
       .cb-actions { display: flex; gap: .5rem; flex-shrink: 0; flex-wrap: wrap; align-items: center; }
       .add-event-btn { display: flex; align-items: center; gap: .375rem; background: var(--color-primary); color: #fff; border: none; padding: .5rem 1.125rem; border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; font-size: .82rem; white-space: nowrap; transition: .15s; min-height: 40px;
         &:hover { filter: brightness(1.1); } &:active { transform: scale(.96); }
       }
-      @media (max-width: 560px) {
+      @media (max-width: 640px) {
         flex-direction: column; align-items: stretch; gap: .625rem; padding: .75rem 1rem;
-        .cb-actions { justify-content: stretch;
-          button, .add-event-btn { flex: 1; justify-content: center; }
+        .cb-info { text-align: center;
+          h3 { font-size: .85rem; }
+          p { font-size: .72rem; }
+        }
+        .cb-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .375rem;
+          .add-event-btn { grid-column: 1 / -1; justify-content: center; }
         }
       }
     }
@@ -188,9 +193,11 @@ interface LinkedRecipeView extends LinkedRecipe {
         .cop-icon { font-size: .9rem; flex-shrink: 0; margin-top: .05rem; }
         .cop-msg  { line-height: 1.4; color: var(--color-text); }
       }
-      .cop-refresh { display: block; width: 100%; margin-top: .875rem; font-size: .75rem; color: var(--color-text-muted); background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .375rem; cursor: pointer; transition: .15s;
+      .cop-refresh { display: block; width: 100%; margin-top: .875rem; font-size: .75rem; color: var(--color-text-muted); background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .375rem; cursor: pointer; transition: .15s; min-height: 40px;
         &:hover { background: var(--color-surface-2); }
+        &:active { background: var(--color-surface-2); }
       }
+      @media (max-width: 480px) { padding: 1rem; }
     }
 
     /* ── Timeline ────────────────────────────────────────────────────────────── */
@@ -285,6 +292,7 @@ interface LinkedRecipeView extends LinkedRecipe {
       .now-time { width: 44px; font-size: .68rem; font-weight: 800; color: var(--color-danger); text-align: right; flex-shrink: 0; }
       .now-dot  { width: 12px; height: 12px; border-radius: 50%; background: var(--color-danger); margin: 0 10px; box-shadow: 0 0 0 4px rgba(239,68,68,.15); flex-shrink: 0; }
       .now-bar  { flex: 1; height: 2px; background: var(--color-danger); border-radius: 99px; opacity: .5; }
+      @media (max-width: 480px) { .now-time { width: 30px; font-size: .62rem; } .now-dot { margin: 0 6px; } }
     }
 
     /* ── Right panel ─────────────────────────────────────────────────────────── */
@@ -443,6 +451,10 @@ interface LinkedRecipeView extends LinkedRecipe {
         &.negative { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.3); color: #dc2626; }
         &.neutral  { background: var(--color-surface-2); color: var(--color-text-muted); }
       }
+      @media (max-width: 480px) {
+        .rem-pills { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem; }
+        .rem-pill { font-size: .68rem; padding: .2rem .4rem; justify-content: center; text-align: center; }
+      }
     }
 
     /* ── Meal grouping (diet view) ───────────────────────────────────────────── */
@@ -502,8 +514,11 @@ interface LinkedRecipeView extends LinkedRecipe {
     }
 
     /* ── Clone modal ─────────────────────────────────────────────────────────── */
-    .clone-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:300; display:flex; align-items:center; justify-content:center; padding:1rem; }
+    .clone-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:300; display:flex; align-items:center; justify-content:center; padding:1rem;
+      @media (max-width: 480px) { align-items:flex-end; padding:0; }
+    }
     .clone-modal { background:var(--color-surface); border-radius:var(--radius-md); padding:1.5rem; width:100%; max-width:380px; box-shadow:var(--shadow-lg);
+      @media (max-width: 480px) { border-radius:var(--radius-md) var(--radius-md) 0 0; max-width:100%; padding:1.25rem 1rem calc(env(safe-area-inset-bottom, 0px) + 1rem); }
       h3 { font-size:1rem; font-weight:700; margin-bottom:1rem; }
       .clone-fields { display:flex; flex-direction:column; gap:.75rem; margin-bottom:1.25rem;
         label { font-size:.78rem; font-weight:600; color:var(--color-text-muted); display:flex; flex-direction:column; gap:.25rem;
@@ -593,6 +608,7 @@ interface LinkedRecipeView extends LinkedRecipe {
       font-size: .82rem; max-width: 340px; text-align: center;
       box-shadow: 0 4px 24px rgba(0,0,0,.3);
       animation: toastIn .25s ease; pointer-events: none;
+      @media (max-width: 480px) { left: .75rem; right: .75rem; transform: none; max-width: none; bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem); }
       display: flex; align-items: center; gap: .5rem;
     }
     @keyframes toastIn { from { opacity:0; transform: translateX(-50%) translateY(12px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
@@ -606,7 +622,7 @@ interface LinkedRecipeView extends LinkedRecipe {
       animation: fadeIn .4s ease;
 
       .cb-emoji { font-size: 1.75rem; flex-shrink: 0; }
-      .cb-text  { flex: 1;
+      .cb-text  { flex: 1; min-width: 0;
         h3 { font-size: .95rem; font-weight: 700; color: #fff; }
         p  { font-size: .78rem; color: rgba(255,255,255,.8); margin-top: .1rem; }
       }
@@ -615,13 +631,19 @@ interface LinkedRecipeView extends LinkedRecipe {
         background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.4);
         color: #fff; padding: .4rem 1rem; border-radius: var(--radius-sm);
         cursor: pointer; font-weight: 600; font-size: .8rem; text-decoration: none;
-        white-space: nowrap; transition: background .15s;
+        white-space: nowrap; transition: background .15s; min-height: 40px; display: flex; align-items: center;
         &:hover { background: rgba(255,255,255,.35); }
       }
       .cb-dismiss {
         background: none; border: none; cursor: pointer; color: rgba(255,255,255,.6);
-        font-size: 1.1rem; line-height: 1; padding: .2rem;
+        font-size: 1.1rem; line-height: 1; padding: .2rem; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
         &:hover { color: #fff; }
+      }
+      @media (max-width: 480px) {
+        flex-wrap: wrap; gap: .625rem; padding: .75rem 1rem;
+        .cb-emoji { display: none; }
+        .cb-text { flex-basis: 100%; h3 { font-size: .85rem; } }
+        .cb-actions { width: 100%; .cb-btn { flex: 1; justify-content: center; } }
       }
     }
     @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
