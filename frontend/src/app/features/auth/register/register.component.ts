@@ -14,7 +14,7 @@ import { AuthService } from '../../../core/services/auth.service';
     }
     .card {
       width: 100%; max-width: 460px;
-      background: #fff; border-radius: 20px;
+      background: var(--color-bg); border-radius: 20px;
       padding: 2.5rem; box-shadow: 0 8px 40px rgba(0,0,0,.1);
 
       .logo { display: flex; align-items: center; gap: .5rem; margin-bottom: 2rem;
