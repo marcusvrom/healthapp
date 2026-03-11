@@ -1,8 +1,9 @@
 {
-  "name": "healthapp",
-  "short_name": "healthapp",
-  "theme_color": "#1976d2",
-  "background_color": "#fafafa",
+  "name": "HealthApp",
+  "short_name": "HealthApp",
+  "description": "Sua plataforma de saúde e bem-estar",
+  "theme_color": "#10b981",
+  "background_color": "#ffffff",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",
