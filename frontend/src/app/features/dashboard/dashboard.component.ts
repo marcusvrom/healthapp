@@ -1697,6 +1697,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.addEventModal.set(false);
         // Refresh the full list so recurring blocks appear correctly
         this.routineSvc.load(this.selectedDate()).subscribe({ error: () => {} });
+        // If this was a meal block, the backend auto-created a ScheduledMeal — reload diet view
+        if (dto.type === 'meal') {
+          this.loadScheduledMeals(this.selectedDate());
+          this.reloadSummary();
+        }
         this.loadCopilotFeedback();
       },
       error: () => this.savingEvent.set(false),

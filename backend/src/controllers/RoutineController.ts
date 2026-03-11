@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AppDataSource } from "../config/typeorm.config";
-import { RoutineBlock, BlockType } from "../entities/RoutineBlock";
+import { RoutineBlock, BlockType, MealType } from "../entities/RoutineBlock";
 import { ScheduledMeal } from "../entities/ScheduledMeal";
 import { HealthProfile } from "../entities/HealthProfile";
 import { BloodTest } from "../entities/BloodTest";
@@ -69,6 +69,33 @@ function checkTimeWindow(block: { routineDate: string; isRecurring?: boolean; st
 const routineRepo   = () => AppDataSource.getRepository(RoutineBlock);
 const mealRepo      = () => AppDataSource.getRepository(ScheduledMeal);
 const profileRepo   = () => AppDataSource.getRepository(HealthProfile);
+
+// ── Meal-type inference & macro distribution ──────────────────────────────────
+
+/** Infer MealType from time slot (startTime HH:MM). */
+function inferMealType(startTime: string): MealType {
+  const min = timeToMinutes(startTime);
+  if (min < 540)   return MealType.BREAKFAST;        // < 09:00
+  if (min < 660)   return MealType.MORNING_SNACK;    // 09:00–10:59
+  if (min < 870)   return MealType.LUNCH;             // 11:00–14:29
+  if (min < 1020)  return MealType.AFTERNOON_SNACK;   // 14:30–16:59
+  if (min < 1110)  return MealType.PRE_WORKOUT;       // 17:00–18:29
+  if (min < 1200)  return MealType.DINNER;            // 18:30–19:59
+  if (min < 1290)  return MealType.POST_WORKOUT;      // 20:00–21:29
+  return MealType.SUPPER;                             // >= 21:30
+}
+
+/** Kcal share per meal type — mirrors the deprecated RoutineGeneratorService distribution. */
+const MEAL_KCAL_SHARE: Record<MealType, number> = {
+  [MealType.BREAKFAST]:       0.20,
+  [MealType.MORNING_SNACK]:   0.10,
+  [MealType.LUNCH]:           0.30,
+  [MealType.AFTERNOON_SNACK]: 0.10,
+  [MealType.PRE_WORKOUT]:     0.15,
+  [MealType.POST_WORKOUT]:    0.20,
+  [MealType.DINNER]:          0.25,
+  [MealType.SUPPER]:          0.05,
+};
 const bloodTestRepo = () => AppDataSource.getRepository(BloodTest);
 const exerciseRepo  = () => AppDataSource.getRepository(Exercise);
 
@@ -125,6 +152,12 @@ export class RoutineController {
    * POST /routine/blocks
    * Creates a new user-defined routine block.
    * Body: { type, startTime, endTime, label, routineDate?, isRecurring?, daysOfWeek?, mealType?, caloricTarget?, waterMl?, metadata? }
+   *
+   * When type === 'meal':
+   *  - Infers mealType from startTime if not provided
+   *  - Loads the user's HealthProfile to compute smart macro targets
+   *  - Creates a corresponding ScheduledMeal record
+   *  - Stores scheduledMealId in the block metadata
    */
   static async createBlock(
     req: AuthenticatedRequest,
@@ -149,20 +182,108 @@ export class RoutineController {
       }
 
       const recurring = isRecurring === true && Array.isArray(daysOfWeek) && daysOfWeek.length > 0;
+      const effectiveDate = recurring ? undefined : (routineDate ?? new Date().toISOString().slice(0, 10));
+      const blockMeta: Record<string, unknown> = { ...(metadata ?? {}) };
 
+      // ── Meal block: auto-create ScheduledMeal with smart macros ────────────
+      let resolvedMealType = mealType as MealType | undefined;
+      let resolvedCaloricTarget = caloricTarget;
+
+      if (type === BlockType.MEAL) {
+        // Infer meal type from time slot if not explicitly provided
+        if (!resolvedMealType) {
+          resolvedMealType = inferMealType(startTime);
+        }
+
+        // Load profile to compute macro distribution
+        let mealKcal = resolvedCaloricTarget ?? 0;
+        let mealProtein = 0;
+        let mealCarbs = 0;
+        let mealFat = 0;
+
+        try {
+          const profile = await profileRepo().findOne({
+            where: { userId: req.userId },
+            relations: ["exercises"],
+          });
+
+          if (profile) {
+            const dayOfWeek = effectiveDate
+              ? new Date(effectiveDate + "T12:00:00").getDay()
+              : new Date().getDay();
+
+            const exerciseInputs = (profile.exercises ?? [])
+              .filter(ex => ex.daysOfWeek.includes(dayOfWeek))
+              .map(ex => ({
+                met: Number(ex.met),
+                weightKg: Number(profile.weight),
+                durationMinutes: ex.durationMinutes,
+                hypertrophyScore: ex.hypertrophyScore,
+              }));
+
+            const metabolic = CalculationService.computeMetabolicResult(
+              Number(profile.weight),
+              Number(profile.height),
+              profile.age,
+              profile.gender,
+              profile.activityFactor,
+              exerciseInputs,
+              profile.primaryGoal,
+              profile.targetWeight ? Number(profile.targetWeight) : undefined
+            );
+
+            const dailyCal = profile.caloricGoal ? Number(profile.caloricGoal) : metabolic.dailyCaloricTarget;
+            const share = MEAL_KCAL_SHARE[resolvedMealType] ?? 0.15;
+
+            // Only compute if user didn't provide an explicit caloric target
+            if (!resolvedCaloricTarget) {
+              mealKcal = Math.round(dailyCal * share);
+              resolvedCaloricTarget = mealKcal;
+            }
+
+            // Distribute macros proportionally using the same share
+            mealProtein = Math.round(metabolic.macros.proteinG * share);
+            mealCarbs   = Math.round(metabolic.macros.carbsG * share);
+            mealFat     = Math.round(metabolic.macros.fatG * share);
+          }
+        } catch {
+          // Profile fetch failed — keep zero macros; meal still gets created
+        }
+
+        // Create the ScheduledMeal record
+        const meal = mealRepo().create({
+          userId: req.userId,
+          scheduledDate: effectiveDate ?? undefined,
+          name: label,
+          scheduledTime: startTime,
+          caloricTarget: resolvedCaloricTarget || undefined,
+          proteinG:      mealProtein || undefined,
+          carbsG:        mealCarbs || undefined,
+          fatG:          mealFat || undefined,
+          isRecurring:   recurring,
+          daysOfWeek:    recurring ? daysOfWeek! : [],
+          isConsumed:    false,
+          xpAwarded:     false,
+        });
+
+        const savedMeal = await mealRepo().save(meal);
+        blockMeta.scheduledMealId = savedMeal.id;
+      }
+
+      // ── Create the RoutineBlock ────────────────────────────────────────────
       const block = routineRepo().create({
         userId: req.userId,
         type,
         startTime,
         endTime,
         label,
-        routineDate: recurring ? undefined : (routineDate ?? new Date().toISOString().slice(0, 10)),
+        routineDate: effectiveDate,
         isRecurring: recurring,
         daysOfWeek: recurring ? daysOfWeek! : [],
-        mealType: mealType as any,
-        caloricTarget,
+        mealType: resolvedMealType as any,
+        caloricTarget: resolvedCaloricTarget,
         waterMl,
-        metadata,
+        metadata: Object.keys(blockMeta).length > 0 ? blockMeta : undefined,
         sortOrder: timeToMinutes(startTime),
       });
 
