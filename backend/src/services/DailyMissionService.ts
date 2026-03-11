@@ -13,9 +13,7 @@ const MISSION_POOL: MissionTemplate[] = [
   { type: MissionType.ALL_MEALS,   title: "Registrar todas as refeições do dia",  xpReward: 30 },
   { type: MissionType.ACTIVITY,    title: "Completar 30 min de atividade física", xpReward: 40 },
   { type: MissionType.WEIGHT_LOG,  title: "Registrar seu peso hoje",              xpReward: 15 },
-  { type: MissionType.BLOOD_TEST,  title: "Registrar um exame de sangue",         xpReward: 50 },
   { type: MissionType.SLEEP_BLOCK, title: "Marcar seu bloco de sono completo",    xpReward: 20 },
-  { type: MissionType.CHECK_IN,    title: "Fazer o check-in semanal",             xpReward: 35 },
 ];
 
 function seededShuffle<T>(arr: T[], seed: number): T[] {
@@ -86,5 +84,33 @@ export class DailyMissionService {
 
     const totalXp = await GamificationService.awardXp(userId, mission.xpReward, "mission", mission.id);
     return { mission, xpGained: mission.xpReward, totalXp };
+  }
+
+  /**
+   * Automatically checks and completes a mission by type for today.
+   * Called from action endpoints (water, meals, exercise, weight, sleep)
+   * when the user performs the corresponding action.
+   * Safe to call multiple times — idempotent.
+   */
+  static async checkAndComplete(
+    userId: string,
+    missionType: MissionType
+  ): Promise<void> {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const mission = await this.repo.findOneBy({
+      userId,
+      date: today,
+      missionType,
+      isCompleted: false,
+    });
+
+    if (!mission) return; // No pending mission of this type today
+
+    mission.isCompleted = true;
+    mission.completedAt = new Date();
+    await this.repo.save(mission);
+
+    await GamificationService.awardXp(userId, mission.xpReward, "mission", mission.id);
   }
 }

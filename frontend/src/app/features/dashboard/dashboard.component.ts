@@ -1,5 +1,5 @@
 import {
-  Component, inject, signal, computed, OnInit, OnDestroy, HostListener,
+  Component, inject, signal, computed, OnInit, OnDestroy, HostListener, ViewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe, DatePipe } from '@angular/common';
@@ -1409,6 +1409,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private checkInSvc      = inject(CheckInService);
   private copilotSvc      = inject(CopilotService);
 
+  @ViewChild(DailyMissionsWidgetComponent) missionsWidget?: DailyMissionsWidgetComponent;
+
   readonly todayStr      = new Date().toISOString().slice(0, 10);
   readonly showWaterLogs = signal(false);
 
@@ -1741,6 +1743,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.reloadSummary();
         if (result.xpGained > 0) this.showXpPop(result.xpGained);
         if (this.mealPanel()?.id === result.meal.id) this.mealPanel.set({ ...result.meal });
+        // Refresh missions — meal consumed may auto-complete ALL_MEALS
+        this.missionsWidget?.refresh();
       },
       error: () => this.togglingMeal.set(false),
     });
@@ -2099,6 +2103,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.refreshMealInPanel(result.meal);
         this.reloadSummary();
         if (result.xpGained > 0) this.showXpPop(result.xpGained);
+        // Refresh missions — meal consumed may auto-complete ALL_MEALS
+        this.missionsWidget?.refresh();
       },
       error: () => this.togglingMeal.set(false),
     });
@@ -2207,6 +2213,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         } else if (result.message && (result.capReached || result.outOfWindow)) {
           this.showXpBlockToast(result.message);
         }
+        // Refresh missions — block completion may auto-complete ACTIVITY or SLEEP_BLOCK
+        this.missionsWidget?.refresh();
       },
       error: (err) => {
         this.completingBlock.set(null);

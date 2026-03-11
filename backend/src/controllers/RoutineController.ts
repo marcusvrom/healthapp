@@ -13,6 +13,8 @@ import { ClinicalProtocolService } from "../services/ClinicalProtocolService";
 import { GamificationService, XP_REWARDS } from "../services/GamificationService";
 import { createBlockPost } from "./SocialController";
 import { ChallengeService } from "../services/ChallengeService";
+import { DailyMissionService } from "../services/DailyMissionService";
+import { MissionType } from "../entities/DailyMission";
 import { ExerciseCalcInput } from "../types/calculation.types";
 
 // ── Time-window helpers ────────────────────────────────────────────────────────
@@ -721,6 +723,13 @@ export class RoutineController {
       let photoBonusXp = 0;
 
       if (!isUndoing) {
+        // ── Auto-complete daily missions ─────────────────────────────────────
+        if (block.type === BlockType.EXERCISE) {
+          DailyMissionService.checkAndComplete(req.userId, MissionType.ACTIVITY).catch(() => {});
+        } else if (block.type === BlockType.SLEEP) {
+          DailyMissionService.checkAndComplete(req.userId, MissionType.SLEEP_BLOCK).catch(() => {});
+        }
+
         // ── Challenge auto-progress ──────────────────────────────────────────
         const challengeXp = await ChallengeService.handleBlockCompleted(req.userId, block.type);
         if (challengeXp > 0) {

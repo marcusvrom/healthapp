@@ -213,6 +213,5 @@ router.get("/community/profile/:id",   ...auth(CommunityController.profile));
 
 // ── Daily Missions ────────────────────────────────────────────────────────────
 router.get("/missions/today",          ...auth(DailyMissionController.today));
-router.post("/missions/:id/complete",  ...auth(DailyMissionController.complete));
 
 export default router;

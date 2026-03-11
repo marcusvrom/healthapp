@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { DailyMission, MissionCompleteResult } from '../models';
+import { DailyMission } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class DailyMissionService {
@@ -9,9 +9,5 @@ export class DailyMissionService {
 
   getTodayMissions(): Observable<DailyMission[]> {
     return this.api.get<DailyMission[]>('/missions/today');
-  }
-
-  completeMission(missionId: string): Observable<MissionCompleteResult> {
-    return this.api.post<MissionCompleteResult>(`/missions/${missionId}/complete`, {});
   }
 }

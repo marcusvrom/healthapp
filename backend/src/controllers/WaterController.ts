@@ -2,6 +2,8 @@ import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { WaterService } from "../services/WaterService";
 import { MetricsService } from "../services/MetricsService";
+import { DailyMissionService } from "../services/DailyMissionService";
+import { MissionType } from "../entities/DailyMission";
 
 export class WaterController {
   /**
@@ -18,6 +20,10 @@ export class WaterController {
       }
 
       const log = await WaterService.add(req.userId, { quantityMl, loggedAt });
+
+      // Auto-complete WATER_GOAL mission
+      DailyMissionService.checkAndComplete(req.userId, MissionType.WATER_GOAL).catch(() => {});
+
       res.status(201).json(log);
     } catch (err) {
       next(err);

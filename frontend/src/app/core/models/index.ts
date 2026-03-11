@@ -568,7 +568,7 @@ export interface UserSearchResult {
 // ── Daily Missions ─────────────────────────────────────────────────────────────
 export type MissionType =
   | 'WATER_GOAL' | 'ALL_MEALS' | 'ACTIVITY'
-  | 'WEIGHT_LOG' | 'BLOOD_TEST' | 'SLEEP_BLOCK' | 'CHECK_IN';
+  | 'WEIGHT_LOG' | 'SLEEP_BLOCK';
 
 export interface DailyMission {
   id:           string;

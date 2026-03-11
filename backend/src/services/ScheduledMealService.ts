@@ -6,6 +6,8 @@ import { HealthProfile } from "../entities/HealthProfile";
 import { RecipeSchedule } from "../entities/RecipeSchedule";
 import { GamificationService, XP_REWARDS } from "./GamificationService";
 import { CalculationService } from "./CalculationService";
+import { DailyMissionService } from "./DailyMissionService";
+import { MissionType } from "../entities/DailyMission";
 
 export interface CreateScheduledMealDto {
   scheduledDate?: string;
@@ -128,6 +130,18 @@ export class ScheduledMealService {
 
     if (totalXp === 0) {
       totalXp = await GamificationService.getXp(userId);
+    }
+
+    // Auto-complete ALL_MEALS mission when all meals for today are consumed
+    if (saved.isConsumed) {
+      const today = new Date().toISOString().slice(0, 10);
+      const todayMeals = await this.repo.find({
+        where: { userId, scheduledDate: today },
+      });
+      const allConsumed = todayMeals.length > 0 && todayMeals.every(m => m.isConsumed);
+      if (allConsumed) {
+        DailyMissionService.checkAndComplete(userId, MissionType.ALL_MEALS).catch(() => {});
+      }
     }
 
     return { meal: saved, xpGained, totalXp, capReached };

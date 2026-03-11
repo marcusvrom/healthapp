@@ -1,19 +1,17 @@
 import {
-  Component, inject, signal, Output, EventEmitter, OnInit,
+  Component, inject, signal, OnInit, OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { DailyMissionService } from '../../core/services/daily-mission.service';
-import { DailyMission, MissionCompleteResult } from '../../core/models';
+import { DailyMission } from '../../core/models';
 
 const MISSION_ICONS: Record<string, string> = {
   WATER_GOAL:  '💧',
   ALL_MEALS:   '🍽️',
   ACTIVITY:    '💪',
   WEIGHT_LOG:  '⚖️',
-  BLOOD_TEST:  '🩸',
   SLEEP_BLOCK: '😴',
-  CHECK_IN:    '📸',
 };
 
 @Component({
@@ -40,16 +38,14 @@ const MISSION_ICONS: Record<string, string> = {
       display: flex; align-items: center; gap: .75rem;
       padding: .5rem .625rem; border-radius: var(--radius-sm);
       border: 1.5px solid var(--color-border); background: var(--color-bg);
-      cursor: pointer; transition: all .15s; position: relative; overflow: hidden;
-      -webkit-tap-highlight-color: transparent;
+      transition: all .15s; position: relative; overflow: hidden;
 
-      &:hover:not(.done) { border-color: var(--color-primary); background: var(--color-primary-light); }
-      &.done { opacity: .7; cursor: default; background: var(--color-surface-2); }
+      &.done { background: rgba(16,185,129,.06); border-color: rgba(16,185,129,.25); }
 
       .check {
         width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
         border: 2px solid var(--color-border); display: flex; align-items: center;
-        justify-content: center; font-size: .8rem; transition: all .2s;
+        justify-content: center; font-size: .8rem; transition: all .3s;
         &.checked { background: #10b981; border-color: #10b981; color: #fff; }
       }
 
@@ -61,7 +57,9 @@ const MISSION_ICONS: Record<string, string> = {
         &.done-text .title { text-decoration: line-through; color: var(--color-text-muted); }
       }
 
-      /* Ripple animation when completing */
+      .auto-hint { font-size: .6rem; color: var(--color-text-subtle); flex-shrink: 0; font-style: italic; }
+
+      /* Ripple animation when auto-completing */
       .ripple {
         position: absolute; inset: 0; display: flex; align-items: center;
         justify-content: center; font-size: 1rem; font-weight: 800;
@@ -105,8 +103,7 @@ const MISSION_ICONS: Record<string, string> = {
         }
         <div class="mission-list">
           @for (m of missions(); track m.id) {
-            <div class="mission-item" [class.done]="m.isCompleted"
-                 (click)="complete(m)">
+            <div class="mission-item" [class.done]="m.isCompleted">
               <div class="check" [class.checked]="m.isCompleted">
                 @if (m.isCompleted) { ✓ }
               </div>
@@ -115,6 +112,9 @@ const MISSION_ICONS: Record<string, string> = {
                 <div class="title">{{ m.title }}</div>
                 <div class="xp">+{{ m.xpReward }} XP</div>
               </div>
+              @if (!m.isCompleted) {
+                <span class="auto-hint">auto</span>
+              }
               @if (animating() === m.id) {
                 <div class="ripple">+{{ m.xpReward }} XP</div>
               }
@@ -125,10 +125,9 @@ const MISSION_ICONS: Record<string, string> = {
     </div>
   `,
 })
-export class DailyMissionsWidgetComponent implements OnInit {
+export class DailyMissionsWidgetComponent implements OnInit, OnDestroy {
   private missionSvc = inject(DailyMissionService);
-
-  @Output() xpAwarded = new EventEmitter<MissionCompleteResult>();
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
 
   loading   = signal(true);
   missions  = signal<DailyMission[]>([]);
@@ -138,27 +137,42 @@ export class DailyMissionsWidgetComponent implements OnInit {
   allDone        = () => this.missions().length > 0 && this.completedCount() === this.missions().length;
 
   ngOnInit(): void {
+    this.loadMissions();
+
+    // Poll every 30s to pick up auto-completions from other actions
+    this.pollTimer = setInterval(() => this.refreshMissions(), 30_000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollTimer) clearInterval(this.pollTimer);
+  }
+
+  /** Triggers a refresh (can be called from parent components after actions) */
+  refresh(): void {
+    this.refreshMissions();
+  }
+
+  private loadMissions(): void {
     this.missionSvc.getTodayMissions().subscribe({
       next:  list => { this.missions.set(list); this.loading.set(false); },
       error: ()   => this.loading.set(false),
     });
   }
 
-  complete(mission: DailyMission): void {
-    if (mission.isCompleted || this.animating()) return;
-
-    this.missionSvc.completeMission(mission.id).subscribe({
-      next: result => {
-        // Optimistically update local state
-        this.missions.update(list =>
-          list.map(m => m.id === mission.id ? { ...m, isCompleted: true } : m)
-        );
-        // Play XP animation
-        this.animating.set(mission.id);
-        setTimeout(() => this.animating.set(null), 750);
-        this.xpAwarded.emit(result);
+  private refreshMissions(): void {
+    this.missionSvc.getTodayMissions().subscribe({
+      next: list => {
+        const prev = this.missions();
+        // Detect newly completed missions and animate them
+        for (const m of list) {
+          const old = prev.find(p => p.id === m.id);
+          if (m.isCompleted && old && !old.isCompleted) {
+            this.animating.set(m.id);
+            setTimeout(() => this.animating.set(null), 750);
+          }
+        }
+        this.missions.set(list);
       },
-      error: () => {},
     });
   }
 

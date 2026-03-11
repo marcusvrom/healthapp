@@ -1,6 +1,8 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { MetricsService } from "../services/MetricsService";
+import { DailyMissionService } from "../services/DailyMissionService";
+import { MissionType } from "../entities/DailyMission";
 
 export class MetricsController {
   /**
@@ -43,6 +45,10 @@ export class MetricsController {
       }
 
       const log = await MetricsService.logWeight(req.userId, weightKg, recordedAt, notes);
+
+      // Auto-complete WEIGHT_LOG mission
+      DailyMissionService.checkAndComplete(req.userId, MissionType.WEIGHT_LOG).catch(() => {});
+
       res.status(201).json(log);
     } catch (err) {
       next(err);
