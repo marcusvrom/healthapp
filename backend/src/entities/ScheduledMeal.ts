@@ -38,8 +38,8 @@ export interface ScheduledFoodItem {
 /**
  * ScheduledMeal
  * ─────────────
- * A planned meal for a specific date. Generated from the user's caloric
- * goals and routine times, or created manually.
+ * A planned meal for a specific date, created manually by the user.
+ * Can be one-off (specific date) or recurring (weekly pattern).
  * Marking as consumed awards XP via GamificationService.
  */
 @Entity("scheduled_meals")
@@ -51,8 +51,22 @@ export class ScheduledMeal {
   @Column({ name: "user_id", type: "uuid" })
   userId!: string;
 
-  @Column({ name: "scheduled_date", type: "date" })
+  @Column({ name: "scheduled_date", type: "date", nullable: true })
   scheduledDate!: string;
+
+  /**
+   * Whether this meal repeats weekly.
+   * When true, `daysOfWeek` defines which days it appears on.
+   */
+  @Column({ name: "is_recurring", type: "boolean", default: false })
+  isRecurring!: boolean;
+
+  /**
+   * Days of the week this meal recurs on (0 = Sunday … 6 = Saturday).
+   * Only meaningful when `isRecurring` is true.
+   */
+  @Column({ name: "days_of_week", type: "jsonb", default: "[]" })
+  daysOfWeek!: number[];
 
   /** e.g. "Café da Manhã", "Almoço" */
   @Column({ type: "text" })

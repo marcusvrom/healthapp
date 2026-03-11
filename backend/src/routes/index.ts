@@ -60,10 +60,14 @@ router.post("/exercises", ...auth(ExerciseController.create));
 router.patch("/exercises/:id", ...auth(ExerciseController.update));
 router.delete("/exercises/:id", ...auth(ExerciseController.remove));
 
-// ── Routine ───────────────────────────────────────────────────────────────────
+// ── Routine (Canvas) ──────────────────────────────────────────────────────────
 router.get("/routine",                            ...auth(RoutineController.get));
-router.post("/routine/generate",                  ...auth(RoutineController.generate));
+router.get("/routine/feedback",                   ...auth(RoutineController.feedback));
+router.post("/routine/generate",                  ...auth(RoutineController.generate));  // deprecated → 410
+router.post("/routine/blocks",                    ...auth(RoutineController.createBlock));
+router.patch("/routine/blocks/:id",               ...auth(RoutineController.updateBlock));
 router.patch("/routine/blocks/:id/complete",      ...auth(RoutineController.completeBlock));
+router.delete("/routine/blocks/:id",              ...auth(RoutineController.deleteBlock));
 
 // ── Foods (search is public; create requires auth) ────────────────────────────
 router.get("/foods/search", FoodController.search);

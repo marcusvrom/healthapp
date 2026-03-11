@@ -19,16 +19,18 @@ interface GenerateRoutineInput {
 /**
  * RoutineGeneratorService
  * ───────────────────────
- * Builds a time-blocked daily schedule for the user by:
+ * @deprecated This service is deprecated as part of the Canvas Pivot.
+ * The app no longer auto-generates routines. Users now create their own
+ * blocks via the Canvas UI. This service is kept for reference but should
+ * NOT be called from new code. Use the CRUD endpoints on RoutineController
+ * instead.
  *
+ * Previously built a time-blocked daily schedule for the user by:
  *  1. Locking SLEEP and WORK blocks
  *  2. Inserting EXERCISE blocks in free windows
  *  3. Placing SUN_EXPOSURE block if required by blood-test analysis
  *  4. Distributing MEAL blocks every 3–4 hours within the awake window
- *     with PRE_WORKOUT (1–2 h before) and POST_WORKOUT (immediately after)
  *  5. Scattering WATER reminder blocks throughout the day
- *
- * All times are HH:MM strings (24-h clock).
  */
 export class RoutineGeneratorService {
 

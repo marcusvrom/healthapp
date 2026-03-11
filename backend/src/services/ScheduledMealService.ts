@@ -17,6 +17,8 @@ export interface CreateScheduledMealDto {
   fatG?: number;
   foods?: ScheduledFoodItem[];
   notes?: string;
+  isRecurring?: boolean;
+  daysOfWeek?: number[];
 }
 
 interface MealTemplate {
@@ -46,18 +48,34 @@ export class ScheduledMealService {
     return AppDataSource.getRepository(ScheduledMeal);
   }
 
+  /**
+   * Returns meals for a given date: specific-date meals UNION recurring meals
+   * whose daysOfWeek includes the requested day-of-week.
+   */
   static async list(userId: string, date?: string): Promise<ScheduledMeal[]> {
     const d = date ?? new Date().toISOString().slice(0, 10);
-    return this.repo.find({
-      where: { userId, scheduledDate: d },
-      order: { scheduledTime: "ASC" },
-    });
+    const dayOfWeek = new Date(`${d}T12:00:00`).getDay();
+
+    return this.repo
+      .createQueryBuilder("m")
+      .where("m.user_id = :userId", { userId })
+      .andWhere(
+        `(
+          (m.is_recurring = false AND m.scheduled_date = :date)
+          OR
+          (m.is_recurring = true AND m.days_of_week @> :dow::jsonb)
+        )`,
+        { date: d, dow: JSON.stringify([dayOfWeek]) }
+      )
+      .orderBy("m.scheduled_time", "ASC")
+      .getMany();
   }
 
   static async create(userId: string, dto: CreateScheduledMealDto): Promise<ScheduledMeal> {
+    const isRecurring = dto.isRecurring === true && Array.isArray(dto.daysOfWeek) && dto.daysOfWeek.length > 0;
     const meal = this.repo.create({
       userId,
-      scheduledDate: dto.scheduledDate ?? new Date().toISOString().slice(0, 10),
+      scheduledDate: isRecurring ? undefined : (dto.scheduledDate ?? new Date().toISOString().slice(0, 10)),
       name: dto.name,
       scheduledTime: dto.scheduledTime,
       caloricTarget: dto.caloricTarget,
@@ -66,6 +84,8 @@ export class ScheduledMealService {
       fatG: dto.fatG,
       foods: dto.foods,
       notes: dto.notes,
+      isRecurring,
+      daysOfWeek: isRecurring ? dto.daysOfWeek! : [],
       isConsumed: false,
       xpAwarded: false,
     });
@@ -284,8 +304,9 @@ export class ScheduledMealService {
   }
 
   /**
-   * Generates a full day of scheduled meals based on the user's HealthProfile.
-   * Deletes any existing scheduled meals for that date first.
+   * @deprecated Part of the old auto-generation flow. The Canvas pivot
+   * means users create their own meals. Kept for backwards compatibility
+   * but should NOT be called from new code.
    */
   static async generateForDate(userId: string, date?: string): Promise<ScheduledMeal[]> {
     const d = date ?? new Date().toISOString().slice(0, 10);

@@ -29,14 +29,15 @@ function timeToMinutes(hhmm: string): number {
  * Hard reject  → routineDate != today  (prevents backdating — main anti-cheat)
  * Soft reject  → outside [start − 90min, end + 120min] (block still marked done, no XP)
  */
-function checkTimeWindow(block: { routineDate: string; startTime: string; endTime: string }): {
+function checkTimeWindow(block: { routineDate: string; isRecurring?: boolean; startTime: string; endTime: string }): {
   allowed:     boolean;
   outOfWindow: boolean;
   reason?:     string;
 } {
   const today = new Date().toISOString().slice(0, 10);
 
-  if (block.routineDate !== today) {
+  // Recurring blocks don't have a fixed routineDate — allow if today matches
+  if (!block.isRecurring && block.routineDate !== today) {
     return {
       allowed:     false,
       outOfWindow: true,
@@ -72,15 +73,31 @@ const bloodTestRepo = () => AppDataSource.getRepository(BloodTest);
 const exerciseRepo  = () => AppDataSource.getRepository(Exercise);
 
 export class RoutineController {
-  /** GET /routine?date=YYYY-MM-DD */
+  /**
+   * GET /routine?date=YYYY-MM-DD
+   * Returns the union of:
+   *  - One-off blocks created specifically for the requested date
+   *  - Recurring blocks whose daysOfWeek includes the requested day-of-week
+   */
   static async get(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const date = (req.query["date"] as string) ?? new Date().toISOString().slice(0, 10);
+      const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
 
-      const blocks = await routineRepo().find({
-        where: { userId: req.userId, routineDate: date },
-        order: { sortOrder: "ASC" },
-      });
+      const blocks = await routineRepo()
+        .createQueryBuilder("b")
+        .where("b.user_id = :userId", { userId: req.userId })
+        .andWhere(
+          `(
+            (b.is_recurring = false AND b.routine_date = :date)
+            OR
+            (b.is_recurring = true AND b.days_of_week @> :dow::jsonb)
+          )`,
+          { date, dow: JSON.stringify([dayOfWeek]) }
+        )
+        .orderBy("b.sort_order", "ASC")
+        .addOrderBy("b.start_time", "ASC")
+        .getMany();
 
       res.json(blocks);
     } catch (err) {
@@ -89,146 +106,385 @@ export class RoutineController {
   }
 
   /**
-   * POST /routine/generate?date=YYYY-MM-DD
-   * Generates (or re-generates) the daily routine for the requested date.
+   * @deprecated POST /routine/generate — Auto-generation is deprecated.
+   * Returns 410 Gone to inform clients that this endpoint is no longer available.
+   * Users should create blocks manually via POST /routine/blocks.
    */
   static async generate(
+    _req: AuthenticatedRequest,
+    res: Response,
+  ): Promise<void> {
+    res.status(410).json({
+      message: "A geração automática de rotina foi descontinuada. Use o Canvas para criar seus blocos manualmente.",
+    });
+  }
+
+  // ── Canvas CRUD ──────────────────────────────────────────────────────────────
+
+  /**
+   * POST /routine/blocks
+   * Creates a new user-defined routine block.
+   * Body: { type, startTime, endTime, label, routineDate?, isRecurring?, daysOfWeek?, mealType?, caloricTarget?, waterMl?, metadata? }
+   */
+  static async createBlock(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const {
+        type, startTime, endTime, label,
+        routineDate, isRecurring, daysOfWeek,
+        mealType, caloricTarget, waterMl, metadata,
+      } = req.body as {
+        type: BlockType; startTime: string; endTime: string; label: string;
+        routineDate?: string; isRecurring?: boolean; daysOfWeek?: number[];
+        mealType?: string; caloricTarget?: number; waterMl?: number;
+        metadata?: Record<string, unknown>;
+      };
+
+      if (!type || !startTime || !endTime || !label) {
+        res.status(400).json({ message: "Campos obrigatórios: type, startTime, endTime, label." });
+        return;
+      }
+
+      const recurring = isRecurring === true && Array.isArray(daysOfWeek) && daysOfWeek.length > 0;
+
+      const block = routineRepo().create({
+        userId: req.userId,
+        type,
+        startTime,
+        endTime,
+        label,
+        routineDate: recurring ? undefined : (routineDate ?? new Date().toISOString().slice(0, 10)),
+        isRecurring: recurring,
+        daysOfWeek: recurring ? daysOfWeek! : [],
+        mealType: mealType as any,
+        caloricTarget,
+        waterMl,
+        metadata,
+        sortOrder: timeToMinutes(startTime),
+      });
+
+      const saved = await routineRepo().save(block);
+      res.status(201).json(saved);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * PATCH /routine/blocks/:id
+   * Updates an existing routine block.
+   */
+  static async updateBlock(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const block = await routineRepo().findOneBy({
+        id: req.params["id"]!,
+        userId: req.userId,
+      });
+
+      if (!block) {
+        res.status(404).json({ message: "Bloco não encontrado." });
+        return;
+      }
+
+      const {
+        type, startTime, endTime, label,
+        routineDate, isRecurring, daysOfWeek,
+        mealType, caloricTarget, waterMl, metadata,
+      } = req.body as Partial<{
+        type: BlockType; startTime: string; endTime: string; label: string;
+        routineDate: string; isRecurring: boolean; daysOfWeek: number[];
+        mealType: string; caloricTarget: number; waterMl: number;
+        metadata: Record<string, unknown>;
+      }>;
+
+      if (type !== undefined) block.type = type;
+      if (startTime !== undefined) { block.startTime = startTime; block.sortOrder = timeToMinutes(startTime); }
+      if (endTime !== undefined) block.endTime = endTime;
+      if (label !== undefined) block.label = label;
+      if (mealType !== undefined) block.mealType = mealType as any;
+      if (caloricTarget !== undefined) block.caloricTarget = caloricTarget;
+      if (waterMl !== undefined) block.waterMl = waterMl;
+      if (metadata !== undefined) block.metadata = metadata;
+
+      if (isRecurring !== undefined) {
+        const recurring = isRecurring && Array.isArray(daysOfWeek) && daysOfWeek.length > 0;
+        block.isRecurring = recurring;
+        block.daysOfWeek = recurring ? daysOfWeek! : [];
+        if (recurring) block.routineDate = undefined as any;
+        else if (routineDate) block.routineDate = routineDate;
+      } else if (routineDate !== undefined) {
+        block.routineDate = routineDate;
+      }
+
+      const saved = await routineRepo().save(block);
+      res.json(saved);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * DELETE /routine/blocks/:id
+   * Deletes a routine block.
+   */
+  static async deleteBlock(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const result = await routineRepo().delete({
+        id: req.params["id"]!,
+        userId: req.userId,
+      });
+
+      if (result.affected === 0) {
+        res.status(404).json({ message: "Bloco não encontrado." });
+        return;
+      }
+
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  // ── Feedback / Copilot ───────────────────────────────────────────────────────
+
+  /**
+   * GET /routine/feedback?date=YYYY-MM-DD
+   * Analyzes the user's scheduled day and returns smart tips/warnings
+   * based on their HealthProfile goals.
+   */
+  static async feedback(
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
   ): Promise<void> {
     try {
       const date = (req.query["date"] as string) ?? new Date().toISOString().slice(0, 10);
+      const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
 
-      const profile = await profileRepo().findOne({
-        where: { userId: req.userId },
-        relations: ["exercises"],
-      });
+      // Load profile + day's blocks + day's meals in parallel
+      const [profile, blocks, meals] = await Promise.all([
+        profileRepo().findOne({ where: { userId: req.userId }, relations: ["exercises"] }),
+        routineRepo()
+          .createQueryBuilder("b")
+          .where("b.user_id = :userId", { userId: req.userId })
+          .andWhere(
+            `((b.is_recurring = false AND b.routine_date = :date) OR (b.is_recurring = true AND b.days_of_week @> :dow::jsonb))`,
+            { date, dow: JSON.stringify([dayOfWeek]) }
+          )
+          .getMany(),
+        mealRepo()
+          .createQueryBuilder("m")
+          .where("m.user_id = :userId", { userId: req.userId })
+          .andWhere(
+            `((m.is_recurring = false AND m.scheduled_date = :date) OR (m.is_recurring = true AND m.days_of_week @> :dow::jsonb))`,
+            { date, dow: JSON.stringify([dayOfWeek]) }
+          )
+          .getMany(),
+      ]);
 
-      if (!profile) {
-        res.status(400).json({ message: "Crie um perfil de saúde antes de gerar a rotina." });
-        return;
+      interface FeedbackItem {
+        type: "warning" | "success" | "tip" | "checklist";
+        icon: string;
+        title: string;
+        message: string;
+        done?: boolean;
+      }
+      const feedback: FeedbackItem[] = [];
+
+      // ── Compute targets from profile ─────────────────────────────────────
+      let caloricGoal = 2000;
+      let proteinGoal = 150;
+
+      if (profile) {
+        try {
+          const exerciseInputs = (profile.exercises ?? [])
+            .filter(ex => ex.daysOfWeek.includes(dayOfWeek))
+            .map(ex => ({
+              met: Number(ex.met),
+              weightKg: Number(profile.weight),
+              durationMinutes: ex.durationMinutes,
+              hypertrophyScore: ex.hypertrophyScore,
+            }));
+
+          const metabolic = CalculationService.computeMetabolicResult(
+            Number(profile.weight),
+            Number(profile.height),
+            profile.age,
+            profile.gender,
+            profile.activityFactor,
+            exerciseInputs,
+            profile.primaryGoal,
+            profile.targetWeight ? Number(profile.targetWeight) : undefined
+          );
+
+          caloricGoal = profile.caloricGoal ? Number(profile.caloricGoal) : metabolic.dailyCaloricTarget;
+          proteinGoal = metabolic.macros.proteinG;
+        } catch {
+          // keep defaults
+        }
       }
 
-      // Fetch exercises scheduled for the requested day-of-week
-      const dayOfWeek = new Date(date + "T12:00:00").getDay();
-      const allExercises = profile.exercises ?? [];
-      const todaysExercises = allExercises.filter((ex) =>
-        ex.daysOfWeek.includes(dayOfWeek)
-      );
+      // ── 1. Sleep check ───────────────────────────────────────────────────
+      const sleepBlocks = blocks.filter(b => b.type === BlockType.SLEEP);
+      const sleepMinutes = sleepBlocks.reduce((sum, b) => {
+        const s = timeToMinutes(b.startTime);
+        let e = timeToMinutes(b.endTime);
+        if (e < s) e += 24 * 60;
+        return sum + (e - s);
+      }, 0);
+      const sleepHours = Math.round(sleepMinutes / 60 * 10) / 10;
 
-      // Calculate metabolic data (including primaryGoal adjustment)
-      const exerciseInputs: ExerciseCalcInput[] = todaysExercises.map((ex) => ({
-        met: Number(ex.met),
-        weightKg: Number(profile.weight),
-        durationMinutes: ex.durationMinutes,
-        hypertrophyScore: ex.hypertrophyScore,
-      }));
-
-      const metabolic = CalculationService.computeMetabolicResult(
-        Number(profile.weight),
-        Number(profile.height),
-        profile.age,
-        profile.gender,
-        profile.activityFactor,
-        exerciseInputs,
-        profile.primaryGoal,
-        profile.targetWeight ? Number(profile.targetWeight) : undefined
-      );
-
-      // Analyse latest blood test if available
-      const latestBloodTest = await bloodTestRepo().findOne({
-        where: { userId: req.userId },
-        order: { collectedAt: "DESC" },
-      });
-
-      let requiresSunExposureBlock = false;
-      let prioritiseAerobic = false;
-
-      if (latestBloodTest) {
-        const analysis = BloodTestAnalysisService.analyse(
-          latestBloodTest,
-          metabolic.macros,
-          profile.gender,
-          Number(profile.weight),
-          metabolic.dailyCaloricTarget
-        );
-        requiresSunExposureBlock = analysis.requiresSunExposureBlock;
-        prioritiseAerobic = analysis.prioritiseAerobic;
+      if (sleepBlocks.length === 0) {
+        feedback.push({
+          type: "checklist",
+          icon: "bed",
+          title: "Agendar horário de sono",
+          message: "Recomendamos 7-8h de sono. Nenhum bloco de sono encontrado.",
+          done: false,
+        });
+      } else if (sleepHours < 6) {
+        feedback.push({
+          type: "warning",
+          icon: "alert-triangle",
+          title: `Apenas ${sleepHours}h de sono agendadas`,
+          message: `Você agendou apenas ${sleepHours}h de sono. A recomendação mínima é de 7h para recuperação adequada.`,
+        });
+      } else {
+        feedback.push({
+          type: "checklist",
+          icon: "bed",
+          title: `Sono: ${sleepHours}h agendadas`,
+          message: "Dentro da faixa recomendada.",
+          done: true,
+        });
       }
 
-      // Fetch clinical protocols for today (medications, supplements, hormones)
-      const clinicalProtocols = await ClinicalProtocolService.forDay(req.userId, date);
+      // ── 2. Exercise check ────────────────────────────────────────────────
+      const exerciseBlocks = blocks.filter(b => b.type === BlockType.EXERCISE);
+      if (exerciseBlocks.length === 0) {
+        feedback.push({
+          type: "checklist",
+          icon: "dumbbell",
+          title: "Adicionar exercício",
+          message: "Nenhum bloco de exercício encontrado na sua agenda de hoje.",
+          done: false,
+        });
+      } else {
+        const totalExMin = exerciseBlocks.reduce((sum, b) => {
+          return sum + (timeToMinutes(b.endTime) - timeToMinutes(b.startTime));
+        }, 0);
+        feedback.push({
+          type: "checklist",
+          icon: "dumbbell",
+          title: `Exercício: ${totalExMin} min agendados`,
+          message: `${exerciseBlocks.length} bloco(s) de exercício.`,
+          done: true,
+        });
+      }
 
-      // Wipe the full day before regenerating so old data never leaks through.
-      // RoutineBlock delete is critical — run first.
-      // ScheduledMeal delete is best-effort: silently ignore failures so a
-      // missing table or type mismatch never prevents routine generation.
-      await routineRepo().delete({ userId: req.userId, routineDate: date });
-      try {
-        await mealRepo().delete({ userId: req.userId, scheduledDate: date });
-      } catch { /* non-fatal — proceed with block generation regardless */ }
+      // ── 3. Caloric check ─────────────────────────────────────────────────
+      const scheduledKcal = meals.reduce((sum, m) => sum + (Number(m.caloricTarget) || 0), 0);
+      const mealBlockKcal = blocks
+        .filter(b => b.type === BlockType.MEAL)
+        .reduce((sum, b) => sum + (Number(b.caloricTarget) || 0), 0);
+      const totalKcal = Math.max(scheduledKcal, mealBlockKcal);
+      const kcalDiff = caloricGoal - totalKcal;
 
-      const blocks = RoutineGeneratorService.generate({
-        healthProfile: profile,
-        exercises: todaysExercises,
-        clinicalProtocols,
+      if (totalKcal === 0) {
+        feedback.push({
+          type: "checklist",
+          icon: "utensils",
+          title: "Distribuir refeições",
+          message: `Meta: ${Math.round(caloricGoal)} kcal. Nenhuma refeição agendada ainda.`,
+          done: false,
+        });
+      } else if (kcalDiff > 200) {
+        feedback.push({
+          type: "warning",
+          icon: "utensils",
+          title: `Faltam ${Math.round(kcalDiff)} kcal`,
+          message: `Agendadas ${Math.round(totalKcal)} kcal de ${Math.round(caloricGoal)} kcal da sua meta diária.`,
+        });
+      } else if (kcalDiff < -200) {
+        feedback.push({
+          type: "warning",
+          icon: "utensils",
+          title: `${Math.round(Math.abs(kcalDiff))} kcal acima da meta`,
+          message: `Agendadas ${Math.round(totalKcal)} kcal, ${Math.round(Math.abs(kcalDiff))} acima da sua meta de ${Math.round(caloricGoal)} kcal.`,
+        });
+      } else {
+        feedback.push({
+          type: "checklist",
+          icon: "utensils",
+          title: `Calorias: ${Math.round(totalKcal)} / ${Math.round(caloricGoal)} kcal`,
+          message: "Dentro da meta. Boa distribuição!",
+          done: true,
+        });
+      }
+
+      // ── 4. Water check ───────────────────────────────────────────────────
+      const waterBlocks = blocks.filter(b => b.type === BlockType.WATER);
+      const waterMl = waterBlocks.reduce((sum, b) => sum + (Number(b.waterMl) || 0), 0);
+      const waterGoal = profile ? Number(profile.weight) * 35 : 2500;
+
+      if (waterBlocks.length === 0) {
+        feedback.push({
+          type: "checklist",
+          icon: "droplet",
+          title: "Adicionar lembretes de água",
+          message: `Meta: ${Math.round(waterGoal)} ml. Nenhum lembrete de água agendado.`,
+          done: false,
+        });
+      } else if (waterMl < waterGoal * 0.8) {
+        feedback.push({
+          type: "tip",
+          icon: "droplet",
+          title: `Água: ${Math.round(waterMl)} / ${Math.round(waterGoal)} ml`,
+          message: `Faltam ${Math.round(waterGoal - waterMl)} ml para bater a meta de hidratação.`,
+        });
+      } else {
+        feedback.push({
+          type: "checklist",
+          icon: "droplet",
+          title: `Água: ${Math.round(waterMl)} ml agendados`,
+          message: "Meta de hidratação atingida.",
+          done: true,
+        });
+      }
+
+      // ── 5. Protein check ─────────────────────────────────────────────────
+      const scheduledProtein = meals.reduce((sum, m) => sum + (Number(m.proteinG) || 0), 0);
+      if (scheduledProtein > 0 && scheduledProtein < proteinGoal * 0.8) {
+        feedback.push({
+          type: "tip",
+          icon: "egg",
+          title: `Proteína: ${Math.round(scheduledProtein)}g / ${Math.round(proteinGoal)}g`,
+          message: `Faltam ${Math.round(proteinGoal - scheduledProtein)}g de proteína para atingir a meta.`,
+        });
+      }
+
+      // ── Summary score ────────────────────────────────────────────────────
+      const totalChecks = feedback.filter(f => f.type === "checklist").length;
+      const doneChecks = feedback.filter(f => f.type === "checklist" && f.done).length;
+
+      res.json({
         date,
-        totalKcal: metabolic.dailyCaloricTarget,
-        waterMlTotal: metabolic.waterMlTotal,
-        requiresSunExposureBlock,
-        prioritiseAerobic,
+        goals: { caloricGoal: Math.round(caloricGoal), proteinGoal: Math.round(proteinGoal), waterGoal: Math.round(waterGoal) },
+        scheduled: { kcal: Math.round(totalKcal), proteinG: Math.round(scheduledProtein), waterMl: Math.round(waterMl), sleepHours },
+        completeness: totalChecks > 0 ? Math.round((doneChecks / totalChecks) * 100) : 0,
+        feedback,
       });
-
-      const entities = routineRepo().create(
-        blocks.map((b) => ({ ...b, userId: req.userId }))
-      );
-      const saved = await routineRepo().save(entities);
-
-      // ── Create one ScheduledMeal per meal block ─────────────────────────────
-      // This links the timeline block to a ScheduledMeal (single source of truth
-      // for recipe links and consumption tracking).
-      const mealBlocksSaved = saved.filter(
-        (b) => b.type === BlockType.MEAL && b.caloricTarget != null
-      );
-
-      if (mealBlocksSaved.length > 0 && metabolic.dailyCaloricTarget > 0) {
-        const scheduledMeals = mealBlocksSaved.map((b) => {
-          const ratio = Number(b.caloricTarget!) / metabolic.dailyCaloricTarget;
-          return mealRepo().create({
-            userId:        req.userId,
-            scheduledDate: date,
-            scheduledTime: b.startTime,
-            name:          b.label,
-            caloricTarget: Number(b.caloricTarget),
-            proteinG:      Math.round(metabolic.macros.proteinG * ratio),
-            carbsG:        Math.round(metabolic.macros.carbsG   * ratio),
-            fatG:          Math.round(metabolic.macros.fatG     * ratio),
-            isConsumed:    false,
-            xpAwarded:     false,
-          });
-        });
-
-        const savedMeals = await mealRepo().save(scheduledMeals);
-
-        // Patch each meal block's metadata with its scheduledMealId so the
-        // frontend can navigate from timeline block → ScheduledMeal.
-        const blocksToUpdate = mealBlocksSaved.map((b, i) => ({
-          ...b,
-          metadata: { ...(b.metadata ?? {}), scheduledMealId: savedMeals[i]!.id },
-        }));
-        await routineRepo().save(blocksToUpdate);
-
-        // Return freshly loaded blocks (with updated metadata).
-        const finalBlocks = await routineRepo().find({
-          where: { userId: req.userId, routineDate: date },
-          order: { sortOrder: "ASC" },
-        });
-        res.status(201).json(finalBlocks);
-        return;
-      }
-
-      res.status(201).json(saved);
     } catch (err) {
       next(err);
     }
@@ -264,7 +520,7 @@ export class RoutineController {
 
       // ── Hard reject: cannot complete blocks from other days ───────────────
       const today = new Date().toISOString().slice(0, 10);
-      if (block.routineDate !== today) {
+      if (!block.isRecurring && block.routineDate !== today) {
         res.status(409).json({
           message: "Somente blocos do dia atual podem ser concluídos.",
         });
