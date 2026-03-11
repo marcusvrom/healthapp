@@ -196,6 +196,12 @@ interface LinkedRecipeView extends LinkedRecipe {
         &.checked-purple { background: #7c3aed; border-color: #7c3aed; color: #fff; }
         &:hover:not(.checked):not(.checked-purple) { border-color: #7c3aed; background: rgba(124,58,237,.08); }
       }
+      .bc-action-btn { width: 24px; height: 24px; border: none; background: none; cursor: pointer; font-size: .7rem; opacity: 0; transition: opacity .15s; display: flex; align-items: center; justify-content: center; border-radius: 4px; flex-shrink: 0;
+        &:hover { background: var(--color-surface-2); }
+        &:disabled { opacity: .4; cursor: wait; }
+      }
+      .bc-action-del:hover { background: rgba(239,68,68,.12); }
+      &:hover .bc-action-btn { opacity: 1; }
     }
 
     /* ── Inline recipe picker (diet view) ───────────────────────────────────── */
@@ -637,6 +643,10 @@ interface LinkedRecipeView extends LinkedRecipe {
                 <label>Início <input type="time" [(ngModel)]="newEvent.startTime" /></label>
                 <label>Fim    <input type="time" [(ngModel)]="newEvent.endTime" /></label>
               </div>
+              <label>
+                Data alvo
+                <input type="date" [(ngModel)]="newEvent.targetDate" />
+              </label>
             </div>
 
             <div class="em-recurrence">
@@ -659,6 +669,63 @@ interface LinkedRecipeView extends LinkedRecipe {
               <button class="btn btn-secondary" (click)="closeAddEventModal()" type="button">Cancelar</button>
               <button class="btn btn-primary" (click)="saveNewEvent()" type="button" [disabled]="savingEvent()">
                 {{ savingEvent() ? 'Salvando...' : 'Salvar Evento' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ── Edit event modal ──────────────────────────────────────────── -->
+      @if (editEventModal()) {
+        <div class="event-overlay" (click)="closeEditModal()">
+          <div class="event-modal" (click)="$event.stopPropagation()">
+            <h3>Editar Evento</h3>
+
+            <div class="em-section-label">Tipo de evento</div>
+            <div class="em-type-grid">
+              @for (t of eventTypeOptions; track t.type) {
+                <button class="em-type-btn" [class.selected]="editEvent.type === t.type" (click)="editEvent.type = t.type" type="button">
+                  <span class="et-icon">{{ t.icon }}</span>
+                  <span class="et-label">{{ t.label }}</span>
+                </button>
+              }
+            </div>
+
+            <div class="em-fields">
+              <label>
+                Título / Descrição
+                <input type="text" [(ngModel)]="editEvent.label" placeholder="Ex: Treino de força, Almoço..." />
+              </label>
+              <div class="em-time-row">
+                <label>Início <input type="time" [(ngModel)]="editEvent.startTime" /></label>
+                <label>Fim    <input type="time" [(ngModel)]="editEvent.endTime" /></label>
+              </div>
+              <label>
+                Data alvo
+                <input type="date" [(ngModel)]="editEvent.targetDate" />
+              </label>
+            </div>
+
+            <div class="em-recurrence">
+              <div class="em-section-label">Recorrência semanal</div>
+              <div class="em-days-row">
+                @for (d of allDays; track d) {
+                  <button type="button" [class.selected]="editEvent.daysOfWeek.includes(d)" (click)="toggleEditEventDay(d)">{{ dayShort(d) }}</button>
+                }
+              </div>
+              <div class="em-recurrence-hint">
+                @if (editEvent.daysOfWeek.length === 0) {
+                  Sem dias marcados — salvo apenas para {{ editEvent.targetDate || selectedDate() }}.
+                } @else {
+                  Salvo como recorrente toda semana nos dias marcados.
+                }
+              </div>
+            </div>
+
+            <div class="em-actions">
+              <button class="btn btn-secondary" (click)="closeEditModal()" type="button">Cancelar</button>
+              <button class="btn btn-primary" (click)="saveEditEvent()" type="button" [disabled]="savingEdit()">
+                {{ savingEdit() ? 'Salvando...' : 'Salvar Alterações' }}
               </button>
             </div>
           </div>
@@ -884,6 +951,10 @@ interface LinkedRecipeView extends LinkedRecipe {
                               {{ completingBlock() === b.id ? '…' : isBlockCompleted(b) ? '✓' : '○' }}
                             </button>
                           }
+                          <button class="bc-action-btn" title="Editar" (click)="openEditModal(b, $event)">✏️</button>
+                          <button class="bc-action-btn bc-action-del" title="Excluir" (click)="deleteBlock(b, $event)" [disabled]="deletingBlock() === b.id">
+                            {{ deletingBlock() === b.id ? '…' : '🗑️' }}
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1317,9 +1388,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     { type: 'sleep',        icon: '😴', label: 'Sono' },
   ];
 
-  newEvent: { type: BlockType; label: string; startTime: string; endTime: string; daysOfWeek: number[] } = {
-    type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [],
+  newEvent: { type: BlockType; label: string; startTime: string; endTime: string; daysOfWeek: number[]; targetDate: string } = {
+    type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [], targetDate: '',
   };
+
+  // ── Edit block state ──────────────────────────────────────────────────────
+  editEventModal = signal(false);
+  editEvent: { id: string; type: BlockType; label: string; startTime: string; endTime: string; daysOfWeek: number[]; targetDate: string } = {
+    id: '', type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [], targetDate: '',
+  };
+  savingEdit  = signal(false);
+  deletingBlock = signal<string | null>(null);
 
   // ── Copilot feedback panel ───────────────────────────────────────────────────
   copilotFeedback = signal<FeedbackResponse | null>(null);
@@ -1664,7 +1743,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ── Canvas: Add Event modal ──────────────────────────────────────────────────
   openAddEventModal(): void {
-    this.newEvent = { type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [] };
+    this.newEvent = { type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [], targetDate: this.selectedDate() };
     this.addEventModal.set(true);
   }
 
@@ -1688,7 +1767,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       endTime:     this.newEvent.endTime,
       isRecurring,
       daysOfWeek:  isRecurring ? this.newEvent.daysOfWeek : [],
-      routineDate: isRecurring ? undefined : this.selectedDate(),
+      routineDate: isRecurring ? undefined : (this.newEvent.targetDate || this.selectedDate()),
     };
     this.savingEvent.set(true);
     this.routineSvc.createBlock(dto).subscribe({
@@ -1710,6 +1789,77 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   dayShort(day: number): string {
     return ['D','S','T','Q','Q','S','S'][day] ?? '?';
+  }
+
+  // ── Edit / Delete block ─────────────────────────────────────────────────────
+  openEditModal(b: RoutineBlock, ev: Event): void {
+    ev.stopPropagation();
+    this.editEvent = {
+      id: b.id,
+      type: b.type,
+      label: b.label,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      daysOfWeek: b.daysOfWeek ?? [],
+      targetDate: b.routineDate ?? this.selectedDate(),
+    };
+    this.editEventModal.set(true);
+  }
+
+  closeEditModal(): void { this.editEventModal.set(false); }
+
+  toggleEditEventDay(day: number): void {
+    const days = this.editEvent.daysOfWeek;
+    this.editEvent = {
+      ...this.editEvent,
+      daysOfWeek: days.includes(day) ? days.filter(d => d !== day) : [...days, day].sort(),
+    };
+  }
+
+  saveEditEvent(): void {
+    if (!this.editEvent.label.trim() || !this.editEvent.startTime || !this.editEvent.endTime) return;
+    const isRecurring = this.editEvent.daysOfWeek.length > 0;
+    const dto: Partial<CreateBlockDto> = {
+      type:        this.editEvent.type,
+      label:       this.editEvent.label.trim(),
+      startTime:   this.editEvent.startTime,
+      endTime:     this.editEvent.endTime,
+      isRecurring,
+      daysOfWeek:  isRecurring ? this.editEvent.daysOfWeek : [],
+      routineDate: isRecurring ? undefined : (this.editEvent.targetDate || this.selectedDate()),
+    };
+    this.savingEdit.set(true);
+    this.routineSvc.updateBlock(this.editEvent.id, dto).subscribe({
+      next: () => {
+        this.savingEdit.set(false);
+        this.editEventModal.set(false);
+        this.routineSvc.load(this.selectedDate()).subscribe({ error: () => {} });
+        if (dto.type === 'meal') {
+          this.loadScheduledMeals(this.selectedDate());
+          this.reloadSummary();
+        }
+        this.loadCopilotFeedback();
+      },
+      error: () => this.savingEdit.set(false),
+    });
+  }
+
+  deleteBlock(b: RoutineBlock, ev: Event): void {
+    ev.stopPropagation();
+    if (!confirm(`Excluir "${b.label}"?`)) return;
+    this.deletingBlock.set(b.id);
+    this.routineSvc.deleteBlock(b.id).subscribe({
+      next: () => {
+        this.deletingBlock.set(null);
+        this.routineSvc.load(this.selectedDate()).subscribe({ error: () => {} });
+        if (b.type === 'meal') {
+          this.loadScheduledMeals(this.selectedDate());
+          this.reloadSummary();
+        }
+        this.loadCopilotFeedback();
+      },
+      error: () => this.deletingBlock.set(null),
+    });
   }
 
   // ── Copilot feedback ─────────────────────────────────────────────────────────

@@ -361,16 +361,24 @@ export class RoutineController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const result = await routineRepo().delete({
+      // Load the block first to check for linked ScheduledMeal
+      const block = await routineRepo().findOneBy({
         id: req.params["id"]!,
         userId: req.userId,
       });
 
-      if (result.affected === 0) {
+      if (!block) {
         res.status(404).json({ message: "Bloco não encontrado." });
         return;
       }
 
+      // If this is a meal block with a linked ScheduledMeal, delete it too
+      const linkedMealId = (block.metadata as any)?.scheduledMealId;
+      if (block.type === BlockType.MEAL && linkedMealId) {
+        await mealRepo().delete({ id: linkedMealId, userId: req.userId });
+      }
+
+      await routineRepo().delete({ id: block.id, userId: req.userId });
       res.status(204).end();
     } catch (err) {
       next(err);
