@@ -41,11 +41,11 @@ const ACTIVITY_OPTIONS: Array<{ value: ActivityFactor; label: string; desc: stri
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      background: var(--color-bg);
     }
 
     /* Progress bar */
     .progress-bar {
-      background: #fff;
       padding: 1.25rem 2rem;
       box-shadow: 0 1px 4px rgba(0,0,0,.06);
       display: flex;
@@ -106,7 +106,6 @@ const ACTIVITY_OPTIONS: Array<{ value: ActivityFactor; label: string; desc: stri
     }
 
     .step-card {
-      background: #fff;
       border-radius: 24px;
       padding: 2.5rem;
       box-shadow: 0 8px 40px rgba(0,0,0,.08);

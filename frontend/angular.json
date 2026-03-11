@@ -27,7 +27,12 @@
             "assets": [
               "src/favicon.ico",
               "src/assets",
-              { "glob": "env.js", "input": "src/assets", "output": "/" }
+              {
+                "glob": "env.js",
+                "input": "src/assets",
+                "output": "/"
+              },
+              "src/manifest.webmanifest"
             ],
             "styles": ["src/styles.scss"],
             "scripts": []
@@ -38,7 +43,8 @@
                 { "type": "initial", "maximumWarning": "500kb", "maximumError": "1mb" },
                 { "type": "anyComponentStyle", "maximumWarning": "2kb", "maximumError": "4kb" }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "serviceWorker": "ngsw-config.json"
             },
             "development": {
               "optimization": false,
@@ -58,5 +64,8 @@
         }
       }
     }
+  },
+  "cli": {
+    "analytics": "10bfa2e0-e029-417d-b58e-1c03a91d8645"
   }
 }

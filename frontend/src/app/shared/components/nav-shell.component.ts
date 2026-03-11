@@ -4,54 +4,73 @@ import { AuthService } from '../../core/services/auth.service';
 import { UserService } from '../../core/services/user.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { environment } from '../../environments/environment';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-nav-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
   styles: [`
-    .shell { display: flex; min-height: 100vh; }
+    .shell { display: flex; min-height: 100vh; background: var(--color-bg); }
 
-    /* Sidebar */
+    /* Sidebar - Desktop */
     .sidebar {
-      width: 240px; flex-shrink: 0;
+      width: 260px; flex-shrink: 0;
       background: var(--color-surface); border-right: 1px solid var(--color-border);
       display: flex; flex-direction: column;
       position: sticky; top: 0; height: 100vh;
+      z-index: 100; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-      @media (max-width: 768px) { display: none; }
+      @media (max-width: 768px) { 
+        position: fixed;
+        bottom: 0; left: 0; right: 0; top: auto;
+        width: 100%; height: auto; max-height: 85vh;
+        border-radius: 20px 20px 0 0;
+        transform: translateY(105%); // Escondido abaixo
+        border-right: none; border-top: 1px solid var(--color-border);
+        box-shadow: 0 -10px 25px rgba(0,0,0,0.1);
+        
+        &.open { transform: translateY(0); } // Slide up effect
+      }
 
       .brand {
-        padding: 1.25rem 1.25rem .875rem;
-        display: flex; align-items: center; gap: .625rem;
+        padding: 1.5rem; display: flex; align-items: center; gap: .75rem;
         border-bottom: 1px solid var(--color-border);
+
         .emoji { font-size: 1.5rem; }
         .name  { font-size: 1rem; font-weight: 800; color: var(--color-primary); flex: 1; }
         .beta  { font-size: .65rem; background: var(--color-primary-light); color: var(--color-primary-dark);
           padding: .1rem .4rem; border-radius: 99px; font-weight: 700; }
+        @media (max-width: 768px) { display: none; } // Esconde logo no menu mobile
+      }
+
+      /* Handle para mobile (aquela barrinha de puxar) */
+      .mobile-handle {
+        display: none;
+        @media (max-width: 768px) {
+          display: block; width: 40px; height: 4px; background: var(--color-border);
+          border-radius: 2px; margin: 12px auto;
+        }
       }
 
       nav { flex: 1; padding: .75rem; display: flex; flex-direction: column; gap: .2rem; overflow-y: auto; }
 
       .nav-item {
         display: flex; align-items: center; gap: .75rem;
-        padding: .575rem .875rem;
-        border-radius: var(--radius-sm);
-        color: var(--color-text-muted);
-        font-size: .875rem; font-weight: 500;
-        text-decoration: none;
+        padding: .75rem 1rem; border-radius: var(--radius-sm);
+        color: var(--color-text-muted); font-size: .9rem; font-weight: 500;
+        text-decoration: none; transition: .15s;
         transition: all .15s;
 
         .icon { font-size: 1.1rem; width: 1.5rem; text-align: center; }
-
-        &:hover      { background: var(--color-surface-2); color: var(--color-text); }
-        &.active-link{ background: var(--color-primary-light); color: var(--color-primary-dark); font-weight: 600; }
+        &:hover { background: var(--color-surface-2); color: var(--color-text); }
+        &.active-link { background: var(--color-primary-light); color: var(--color-primary-dark); font-weight: 600; }
       }
 
-      .nav-section { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
-        color: var(--color-text-subtle); padding: .75rem .875rem .2rem; }
+      .nav-section { font-size: .7rem; font-weight: 700; text-transform: uppercase; 
+        color: var(--color-text-subtle); padding: 1rem 1rem .4rem; }
 
-      .sidebar-footer {
+        .sidebar-footer {
         padding: .875rem .75rem; border-top: 1px solid var(--color-border);
 
         .user-row {
@@ -85,33 +104,46 @@ import { environment } from '../../environments/environment';
       }
     }
 
-    /* Bottom nav for mobile */
+    /* Backdrop para mobile */
+    .overlay {
+      display: none;
+      @media (max-width: 768px) {
+        &.visible { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 90; backdrop-filter: blur(2px); }
+      }
+    }
+
+    /* Bottom Nav - Mobile */
     .bottom-nav {
       display: none;
       @media (max-width: 768px) {
-        display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+        display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 110;
         background: var(--color-surface); border-top: 1px solid var(--color-border);
         padding-bottom: env(safe-area-inset-bottom);
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
 
-        a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: .2rem;
-          padding: .625rem .5rem; color: var(--color-text-subtle); font-size: .65rem; font-weight: 600;
-          text-decoration: none; transition: .15s;
-          .bn-icon { font-size: 1.25rem; }
+        .bn-item { 
+          flex: 1; display: flex; flex-direction: column; align-items: center; 
+          padding: 10px 0; gap: 4px; color: var(--color-text-subtle); 
+          text-decoration: none; border: none; background: none; font-size: .65rem; font-weight: 600;
+          
+          .bn-icon { font-size: 1.4rem; }
           &.active-link { color: var(--color-primary); }
+          &:active { transform: scale(0.95); }
         }
       }
     }
 
-    /* Main area */
     .main { flex: 1; min-width: 0; display: flex; flex-direction: column;
-      background: var(--color-bg) !important;
-      @media (max-width: 768px) { padding-bottom: 60px; }
+      @media (max-width: 768px) { padding-bottom: 80px; }
     }
   `],
   template: `
     <div class="shell">
-      <!-- Sidebar -->
-      <aside class="sidebar">
+      <div class="overlay" [class.visible]="isMobileMenuOpen()" (click)="toggleMobileMenu()"></div>
+
+      <aside class="sidebar" [class.open]="isMobileMenuOpen()">
+        <div class="mobile-handle"></div>
+        
         <div class="brand">
           <span class="emoji">🌿</span>
           <span class="name">HealthApp</span>
@@ -196,20 +228,29 @@ import { environment } from '../../environments/environment';
         </div>
       </aside>
 
-      <!-- Main content -->
       <main class="main">
         <router-outlet />
       </main>
     </div>
 
-    <!-- Mobile bottom nav -->
     <nav class="bottom-nav">
-      <a routerLink="/dashboard"   routerLinkActive="active-link"><span class="bn-icon">📅</span>Agenda</a>
-      <a routerLink="/diet"        routerLinkActive="active-link"><span class="bn-icon">🍽️</span>Dieta</a>
-      <a routerLink="/protocols"   routerLinkActive="active-link"><span class="bn-icon">💊</span>Protocolos</a>
-      <a routerLink="/progress"    routerLinkActive="active-link"><span class="bn-icon">📊</span>Progresso</a>
-      <a routerLink="/comunidade"  routerLinkActive="active-link"><span class="bn-icon">🌍</span>Comunidade</a>
-      <a routerLink="/profile"     routerLinkActive="active-link"><span class="bn-icon">👤</span>Perfil</a>
+      <a routerLink="/dashboard" routerLinkActive="active-link" class="bn-item">
+        <span class="bn-icon">📅</span><span>Início</span>
+      </a>
+      <a routerLink="/diet" routerLinkActive="active-link" class="bn-item">
+        <span class="bn-icon">🍽️</span><span>Dieta</span>
+      </a>
+      <a routerLink="/check-in" class="bn-item active-link" style="margin-top: -15px;">
+        <div style="background: var(--color-primary); color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px var(--color-primary-light);">
+          <span style="font-size: 1.5rem;">+</span>
+        </div>
+      </a>
+      <a routerLink="/progress" routerLinkActive="active-link" class="bn-item">
+        <span class="bn-icon">📊</span><span>Evolução</span>
+      </a>
+      <button (click)="toggleMobileMenu()" class="bn-item">
+        <span class="bn-icon">☰</span><span>Mais</span>
+      </button>
     </nav>
   `,
 })
@@ -223,6 +264,7 @@ export class NavShellComponent implements OnInit {
   userName  = signal<string>('Minha conta');
   userLevel = signal<number>(1);
   avatarUrl = signal<string | null>(null);
+  isMobileMenuOpen = signal(false);
 
   ngOnInit(): void {
     this.userSvc.loadMe().subscribe({
@@ -233,6 +275,14 @@ export class NavShellComponent implements OnInit {
       },
       error: () => {},
     });
+  }
+
+  toggleMobileMenu() {
+    this.isMobileMenuOpen.update(v => !v);
+  }
+
+  closeMenu() {
+    this.isMobileMenuOpen.set(false);
   }
 
   logout(): void { this.auth.logout(); }
