@@ -19,7 +19,7 @@ export class CanvasRecurrenceColumns1709500018000 implements MigrationInterface 
 
     // Add 'study' to the block type enum
     await queryRunner.query(`
-      ALTER TYPE "routine_blocks_type_enum" ADD VALUE IF NOT EXISTS 'study'
+      ALTER TYPE "block_type_enum" ADD VALUE IF NOT EXISTS 'study'
     `);
 
     // ── ScheduledMeal: add recurrence support ─────────────────────────────────
