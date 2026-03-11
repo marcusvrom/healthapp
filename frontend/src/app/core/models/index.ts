@@ -194,17 +194,33 @@ export interface RoutineBlock {
 }
 
 // ── Canvas / Copilot ──────────────────────────────────────────────────────────
+export interface FeedbackGoals {
+  caloricGoal: number;
+  proteinGoal: number;
+  waterGoal: number;
+}
+
+export interface FeedbackScheduled {
+  kcal: number;
+  proteinG: number;
+  waterMl: number;
+  sleepHours: number;
+}
+
 export interface FeedbackItem {
-  key: string;
-  label: string;
-  status: 'ok' | 'warn' | 'error';
+  type: 'checklist' | 'warning' | 'tip';
+  icon: string;
+  title: string;
   message: string;
+  done?: boolean;
 }
 
 export interface FeedbackResponse {
   date: string;
-  score: number;
-  items: FeedbackItem[];
+  goals: FeedbackGoals;
+  scheduled: FeedbackScheduled;
+  completeness: number;
+  feedback: FeedbackItem[];
 }
 
 export interface CreateBlockDto {

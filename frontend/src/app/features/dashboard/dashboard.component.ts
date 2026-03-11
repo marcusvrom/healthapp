@@ -970,8 +970,8 @@ interface LinkedRecipeView extends LinkedRecipe {
           <div class="cop-header">
             <div class="cop-title">🧭 Orientação Inteligente</div>
             @if (copilotFeedback()) {
-              <span class="cop-score" [class.score-high]="copilotFeedback()!.score >= 80" [class.score-mid]="copilotFeedback()!.score >= 50 && copilotFeedback()!.score < 80" [class.score-low]="copilotFeedback()!.score < 50">
-                {{ copilotFeedback()!.score }}%
+              <span class="cop-score" [class.score-high]="copilotFeedback()!.completeness >= 80" [class.score-mid]="copilotFeedback()!.completeness >= 50 && copilotFeedback()!.completeness < 80" [class.score-low]="copilotFeedback()!.completeness < 50">
+                {{ copilotFeedback()!.completeness }}%
               </span>
             }
           </div>
@@ -979,10 +979,10 @@ interface LinkedRecipeView extends LinkedRecipe {
             <div class="cop-loading"><span class="spinner" style="width:16px;height:16px"></span> Analisando seu dia...</div>
           } @else if (copilotFeedback()) {
             <div class="cop-items">
-              @for (item of copilotFeedback()!.items; track item.key) {
-                <div class="cop-item" [class.ok]="item.status === 'ok'" [class.warn]="item.status === 'warn'" [class.error]="item.status === 'error'">
-                  <span class="cop-icon">{{ item.status === 'ok' ? '✅' : item.status === 'warn' ? '⚠️' : '❌' }}</span>
-                  <span class="cop-msg">{{ item.message }}</span>
+              @for (item of copilotFeedback()!.feedback; track item.title) {
+                <div class="cop-item" [class.ok]="item.type === 'checklist' && item.done" [class.warn]="item.type === 'warning' || (item.type === 'checklist' && !item.done)" [class.error]="item.type === 'tip'">
+                  <span class="cop-icon">{{ item.type === 'checklist' && item.done ? '✅' : item.type === 'warning' ? '⚠️' : item.type === 'tip' ? '💡' : '⬜' }}</span>
+                  <span class="cop-msg"><strong>{{ item.title }}</strong><br>{{ item.message }}</span>
                 </div>
               }
             </div>
