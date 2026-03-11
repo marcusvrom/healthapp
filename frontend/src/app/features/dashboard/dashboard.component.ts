@@ -18,11 +18,12 @@ import { RecipeService }             from '../../core/services/recipe.service';
 import { ScheduledMealService }      from '../../core/services/scheduled-meal.service';
 import { RecipeScheduleService }     from '../../core/services/recipe-schedule.service';
 import { CheckInService }            from '../../core/services/check-in.service';
+import { CopilotService }            from '../../core/services/copilot.service';
 
 import {
   RoutineBlock, BlockType, DailySummary, ClinicalProtocolWithLog,
   ScheduledMeal, LinkedRecipe, Recipe, RecipeFeedItem, RecipeSchedule,
-  BlockCompleteResult,
+  BlockCompleteResult, FeedbackResponse, CreateBlockDto,
 } from '../../core/models';
 import { WaterTrackerComponent } from '../water/water-tracker.component';
 
@@ -44,6 +45,7 @@ const BLOCK_META: Record<BlockType, { icon: string; color: string; bg: string; l
   free:         { icon: '⬜', color: '#9ca3af', bg: '#f9fafb', label: 'Livre' },
   custom:       { icon: '📌', color: '#8b5cf6', bg: '#ede9fe', label: 'Custom' },
   medication:   { icon: '💊', color: '#7c3aed', bg: '#f5f3ff', label: 'Protocolo' },
+  study:        { icon: '📚', color: '#0891b2', bg: '#e0f7fa', label: 'Estudo' },
 };
 
 const PROTOCOL_ICON: Record<string, string> = {
@@ -67,7 +69,7 @@ const BLOCK_XP: Partial<Record<BlockType, number>> = {
 
 /** Block types that support user completion (excludes meal and medication — handled separately) */
 const COMPLETABLE_TYPES = new Set<BlockType>([
-  'exercise', 'water', 'sun_exposure', 'sleep', 'work', 'free', 'custom',
+  'exercise', 'water', 'sun_exposure', 'sleep', 'work', 'free', 'custom', 'study',
 ]);
 
 interface TimeGroup {
@@ -102,6 +104,67 @@ interface LinkedRecipeView extends LinkedRecipe {
     .generate-bar { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: linear-gradient(135deg, #059669, #10b981); color: #fff; border-radius: var(--radius-md); padding: .875rem 1.5rem;
       .gb-text { h3 { font-size: .95rem; color: #fff; } p { font-size: .78rem; color: rgba(255,255,255,.8); } }
       button { background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.4); color: #fff; padding: .4rem 1rem; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: .8rem; white-space: nowrap; &:hover { background: rgba(255,255,255,.35); } &:disabled { opacity: .6; cursor: wait; } }
+    }
+    /* ── Canvas bar ───────────────────────────────────────────────────────────── */
+    .canvas-bar { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: var(--radius-md); padding: .75rem 1.25rem;
+      .cb-info { h3 { font-size: .9rem; font-weight: 700; } p { font-size: .75rem; color: var(--color-text-muted); } }
+      .cb-actions { display: flex; gap: .5rem; flex-shrink: 0; flex-wrap: wrap; align-items: center; }
+      .add-event-btn { display: flex; align-items: center; gap: .375rem; background: var(--color-primary); color: #fff; border: none; padding: .5rem 1.125rem; border-radius: var(--radius-sm); cursor: pointer; font-weight: 700; font-size: .82rem; white-space: nowrap; transition: .15s;
+        &:hover { filter: brightness(1.1); }
+      }
+    }
+    /* ── Event creation modal ─────────────────────────────────────────────────── */
+    .event-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .event-modal { background: var(--color-surface); border-radius: var(--radius-md); padding: 1.5rem; width: 100%; max-width: 440px; box-shadow: var(--shadow-lg);
+      h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1.25rem; }
+      .em-section-label { font-size: .72rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .5rem; }
+      .em-type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-bottom: 1.25rem;
+        .em-type-btn { display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .625rem .375rem; border-radius: var(--radius-sm); border: 1.5px solid var(--color-border); background: var(--color-surface-2); cursor: pointer; transition: .15s;
+          .et-icon { font-size: 1.25rem; }
+          .et-label { font-size: .68rem; font-weight: 700; color: var(--color-text-muted); }
+          &.selected { border-color: var(--color-primary); background: var(--color-primary-light); .et-label { color: var(--color-primary-dark); } }
+          &:hover:not(.selected) { border-color: var(--color-border); background: var(--color-surface); }
+        }
+      }
+      .em-fields { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1.25rem;
+        label { font-size: .78rem; font-weight: 600; color: var(--color-text-muted); display: flex; flex-direction: column; gap: .25rem; input { font-size: .875rem; } }
+        .em-time-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+      }
+      .em-recurrence { margin-bottom: 1.25rem;
+        .em-days-row { display: flex; gap: .375rem; margin-top: .5rem; flex-wrap: wrap;
+          button { width: 34px; height: 34px; border-radius: 50%; font-size: .7rem; font-weight: 700; border: 1.5px solid var(--color-border); background: var(--color-surface-2); cursor: pointer; transition: .15s;
+            &.selected { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+            &:hover:not(.selected) { background: var(--color-border); }
+          }
+        }
+        .em-recurrence-hint { font-size: .72rem; color: var(--color-text-muted); margin-top: .375rem; }
+      }
+      .em-actions { display: flex; gap: .625rem;
+        button { flex: 1; }
+      }
+    }
+    /* ── Copilot feedback panel ───────────────────────────────────────────────── */
+    .copilot-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem;
+      .cop-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .875rem;
+        .cop-title { font-size: .875rem; font-weight: 700; }
+        .cop-score { font-size: .72rem; font-weight: 700; padding: .15rem .55rem; border-radius: 99px;
+          &.score-high  { background: rgba(34,197,94,.15); color: #15803d; }
+          &.score-mid   { background: rgba(234,179,8,.15); color: #92400e; }
+          &.score-low   { background: rgba(239,68,68,.15); color: #dc2626; }
+        }
+      }
+      .cop-loading { display: flex; align-items: center; gap: .5rem; font-size: .78rem; color: var(--color-text-muted); padding: .5rem 0; }
+      .cop-items { display: flex; flex-direction: column; gap: .5rem; }
+      .cop-item { display: flex; align-items: flex-start; gap: .5rem; padding: .5rem .625rem; border-radius: var(--radius-sm); font-size: .78rem;
+        &.ok    { background: rgba(34,197,94,.07); border-left: 3px solid #22c55e; }
+        &.warn  { background: rgba(234,179,8,.07);  border-left: 3px solid #eab308; }
+        &.error { background: rgba(239,68,68,.07);  border-left: 3px solid #ef4444; }
+        .cop-icon { font-size: .9rem; flex-shrink: 0; margin-top: .05rem; }
+        .cop-msg  { line-height: 1.4; color: var(--color-text); }
+      }
+      .cop-refresh { display: block; width: 100%; margin-top: .875rem; font-size: .75rem; color: var(--color-text-muted); background: none; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .375rem; cursor: pointer; transition: .15s;
+        &:hover { background: var(--color-surface-2); }
+      }
     }
 
     /* ── Timeline ────────────────────────────────────────────────────────────── */
@@ -529,21 +592,75 @@ interface LinkedRecipeView extends LinkedRecipe {
         </div>
       }
 
-      <!-- ── Generate bar ────────────────────────────────────────────────── -->
-      @if (blocks().length === 0 && !loading()) {
-        <div class="generate-bar">
-          <div class="gb-text"><h3>Nenhuma rotina para este dia</h3><p>Gere sua agenda personalizada com exercícios, refeições e protocolos clínicos.</p></div>
-          <button (click)="generateRoutine()" [disabled]="generating()">{{ generating() ? '⏳ Gerando...' : '✨ Gerar Rotina' }}</button>
+      <!-- ── Canvas bar ──────────────────────────────────────────────────── -->
+      <div class="canvas-bar">
+        <div class="cb-info">
+          @if (blocks().length === 0 && !loading()) {
+            <h3>🗺️ Canvas em branco</h3>
+            <p>Adicione eventos para montar sua agenda. O copiloto irá te orientar.</p>
+          } @else {
+            <h3>🗺️ Canvas do dia · {{ blocks().length }} blocos</h3>
+            <p>{{ doneProtocols() }}/{{ totalProtocols() }} protocolos · {{ waterBlocks() }} lembretes de água</p>
+          }
         </div>
-      } @else if (blocks().length > 0) {
-        <div class="generate-bar" style="padding:.625rem 1.5rem">
-          <div class="gb-text"><h3>Rotina do dia · {{ blocks().length }} blocos</h3><p>{{ doneProtocols() }}/{{ totalProtocols() }} protocolos · {{ waterBlocks() }} lembretes de água</p></div>
-          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-            <button (click)="generateRoutine()" [disabled]="generating()">{{ generating() ? '⏳...' : '🔄 Regenerar' }}</button>
-            @if (scheduledMeals().length > 0) {
-              <button (click)="applySchedules()" [disabled]="applyingSchedules()" title="Auto-vincular receitas repetidas deste dia da semana">{{ applyingSchedules() ? '⏳...' : '🔁 Aplicar Repetições' }}</button>
-              <button (click)="openCloneModal()" style="background:rgba(255,255,255,.15)">📋 Clonar Dieta</button>
-            }
+        <div class="cb-actions">
+          @if (scheduledMeals().length > 0) {
+            <button class="btn btn-secondary btn-sm" (click)="applySchedules()" [disabled]="applyingSchedules()" title="Auto-vincular receitas repetidas deste dia da semana">{{ applyingSchedules() ? '⏳...' : '🔁 Repetições' }}</button>
+            <button class="btn btn-secondary btn-sm" (click)="openCloneModal()">📋 Clonar Dieta</button>
+          }
+          <button class="add-event-btn" (click)="openAddEventModal()">+ Adicionar Evento</button>
+        </div>
+      </div>
+
+      <!-- ── Event creation modal ──────────────────────────────────────────── -->
+      @if (addEventModal()) {
+        <div class="event-overlay" (click)="closeAddEventModal()">
+          <div class="event-modal" (click)="$event.stopPropagation()">
+            <h3>Novo Evento</h3>
+
+            <div class="em-section-label">Tipo de evento</div>
+            <div class="em-type-grid">
+              @for (t of eventTypeOptions; track t.type) {
+                <button class="em-type-btn" [class.selected]="newEvent.type === t.type" (click)="newEvent.type = t.type" type="button">
+                  <span class="et-icon">{{ t.icon }}</span>
+                  <span class="et-label">{{ t.label }}</span>
+                </button>
+              }
+            </div>
+
+            <div class="em-fields">
+              <label>
+                Título / Descrição
+                <input type="text" [(ngModel)]="newEvent.label" placeholder="Ex: Treino de força, Almoço..." />
+              </label>
+              <div class="em-time-row">
+                <label>Início <input type="time" [(ngModel)]="newEvent.startTime" /></label>
+                <label>Fim    <input type="time" [(ngModel)]="newEvent.endTime" /></label>
+              </div>
+            </div>
+
+            <div class="em-recurrence">
+              <div class="em-section-label">Recorrência semanal</div>
+              <div class="em-days-row">
+                @for (d of allDays; track d) {
+                  <button type="button" [class.selected]="newEvent.daysOfWeek.includes(d)" (click)="toggleNewEventDay(d)">{{ dayShort(d) }}</button>
+                }
+              </div>
+              <div class="em-recurrence-hint">
+                @if (newEvent.daysOfWeek.length === 0) {
+                  Sem dias marcados — salvo apenas para {{ selectedDate() }}.
+                } @else {
+                  Salvo como recorrente toda semana nos dias marcados.
+                }
+              </div>
+            </div>
+
+            <div class="em-actions">
+              <button class="btn btn-secondary" (click)="closeAddEventModal()" type="button">Cancelar</button>
+              <button class="btn btn-primary" (click)="saveNewEvent()" type="button" [disabled]="savingEvent()">
+                {{ savingEvent() ? 'Salvando...' : 'Salvar Evento' }}
+              </button>
+            </div>
           </div>
         </div>
       }
@@ -569,7 +686,7 @@ interface LinkedRecipeView extends LinkedRecipe {
           <!-- ── Diet grouped view ──────────────────────────────────────── -->
           @if (scheduledMeals().length === 0) {
             <div style="text-align:center;padding:3rem;color:var(--color-text-muted);font-size:.875rem">
-              Nenhuma refeição planejada.<br>Clique em <strong>✨ Gerar Rotina</strong> para criar.
+              Nenhuma refeição planejada.<br>Clique em <strong>+ Adicionar Evento</strong> para criar.
             </div>
           } @else {
             <div class="diet-view">
@@ -687,7 +804,7 @@ interface LinkedRecipeView extends LinkedRecipe {
           }
 
         } @else if (timeGroups().length === 0) {
-          <div style="text-align:center;padding:3rem;color:var(--color-text-muted);font-size:.875rem">Nenhum bloco.<br>Clique em <strong>✨ Gerar Rotina</strong> para começar.</div>
+          <div style="text-align:center;padding:3rem;color:var(--color-text-muted);font-size:.875rem">Nenhum bloco ainda.<br>Clique em <strong>+ Adicionar Evento</strong> para começar a montar sua agenda.</div>
         } @else {
           <div class="timeline-feed">
             @for (grp of timeGroups(); track grp.time; let i = $index) {
@@ -847,6 +964,39 @@ interface LinkedRecipeView extends LinkedRecipe {
         }
 
         <app-water-tracker [showLogs]="showWaterLogs" />
+
+        <!-- ── Copilot Orientação Inteligente ──────────────────────────── -->
+        <div class="copilot-card">
+          <div class="cop-header">
+            <div class="cop-title">🧭 Orientação Inteligente</div>
+            @if (copilotFeedback()) {
+              <span class="cop-score" [class.score-high]="copilotFeedback()!.score >= 80" [class.score-mid]="copilotFeedback()!.score >= 50 && copilotFeedback()!.score < 80" [class.score-low]="copilotFeedback()!.score < 50">
+                {{ copilotFeedback()!.score }}%
+              </span>
+            }
+          </div>
+          @if (copilotLoading()) {
+            <div class="cop-loading"><span class="spinner" style="width:16px;height:16px"></span> Analisando seu dia...</div>
+          } @else if (copilotFeedback()) {
+            <div class="cop-items">
+              @for (item of copilotFeedback()!.items; track item.key) {
+                <div class="cop-item" [class.ok]="item.status === 'ok'" [class.warn]="item.status === 'warn'" [class.error]="item.status === 'error'">
+                  <span class="cop-icon">{{ item.status === 'ok' ? '✅' : item.status === 'warn' ? '⚠️' : '❌' }}</span>
+                  <span class="cop-msg">{{ item.message }}</span>
+                </div>
+              }
+            </div>
+            <button class="cop-refresh" (click)="loadCopilotFeedback()">↻ Atualizar análise</button>
+          } @else {
+            <div class="cop-items">
+              <div class="cop-item warn">
+                <span class="cop-icon">ℹ️</span>
+                <span class="cop-msg">Adicione eventos ao seu Canvas para receber orientações.</span>
+              </div>
+            </div>
+            <button class="cop-refresh" (click)="loadCopilotFeedback()">↻ Analisar meu dia</button>
+          }
+        </div>
 
         <!-- Daily missions widget -->
         <app-daily-missions-widget />
@@ -1103,6 +1253,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private scheduledSvc    = inject(ScheduledMealService);
   private recipeSchedSvc  = inject(RecipeScheduleService);
   private checkInSvc      = inject(CheckInService);
+  private copilotSvc      = inject(CopilotService);
 
   readonly todayStr      = new Date().toISOString().slice(0, 10);
   readonly showWaterLogs = signal(false);
@@ -1152,6 +1303,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ── Apply schedules ─────────────────────────────────────────────────────────
   applyingSchedules = signal(false);
+
+  // ── Canvas: Add Event modal ──────────────────────────────────────────────────
+  addEventModal = signal(false);
+  savingEvent   = signal(false);
+
+  readonly eventTypeOptions: Array<{ type: BlockType; icon: string; label: string }> = [
+    { type: 'meal',         icon: '🍽️', label: 'Refeição' },
+    { type: 'work',         icon: '💼', label: 'Trabalho' },
+    { type: 'study',        icon: '📚', label: 'Estudo' },
+    { type: 'exercise',     icon: '💪', label: 'Exercício' },
+    { type: 'water',        icon: '💧', label: 'Água' },
+    { type: 'sleep',        icon: '😴', label: 'Sono' },
+  ];
+
+  newEvent: { type: BlockType; label: string; startTime: string; endTime: string; daysOfWeek: number[] } = {
+    type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [],
+  };
+
+  // ── Copilot feedback panel ───────────────────────────────────────────────────
+  copilotFeedback = signal<FeedbackResponse | null>(null);
+  copilotLoading  = signal(false);
 
   // ── Recipe schedules (weekly repeat) ────────────────────────────────────────
   recipeSchedules = signal<RecipeSchedule[]>([]);
@@ -1262,6 +1434,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.cloneFrom = this.selectedDate();
     this.clockInterval = setInterval(() => this.clockMinute.set(this.currentMinuteOfDay()), 30_000);
     this.checkInSvc.latest().subscribe({ next: ci => this.lastCheckInDate.set(ci?.date ?? null), error: () => {} });
+    this.loadCopilotFeedback();
   }
 
   ngOnDestroy(): void { if (this.clockInterval) clearInterval(this.clockInterval); }
@@ -1476,6 +1649,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   dayLabel(day: number): string { return DAY_LABELS[day] ?? '?'; }
 
   // ── Routine ──────────────────────────────────────────────────────────────────
+  /** @deprecated Canvas pivot — kept for reference; server returns 410. */
   generateRoutine(): void {
     this.generating.set(true);
     this.routineSvc.generate(this.selectedDate()).subscribe({
@@ -1485,6 +1659,60 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.loadScheduledMeals(this.selectedDate());
       },
       error: () => this.generating.set(false),
+    });
+  }
+
+  // ── Canvas: Add Event modal ──────────────────────────────────────────────────
+  openAddEventModal(): void {
+    this.newEvent = { type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [] };
+    this.addEventModal.set(true);
+  }
+
+  closeAddEventModal(): void { this.addEventModal.set(false); }
+
+  toggleNewEventDay(day: number): void {
+    const days = this.newEvent.daysOfWeek;
+    this.newEvent = {
+      ...this.newEvent,
+      daysOfWeek: days.includes(day) ? days.filter(d => d !== day) : [...days, day].sort(),
+    };
+  }
+
+  saveNewEvent(): void {
+    if (!this.newEvent.label.trim() || !this.newEvent.startTime || !this.newEvent.endTime) return;
+    const isRecurring = this.newEvent.daysOfWeek.length > 0;
+    const dto: CreateBlockDto = {
+      type:        this.newEvent.type,
+      label:       this.newEvent.label.trim(),
+      startTime:   this.newEvent.startTime,
+      endTime:     this.newEvent.endTime,
+      isRecurring,
+      daysOfWeek:  isRecurring ? this.newEvent.daysOfWeek : [],
+      routineDate: isRecurring ? undefined : this.selectedDate(),
+    };
+    this.savingEvent.set(true);
+    this.routineSvc.createBlock(dto).subscribe({
+      next: () => {
+        this.savingEvent.set(false);
+        this.addEventModal.set(false);
+        // Refresh the full list so recurring blocks appear correctly
+        this.routineSvc.load(this.selectedDate()).subscribe({ error: () => {} });
+        this.loadCopilotFeedback();
+      },
+      error: () => this.savingEvent.set(false),
+    });
+  }
+
+  dayShort(day: number): string {
+    return ['D','S','T','Q','Q','S','S'][day] ?? '?';
+  }
+
+  // ── Copilot feedback ─────────────────────────────────────────────────────────
+  loadCopilotFeedback(): void {
+    this.copilotLoading.set(true);
+    this.copilotSvc.getFeedback(this.selectedDate()).subscribe({
+      next: fb => { this.copilotFeedback.set(fb); this.copilotLoading.set(false); },
+      error: ()  => { this.copilotLoading.set(false); },
     });
   }
 
@@ -1499,6 +1727,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.closeMealPanel();
     this.openDietGroups.set(new Set());
     this.cloneFrom = next;
+    this.copilotFeedback.set(null);
+    this.loadCopilotFeedback();
   }
 
   goToday(): void { this.routineSvc.setDate(this.todayStr); this.changeDate(0); }

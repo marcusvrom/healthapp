@@ -167,7 +167,7 @@ export interface ProtocolToggleResult {
 }
 
 // ── Routine ───────────────────────────────────────────────────────────────────
-export type BlockType = 'sleep'|'work'|'exercise'|'meal'|'water'|'sun_exposure'|'free'|'custom'|'medication';
+export type BlockType = 'sleep'|'work'|'exercise'|'meal'|'water'|'sun_exposure'|'free'|'custom'|'medication'|'study';
 export type MealType =
   | 'breakfast'|'morning_snack'|'lunch'|'afternoon_snack'
   | 'pre_workout'|'post_workout'|'dinner'|'supper';
@@ -175,7 +175,7 @@ export type MealType =
 export interface RoutineBlock {
   id: string;
   userId: string;
-  routineDate: string;
+  routineDate?: string;
   type: BlockType;
   startTime: string;
   endTime: string;
@@ -188,6 +188,36 @@ export interface RoutineBlock {
   /** ISO timestamp set when the user marks this block completed. */
   completedAt?: string;
   xpAwarded?: boolean;
+  /** Canvas recurrence fields */
+  isRecurring?: boolean;
+  daysOfWeek?: number[];
+}
+
+// ── Canvas / Copilot ──────────────────────────────────────────────────────────
+export interface FeedbackItem {
+  key: string;
+  label: string;
+  status: 'ok' | 'warn' | 'error';
+  message: string;
+}
+
+export interface FeedbackResponse {
+  date: string;
+  score: number;
+  items: FeedbackItem[];
+}
+
+export interface CreateBlockDto {
+  type: BlockType;
+  label: string;
+  startTime: string;
+  endTime: string;
+  routineDate?: string;
+  isRecurring?: boolean;
+  daysOfWeek?: number[];
+  mealType?: MealType;
+  caloricTarget?: number;
+  waterMl?: number;
 }
 
 // ── Food ──────────────────────────────────────────────────────────────────────
@@ -335,7 +365,7 @@ export interface LinkedRecipe {
 export interface ScheduledMeal {
   id: string;
   userId: string;
-  scheduledDate: string;
+  scheduledDate?: string;
   name: string;
   scheduledTime: string;
   caloricTarget?: number;
@@ -349,6 +379,9 @@ export interface ScheduledMeal {
   consumedAt?: string;
   xpAwarded: boolean;
   notes?: string;
+  /** Canvas recurrence fields */
+  isRecurring?: boolean;
+  daysOfWeek?: number[];
 }
 
 // ── Recipes (Community) ───────────────────────────────────────────────────────

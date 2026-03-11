@@ -439,33 +439,36 @@ const ACTIVITY_OPTIONS: Array<{ value: ActivityFactor; label: string; desc: stri
             </div>
           }
 
-          <!-- Step 5: Done -->
+          <!-- Step 5: Plano de Voo -->
           @if (step() === 5) {
             <div class="done-step">
               @if (saving()) {
                 <span class="big-emoji">⏳</span>
-                <h2>Configurando seu plano...</h2>
-                <p>Calculando sua TMB, macronutrientes e gerando sua rotina.</p>
+                <h2>Calculando seu plano...</h2>
+                <p>Processando sua TMB e metas de macronutrientes.</p>
                 <div class="flex items-center justify-center mt-4"><span class="spinner" style="width:2rem;height:2rem"></span></div>
               } @else if (saved()) {
-                <span class="big-emoji">🎉</span>
-                <h2>Plano criado com sucesso!</h2>
-                <p>Seu programa de saúde personalizado está pronto.</p>
+                <span class="big-emoji">🗺️</span>
+                <h2>Seu Plano de Voo está pronto!</h2>
+                <p>Essas são as metas calculadas com base no seu perfil. Agora é você quem monta a rota.</p>
                 @if (metabolic()) {
                   <div class="metrics">
                     <div class="metric">
-                      <div class="value">{{ metabolic()!.bmr | number:'1.0-0' }}</div>
-                      <div class="label">TMB (kcal/dia)</div>
+                      <div class="value">{{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }}</div>
+                      <div class="label">Meta calórica (kcal)</div>
                     </div>
                     <div class="metric">
-                      <div class="value">{{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }}</div>
-                      <div class="label">Meta calórica</div>
+                      <div class="value">{{ metabolic()!.macros.proteinG | number:'1.0-0' }}g</div>
+                      <div class="label">Proteína / dia</div>
                     </div>
                     <div class="metric">
                       <div class="value">{{ metabolic()!.waterMlTotal | number:'1.0-0' }}</div>
-                      <div class="label">Água/dia (ml)</div>
+                      <div class="label">Água / dia (ml)</div>
                     </div>
                   </div>
+                  <p style="font-size:.85rem;color:var(--color-text-subtle);margin-top:1rem">
+                    O copiloto irá te avisar se sua agenda do dia não bater com essas metas. 🧭
+                  </p>
                 }
               } @else if (errorMsg()) {
                 <span class="big-emoji">😕</span>
@@ -491,11 +494,11 @@ const ACTIVITY_OPTIONS: Array<{ value: ActivityFactor; label: string; desc: stri
               </button>
             } @else if (saved()) {
               <button type="button" class="btn btn-primary btn-lg" (click)="goToDashboard()">
-                Ver minha rotina 🚀
+                Começar a Montar Minha Rotina 🚀
               </button>
             } @else if (!saving()) {
               <button type="button" class="btn btn-primary" (click)="save()" [disabled]="saving()">
-                Criar meu plano ✨
+                Calcular meu plano ✨
               </button>
             }
           </div>
@@ -607,7 +610,7 @@ export class OnboardingComponent {
 
   private saveExercises(): void {
     if (this.exercise.selected.length === 0) {
-      this.generateRoutineAndFinish();
+      this.finishSetup();
       return;
     }
 
@@ -622,25 +625,20 @@ export class OnboardingComponent {
         preferredTime:   this.exercise.preferredTime,
         daysOfWeek:      this.exercise.daysOfWeek,
       }).subscribe({
-        next: () => { if (--remaining === 0) this.generateRoutineAndFinish(); },
-        error: () => { if (--remaining === 0) this.generateRoutineAndFinish(); },
+        next: () => { if (--remaining === 0) this.finishSetup(); },
+        error: () => { if (--remaining === 0) this.finishSetup(); },
       });
     }
   }
 
-  private generateRoutineAndFinish(): void {
-    const today = new Date().toISOString().slice(0, 10);
-    this.routineSvc.generate(today).subscribe({
-      next: () => {
-        this.profileSvc.loadMetabolic().subscribe({
-          next: m => {
-            this.metabolic.set(m);
-            this.saved.set(true);
-            this.saving.set(false);
-            this.authSvc.markOnboarded();
-          },
-          error: () => { this.saved.set(true); this.saving.set(false); this.authSvc.markOnboarded(); },
-        });
+  /** Canvas pivot: no longer generates routine. Just loads calculated metabolic goals. */
+  private finishSetup(): void {
+    this.profileSvc.loadMetabolic().subscribe({
+      next: m => {
+        this.metabolic.set(m);
+        this.saved.set(true);
+        this.saving.set(false);
+        this.authSvc.markOnboarded();
       },
       error: () => { this.saved.set(true); this.saving.set(false); this.authSvc.markOnboarded(); },
     });
