@@ -356,7 +356,7 @@ const EMPTY_FORM = (): CreateRecipeDto & { ingredients: IngredientDto[] } => ({
           <div class="sl">Minhas</div>
         </div>
         <div class="stat-card">
-          <div class="sv">{{ mine().filter(r => r.forkedFromId).length }}</div>
+          <div class="sv">{{ importedCount() }}</div>
           <div class="sl">Importadas</div>
         </div>
       </div>
@@ -856,6 +856,8 @@ export class RecipeCommunityComponent implements OnInit {
     if (f === 'description') return 'Buscar na descricao...';
     return 'Buscar por nome, ingrediente ou descricao...';
   });
+
+  readonly importedCount = computed(() => this.mine().filter(r => r.forkedFromId).length);
 
   readonly filteredFeed = computed(() => this.feed());
 
