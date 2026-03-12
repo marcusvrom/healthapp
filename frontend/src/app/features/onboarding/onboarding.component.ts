@@ -115,6 +115,7 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
             background: var(--color-surface-2);
             color: var(--color-text-subtle);
             transition: all .3s;
+            flex-shrink: 0;
 
             &.active   { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }
             &.completed{ border-color: var(--color-primary); background: #dcfce7; color: var(--color-primary-dark); }
@@ -134,8 +135,13 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
       }
 
       @media (max-width: 600px) {
+        padding: .75rem 1rem;
+        .logo { font-size: .95rem; }
         .step-label { display: none; }
-        .line { width: 1rem; }
+        .steps .step-item {
+          .bubble { width: 26px; height: 26px; font-size: .68rem; }
+          .line { width: .6rem; margin: 0 .2rem; }
+        }
       }
     }
 
@@ -146,6 +152,11 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
       align-items: center;
       justify-content: center;
       padding: 2rem;
+
+      @media (max-width: 600px) {
+        padding: 1rem .75rem;
+        align-items: flex-start;
+      }
     }
 
     .step-card {
@@ -165,13 +176,26 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
 
       .fields { display: flex; flex-direction: column; gap: 1.25rem; }
       .row-2  { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+      @media (max-width: 600px) {
+        padding: 1.25rem 1rem;
+        border-radius: 16px;
+        .step-header {
+          margin-bottom: 1.25rem;
+          .emoji { font-size: 2rem; margin-bottom: .5rem; }
+          h2 { font-size: 1.15rem; }
+        }
+        .row-2 { grid-template-columns: 1fr; }
+      }
     }
 
     /* Wider card for final step */
     .step-card.wide { max-width: 860px; }
 
     /* Gender cards */
-    .gender-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; }
+    .gender-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem;
+      @media (max-width: 400px) { grid-template-columns: 1fr 1fr; }
+    }
     .option-card {
       padding: 1rem;
       border: 2px solid var(--color-border);
@@ -211,6 +235,13 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
         .check { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
       }
       &:hover { border-color: var(--color-primary); }
+
+      @media (max-width: 480px) {
+        padding: .75rem 1rem;
+        .icon { font-size: 1.35rem; }
+        .title { font-size: .82rem; }
+        .desc { font-size: .72rem; }
+      }
     }
 
     /* Exercise presets */
@@ -258,7 +289,14 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
       .title { font-weight: 600; font-size: .9rem; }
       .desc  { font-size: .78rem; color: var(--color-text-subtle); margin-top: .15rem; }
       .kcal  { font-size: .75rem; font-weight: 700; color: var(--color-primary-dark);
-        background: var(--color-primary-light); padding: .1rem .5rem; border-radius: 99px; white-space: nowrap; }
+        background: var(--color-primary-light); padding: .1rem .5rem; border-radius: 99px; white-space: nowrap; flex-shrink: 0; }
+
+      @media (max-width: 480px) {
+        padding: .75rem 1rem;
+        .icon { font-size: 1.35rem; }
+        .title { font-size: .82rem; }
+        .kcal { font-size: .68rem; padding: .1rem .35rem; }
+      }
       .check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--color-border);
         display: flex; align-items: center; justify-content: center; font-size: .7rem; }
 
@@ -290,14 +328,24 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
       .metric {
         background: var(--color-primary-light); border-radius: var(--radius); padding: .75rem;
         text-align: center;
-        .value { font-size: 1.25rem; font-weight: 800; color: var(--color-primary-dark); }
+        .value { font-size: 1.25rem; font-weight: 800; color: var(--color-primary-dark); word-break: break-word; }
         .label { font-size: .7rem; color: var(--color-text-muted); margin-top: .15rem; }
       }
       .metric.full { grid-column: span 2; }
+
+      @media (max-width: 480px) {
+        gap: .5rem;
+        .metric {
+          padding: .5rem;
+          .value { font-size: 1rem; }
+          .label { font-size: .65rem; }
+        }
+      }
     }
 
     .meal-checks {
       display: grid; grid-template-columns: 1fr 1fr; gap: .5rem;
+      @media (max-width: 480px) { grid-template-columns: 1fr; }
       .meal-check {
         display: flex; align-items: center; gap: .5rem;
         padding: .5rem .75rem;
@@ -319,7 +367,11 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
       }
     }
 
-    .routine-fields { display: flex; flex-direction: column; gap: .875rem; }
+    .routine-fields { display: flex; flex-direction: column; gap: .875rem;
+      @media (max-width: 600px) {
+        .row-2 { grid-template-columns: 1fr; }
+      }
+    }
 
     .water-section {
       border: 1.5px solid var(--color-border);
@@ -367,6 +419,11 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
       display: flex; justify-content: space-between; align-items: center;
       margin-top: 2rem; padding-top: 1.5rem;
       border-top: 1px solid var(--color-border);
+
+      @media (max-width: 480px) {
+        margin-top: 1.25rem; padding-top: 1rem;
+        .btn { font-size: .82rem; padding: .5rem 1rem; }
+      }
     }
     .step-counter { font-size: .82rem; color: var(--color-text-subtle); }
   `],
