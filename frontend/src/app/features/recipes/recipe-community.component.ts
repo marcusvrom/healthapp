@@ -280,7 +280,7 @@ const EMPTY_FORM = (): CreateRecipeDto & { ingredients: IngredientDto[] } => ({
 
                   @if (r.ingredients?.length) {
                     <p class="ingredients-preview">
-                      Ingredientes: {{ ingredientsSummary(r.ingredients) }}
+                      Ingredientes: {{ ingredientsSummary(r.ingredients!) }}
                     </p>
                   }
 
@@ -344,7 +344,7 @@ const EMPTY_FORM = (): CreateRecipeDto & { ingredients: IngredientDto[] } => ({
 
                   @if (r.ingredients?.length) {
                     <p class="ingredients-preview">
-                      Ingredientes: {{ ingredientsSummary(r.ingredients) }}
+                      Ingredientes: {{ ingredientsSummary(r.ingredients!) }}
                     </p>
                   }
 
@@ -433,7 +433,7 @@ const EMPTY_FORM = (): CreateRecipeDto & { ingredients: IngredientDto[] } => ({
                 <span></span>
               </div>
 
-              @for (ing of form.ingredients; track $index; let i = $index) {
+              @for (ing of form.ingredients; track $index) {
                 <div class="ing-row">
                   <input type="text" [(ngModel)]="ing.name" placeholder="Ex: Frango desfiado" />
                   <input type="number" [(ngModel)]="ing.quantity" min="0" step="0.5" />
@@ -442,7 +442,7 @@ const EMPTY_FORM = (): CreateRecipeDto & { ingredients: IngredientDto[] } => ({
                       <option [value]="u">{{ u }}</option>
                     }
                   </select>
-                  <button class="rm-btn" (click)="removeIngredient(i)" title="Remover">&#10005;</button>
+                  <button class="rm-btn" (click)="removeIngredient($index)" title="Remover">&#10005;</button>
                 </div>
               }
             } @else {
