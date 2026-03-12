@@ -16,7 +16,7 @@ interface TabDef { id: Tab; label: string; icon: string; }
 
 const TABS: TabDef[] = [
   { id: 'global',   label: 'Global',       icon: '🌎' },
-  { id: 'regional', label: 'Minha Cidade',  icon: '📍' },
+  // { id: 'regional', label: 'Minha Cidade',  icon: '📍' },
   { id: 'friends',  label: 'Meus Amigos',   icon: '👥' },
 ];
 

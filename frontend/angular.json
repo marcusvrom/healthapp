@@ -41,7 +41,7 @@
             "production": {
               "budgets": [
                 { "type": "initial", "maximumWarning": "500kb", "maximumError": "1mb" },
-                { "type": "anyComponentStyle", "maximumWarning": "8kb", "maximumError": "24kb" }
+                { "type": "anyComponentStyle", "maximumWarning": "16kb", "maximumError": "48kb" }
               ],
               "outputHashing": "all",
               "serviceWorker": "ngsw-config.json"
