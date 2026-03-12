@@ -8,17 +8,24 @@ import {
   OneToMany,
 } from "typeorm";
 import { RecipeReview } from "./RecipeReview";
+import { RecipeIngredient } from "./RecipeIngredient";
 
 /**
  * Recipe
  * ──────
- * Community recipe with full macro breakdown.
+ * Community recipe with full macro breakdown and ingredient list.
  * Can be public (visible to all users) or private (only visible to the author).
- * "Import Recipe" copies the macros into a ScheduledMeal for the requesting user.
+ *
+ * Versioning: each recipe has a monotonically increasing `version` number.
+ * When a user imports a community recipe, a private fork is created with
+ * `forkedFromId` pointing to the original and `forkedAtVersion` capturing
+ * the snapshot version. This ensures edits by the original author do not
+ * affect other users' imported copies.
  */
 @Entity("recipes")
 @Index("IDX_recipes_author", ["authorId"])
 @Index("IDX_recipes_public", ["isPublic", "isActive"])
+@Index("IDX_recipes_forked_from", ["forkedFromId"])
 export class Recipe {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
@@ -63,6 +70,20 @@ export class Recipe {
   @Column({ name: "prep_time_min", type: "integer", nullable: true })
   prepTimeMin?: number;
 
+  // ── Versioning ──────────────────────────────────────────────────────────
+
+  /** Monotonically increasing version; bumped on every update */
+  @Column({ type: "integer", default: 1 })
+  version!: number;
+
+  /** If this recipe is a fork (import) of a community recipe, points to the original */
+  @Column({ name: "forked_from_id", type: "text", nullable: true })
+  forkedFromId?: string;
+
+  /** Version of the original recipe at the time of forking */
+  @Column({ name: "forked_at_version", type: "integer", nullable: true })
+  forkedAtVersion?: number;
+
   // ── Visibility & lifecycle ────────────────────────────────────────────────
 
   /** When true, the recipe appears in the community feed */
@@ -81,4 +102,7 @@ export class Recipe {
   // ── Relations ─────────────────────────────────────────────────────────────
   @OneToMany(() => RecipeReview, (r) => r.recipe, { cascade: false })
   reviews?: RecipeReview[];
+
+  @OneToMany(() => RecipeIngredient, (i) => i.recipe, { cascade: true, eager: false })
+  ingredients?: RecipeIngredient[];
 }

@@ -403,6 +403,16 @@ export interface ScheduledMeal {
   daysOfWeek?: number[];
 }
 
+// ── Recipe Ingredients ────────────────────────────────────────────────────────
+export interface RecipeIngredient {
+  id: string;
+  recipeId: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  sortOrder: number;
+}
+
 // ── Recipes (Community) ───────────────────────────────────────────────────────
 export interface Recipe {
   id: string;
@@ -418,9 +428,16 @@ export interface Recipe {
   prepTimeMin?: number;
   isPublic: boolean;
   isActive: boolean;
+  /** Monotonically increasing version — bumped on every update */
+  version: number;
+  /** If this recipe is a fork of a community recipe, points to the original */
+  forkedFromId?: string;
+  /** Version of the original at fork time */
+  forkedAtVersion?: number;
   createdAt: string;
   updatedAt: string;
   reviews?: RecipeReview[];
+  ingredients?: RecipeIngredient[];
   /** Aggregated fields returned by the community feed endpoint */
   avgRating?: number;
   likeCount?: number;
@@ -442,6 +459,9 @@ export interface RecipeFeedItem extends Recipe {
   reviewCount: number;
   /** Whether the current user has already liked/reviewed */
   myReview?: RecipeReview;
+  /** Whether a newer version exists compared to user's fork */
+  hasUpdate?: boolean;
+  originalVersion?: number;
 }
 
 // ── Recipe Schedules (weekly repetitions) ─────────────────────────────────────

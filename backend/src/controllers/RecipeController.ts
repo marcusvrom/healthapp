@@ -9,7 +9,7 @@ export class RecipeController {
 
   /**
    * GET /recipes/mine
-   * Returns all recipes created by the authenticated user.
+   * Returns all recipes created by (or imported to) the authenticated user.
    */
   static async listMine(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -18,21 +18,22 @@ export class RecipeController {
   }
 
   /**
-   * GET /recipes/feed
+   * GET /recipes/feed?page=1&limit=20&search=frango
    * Public community feed — aggregates avgRating, likeCount, reviewCount.
-   * Query params: ?page=1&limit=20
+   * Supports search by title, description, or ingredient name.
    */
   static async feed(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const page  = Math.max(1, parseInt(String(req.query["page"]  ?? "1")));
-      const limit = Math.min(50, Math.max(1, parseInt(String(req.query["limit"] ?? "20"))));
-      res.json(await RecipeService.feed(req.userId, page, limit));
+      const page   = Math.max(1, parseInt(String(req.query["page"]  ?? "1")));
+      const limit  = Math.min(50, Math.max(1, parseInt(String(req.query["limit"] ?? "20"))));
+      const search = req.query["search"] ? String(req.query["search"]) : undefined;
+      res.json(await RecipeService.feed(req.userId, page, limit, search));
     } catch (err) { next(err); }
   }
 
   /**
    * GET /recipes/:id
-   * Returns a single recipe.  Private recipes only visible to the author.
+   * Returns a single recipe with ingredients.
    */
   static async findOne(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -42,7 +43,8 @@ export class RecipeController {
 
   /**
    * POST /recipes
-   * Create a new recipe.  Awards RECIPE_CREATED XP.
+   * Create a new recipe with optional ingredient list.
+   * Body: { ...recipeFields, ingredients?: IngredientDto[] }
    */
   static async create(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -55,6 +57,7 @@ export class RecipeController {
   /**
    * PATCH /recipes/:id
    * Update a recipe owned by the authenticated user.
+   * Automatically bumps the recipe version.
    */
   static async update(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -77,13 +80,14 @@ export class RecipeController {
 
   /**
    * POST /recipes/:id/import
-   * Copies a recipe's macros into the user's ScheduledMeal plan.
-   * Body: { scheduledDate?: string, scheduledTime: string }
+   * Imports a community recipe into the user's "My Recipes" as a private fork.
+   * Creates a versioned snapshot so future edits to the original don't affect
+   * the user's copy. Re-importing (syncing) updates the fork to the latest version.
    * Awards RECIPE_IMPORTED XP.
    */
   static async importRecipe(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const result = await RecipeService.importRecipe(req.params["id"]!, req.userId, req.body);
+      const result = await RecipeService.importRecipe(req.params["id"]!, req.userId);
       res.status(201).json(result);
     } catch (err) { next(err); }
   }
@@ -91,14 +95,11 @@ export class RecipeController {
   /**
    * POST /recipes/:id/review
    * Upsert a review (rating 0-5, optional comment).
-   * Body: { rating?: number, isLiked?: boolean, comment?: string }
-   * Awards RECIPE_REVIEWED XP on first review creation.
    */
   static async review(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const review = await RecipeService.upsertReview(req.params["id"]!, req.userId, req.body);
 
-      // Award XP only on creation (createdAt ≈ updatedAt within 5 seconds)
       const isNew = Math.abs(review.updatedAt.getTime() - review.createdAt.getTime()) < 5000;
       let xpGained = 0;
       if (isNew) {
@@ -114,7 +115,6 @@ export class RecipeController {
   /**
    * PATCH /recipes/:id/like
    * Toggle the like status for this recipe.
-   * Returns { isLiked: boolean, likeCount: number }.
    */
   static async toggleLike(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {

@@ -1,7 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { Recipe, RecipeFeedItem, RecipeReview } from '../models';
+import { Recipe, RecipeFeedItem, RecipeReview, RecipeIngredient } from '../models';
+
+export interface IngredientDto {
+  name: string;
+  quantity: number;
+  unit: string;
+  sortOrder?: number;
+}
 
 export interface CreateRecipeDto {
   title: string;
@@ -14,17 +21,13 @@ export interface CreateRecipeDto {
   servings?: number;
   prepTimeMin?: number;
   isPublic?: boolean;
+  ingredients?: IngredientDto[];
 }
 
 export interface ReviewDto {
   rating?: number;
   isLiked?: boolean;
   comment?: string;
-}
-
-export interface ImportRecipeDto {
-  scheduledDate?: string;
-  scheduledTime: string;
 }
 
 export interface ReviewResult {
@@ -38,18 +41,26 @@ export interface LikeResult {
   likeCount: number;
 }
 
+export interface ImportResult {
+  recipe: Recipe;
+  xpGained: number;
+  totalXp: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RecipeService {
   private api = inject(ApiService);
 
-  /** My own recipes */
+  /** My own recipes (including imported forks) */
   listMine(): Observable<Recipe[]> {
     return this.api.get<Recipe[]>('/recipes/mine');
   }
 
-  /** Public community feed */
-  feed(page = 1, limit = 20): Observable<RecipeFeedItem[]> {
-    return this.api.get<RecipeFeedItem[]>('/recipes/feed', { page: String(page), limit: String(limit) });
+  /** Public community feed with optional search (by title, description, or ingredient) */
+  feed(page = 1, limit = 20, search?: string): Observable<RecipeFeedItem[]> {
+    const params: Record<string, string> = { page: String(page), limit: String(limit) };
+    if (search?.trim()) params['search'] = search.trim();
+    return this.api.get<RecipeFeedItem[]>('/recipes/feed', params);
   }
 
   findOne(id: string): Observable<Recipe> {
@@ -68,9 +79,12 @@ export class RecipeService {
     return this.api.delete<void>(`/recipes/${id}`);
   }
 
-  /** Import recipe macros into ScheduledMeal */
-  importRecipe(id: string, dto: ImportRecipeDto): Observable<{ xpGained: number; totalXp: number }> {
-    return this.api.post<{ xpGained: number; totalXp: number }>(`/recipes/${id}/import`, dto);
+  /**
+   * Import a community recipe into "My Recipes" as a private fork.
+   * If already imported, re-syncs to the latest version of the original.
+   */
+  importRecipe(id: string): Observable<ImportResult> {
+    return this.api.post<ImportResult>(`/recipes/${id}/import`, {});
   }
 
   /** Upsert a review (rating + optional comment) */
