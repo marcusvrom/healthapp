@@ -383,40 +383,6 @@ const EMPTY_FORM = (): CreateRecipeDto & { ingredients: IngredientDto[] } => ({
             <label>Descricao (opcional)</label>
             <input type="text" [(ngModel)]="form.description" placeholder="Breve descricao..." />
           </div>
-          <div class="field">
-            <label>Modo de preparo *</label>
-            <textarea [(ngModel)]="form.instructions" placeholder="Descreva o modo de preparo..."></textarea>
-          </div>
-
-          <div class="field-row-4">
-            <div class="field">
-              <label>Calorias (kcal) *</label>
-              <input type="number" [(ngModel)]="form.kcal" min="0" />
-            </div>
-            <div class="field">
-              <label>Proteina (g)</label>
-              <input type="number" [(ngModel)]="form.proteinG" min="0" />
-            </div>
-            <div class="field">
-              <label>Carbs (g)</label>
-              <input type="number" [(ngModel)]="form.carbsG" min="0" />
-            </div>
-            <div class="field">
-              <label>Gordura (g)</label>
-              <input type="number" [(ngModel)]="form.fatG" min="0" />
-            </div>
-          </div>
-
-          <div class="field-row">
-            <div class="field">
-              <label>Porcoes</label>
-              <input type="number" [(ngModel)]="form.servings" min="1" />
-            </div>
-            <div class="field">
-              <label>Tempo de preparo (min)</label>
-              <input type="number" [(ngModel)]="form.prepTimeMin" min="1" />
-            </div>
-          </div>
 
           <!-- ── Ingredients ─────────────────────────────────── -->
           <div class="ingredients-section">
@@ -450,6 +416,41 @@ const EMPTY_FORM = (): CreateRecipeDto & { ingredients: IngredientDto[] } => ({
                 Nenhum ingrediente adicionado. Clique em "+ Adicionar ingrediente" acima.
               </p>
             }
+          </div>
+          
+          <div class="field">
+            <label>Modo de preparo *</label>
+            <textarea [(ngModel)]="form.instructions" placeholder="Descreva o modo de preparo..."></textarea>
+          </div>
+
+          <div class="field-row-4">
+            <div class="field">
+              <label>Calorias (kcal) *</label>
+              <input type="number" [(ngModel)]="form.kcal" min="0" />
+            </div>
+            <div class="field">
+              <label>Proteina (g)</label>
+              <input type="number" [(ngModel)]="form.proteinG" min="0" />
+            </div>
+            <div class="field">
+              <label>Carbs (g)</label>
+              <input type="number" [(ngModel)]="form.carbsG" min="0" />
+            </div>
+            <div class="field">
+              <label>Gordura (g)</label>
+              <input type="number" [(ngModel)]="form.fatG" min="0" />
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label>Porcoes</label>
+              <input type="number" [(ngModel)]="form.servings" min="1" />
+            </div>
+            <div class="field">
+              <label>Tempo de preparo (min)</label>
+              <input type="number" [(ngModel)]="form.prepTimeMin" min="1" />
+            </div>
           </div>
 
           <div class="toggle-wrap" style="margin-bottom:1rem">
