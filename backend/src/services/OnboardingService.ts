@@ -55,6 +55,8 @@ export interface CompleteOnboardingDto {
   sleepTime:          string;   // HH:MM
   preferredTrainTime: string;   // HH:MM
   meals:              string[]; // e.g. ["breakfast", "lunch", "dinner"]
+  waterReminders?:    boolean;  // whether to create recurring water blocks
+  waterIntervalMin?:  number;   // interval between reminders in minutes (default 45)
 }
 
 export class OnboardingService {
@@ -228,6 +230,46 @@ export class OnboardingService {
         sortOrder: sortOrder++,
         metadata: { mealKey },
       });
+    }
+
+    // ── 5. Water reminder blocks ────────────────────────────────────────
+    if (dto.waterReminders) {
+      const intervalMin = dto.waterIntervalMin ?? 45;
+      const waterTotal  = metabolic.waterMlTotal;
+
+      // First reminder: 15 min after wake-up; last: 60 min before sleep
+      const firstReminder = wakeMin + 15;
+      const lastReminder  = sleepMin > wakeMin
+        ? sleepMin - 60
+        : (sleepMin + 1440) - 60; // handle sleep past midnight
+
+      const reminders: number[] = [];
+      for (let t = firstReminder; t <= lastReminder; t += intervalMin) {
+        reminders.push(t);
+      }
+
+      // Distribute total water evenly across reminders
+      const mlPerReminder = reminders.length > 0
+        ? Math.round(waterTotal / reminders.length)
+        : 0;
+
+      let waterSortOrder = 100;
+      for (const reminderMin of reminders) {
+        const start = minutesToTime(reminderMin);
+        const end   = minutesToTime(reminderMin + 5); // 5-min block
+
+        blocks.push({
+          userId,
+          type: BlockType.WATER,
+          isRecurring: true,
+          daysOfWeek: allDays,
+          startTime: start,
+          endTime: end,
+          label: `Água (${mlPerReminder} ml)`,
+          waterMl: mlPerReminder,
+          sortOrder: waterSortOrder++,
+        });
+      }
     }
 
     // ── Save all in a transaction ─────────────────────────────────────────

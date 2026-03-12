@@ -16,7 +16,10 @@ export class OnboardingController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const { wakeUpTime, sleepTime, preferredTrainTime, meals } = req.body as CompleteOnboardingDto;
+      const {
+        wakeUpTime, sleepTime, preferredTrainTime, meals,
+        waterReminders, waterIntervalMin,
+      } = req.body as CompleteOnboardingDto;
 
       if (!wakeUpTime || !sleepTime || !preferredTrainTime || !Array.isArray(meals) || meals.length === 0) {
         res.status(400).json({
@@ -30,6 +33,8 @@ export class OnboardingController {
         sleepTime,
         preferredTrainTime,
         meals,
+        waterReminders: waterReminders === true,
+        waterIntervalMin: waterIntervalMin ? Number(waterIntervalMin) : undefined,
       });
 
       res.status(201).json({ message: "Rotina base criada com sucesso." });

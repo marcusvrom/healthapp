@@ -25,7 +25,17 @@ interface RoutineBaseStep {
   sleepTime: string;
   preferredTrainTime: string;
   meals: Record<string, boolean>;
+  waterReminders: boolean;
+  waterIntervalMin: number;
 }
+
+const WATER_INTERVAL_OPTIONS: Array<{ value: number; label: string }> = [
+  { value: 30,  label: 'A cada 30 min' },
+  { value: 45,  label: 'A cada 45 min' },
+  { value: 60,  label: 'A cada 1 hora' },
+  { value: 90,  label: 'A cada 1h30' },
+  { value: 120, label: 'A cada 2 horas' },
+];
 
 // ── Constants ───────────────────────────────────────────────────────────────
 const STEPS = ['Pessoal', 'Horários', 'Atividade', 'Exercícios', 'Objetivo', 'Resumo e Rotina'];
@@ -310,6 +320,47 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
     }
 
     .routine-fields { display: flex; flex-direction: column; gap: .875rem; }
+
+    .water-section {
+      border: 1.5px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: .75rem;
+      background: var(--color-bg);
+    }
+
+    .water-toggle {
+      display: flex; align-items: center; gap: .5rem;
+      cursor: pointer; font-size: .85rem; font-weight: 600;
+      padding: .25rem 0;
+
+      .cb { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--color-border);
+        display: flex; align-items: center; justify-content: center; font-size: .65rem;
+        flex-shrink: 0; transition: all .2s; }
+
+      &.active .cb { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    }
+
+    .water-detail {
+      margin-top: .5rem; padding: .35rem .5rem;
+      background: rgba(59,130,246,.08); border-radius: var(--radius);
+      .water-goal { font-size: .78rem; font-weight: 600; color: #2563eb; }
+    }
+
+    .interval-options {
+      display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .35rem;
+    }
+
+    .interval-chip {
+      padding: .35rem .75rem;
+      border: 1.5px solid var(--color-border);
+      border-radius: 99px;
+      font-size: .78rem; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+      background: var(--color-bg);
+
+      &.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+      &:hover { border-color: var(--color-primary); }
+    }
 
     /* Navigation */
     .nav-btns {
@@ -631,6 +682,34 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
                         }
                       </div>
                     </div>
+
+                    <!-- Water reminders -->
+                    <div class="water-section">
+                      <div class="water-toggle"
+                           [class.active]="routineBase.waterReminders"
+                           (click)="routineBase.waterReminders = !routineBase.waterReminders">
+                        <div class="cb">@if (routineBase.waterReminders) { ✓ }</div>
+                        <span class="water-label">💧 Deseja lembretes para tomar água?</span>
+                      </div>
+
+                      @if (routineBase.waterReminders && metabolic()) {
+                        <div class="water-detail">
+                          <span class="water-goal">Meta diária: {{ metabolic()!.waterMlTotal | number:'1.0-0' }} ml</span>
+                        </div>
+                        <div class="form-group">
+                          <label>Com qual frequência deseja ser lembrado?</label>
+                          <div class="interval-options">
+                            @for (opt of waterIntervalOptions; track opt.value) {
+                              <div class="interval-chip"
+                                   [class.active]="routineBase.waterIntervalMin === opt.value"
+                                   (click)="routineBase.waterIntervalMin = opt.value">
+                                {{ opt.label }}
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
                   </div>
                 </div>
               </div>
@@ -680,7 +759,8 @@ export class OnboardingComponent {
   readonly goalOptions         = GOAL_OPTIONS;
   readonly activityOptions     = ACTIVITY_OPTIONS;
   readonly mainActivityOptions = MAIN_ACTIVITY_OPTIONS;
-  readonly mealOptions         = MEAL_OPTIONS;
+  readonly mealOptions            = MEAL_OPTIONS;
+  readonly waterIntervalOptions  = WATER_INTERVAL_OPTIONS;
   readonly genderOptions       = [
     { value: 'male' as Gender,   emoji: '👨', label: 'Masculino' },
     { value: 'female' as Gender, emoji: '👩', label: 'Feminino'  },
@@ -708,6 +788,8 @@ export class OnboardingComponent {
       dinner: true,
       supper: false,
     },
+    waterReminders: true,
+    waterIntervalMin: 45,
   };
 
   constructor() { this.loadPresets(); }
@@ -893,6 +975,8 @@ export class OnboardingComponent {
       sleepTime:          this.routineBase.sleepTime,
       preferredTrainTime: this.routineBase.preferredTrainTime,
       meals:              selectedMeals,
+      waterReminders:     this.routineBase.waterReminders,
+      waterIntervalMin:   this.routineBase.waterReminders ? this.routineBase.waterIntervalMin : undefined,
     };
 
     this.apiSvc.post('/onboarding/complete', payload).subscribe({
