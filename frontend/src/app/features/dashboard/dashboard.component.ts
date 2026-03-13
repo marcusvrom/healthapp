@@ -33,6 +33,10 @@ function timeToMinutes(t: string): number {
   return (h ?? 0) * 60 + (m ?? 0);
 }
 function pad2(n: number): string { return String(n).padStart(2, '0'); }
+function addMinutes(time: string, mins: number): string {
+  const total = timeToMinutes(time) + mins;
+  return `${pad2(Math.floor(total / 60) % 24)}:${pad2(total % 60)}`;
+}
 
 // ── Block metadata ───────────────────────────────────────────────────────────
 const BLOCK_META: Record<BlockType, { icon: string; color: string; bg: string; label: string }> = {
@@ -697,6 +701,7 @@ interface LinkedRecipeView extends LinkedRecipe {
             <button class="btn btn-secondary btn-sm" (click)="applySchedules()" [disabled]="applyingSchedules()" title="Auto-vincular receitas repetidas deste dia da semana">{{ applyingSchedules() ? '⏳...' : '🔁 Repetições' }}</button>
             <button class="btn btn-secondary btn-sm" (click)="openCloneModal()">📋 Clonar Dieta</button>
           }
+          <button class="btn btn-secondary btn-sm" (click)="openWaterReminderModal()">💧 Lembretes de Agua</button>
           <button class="add-event-btn" (click)="openAddEventModal()">+ Adicionar Evento</button>
         </div>
       </div>
@@ -1369,6 +1374,42 @@ interface LinkedRecipeView extends LinkedRecipe {
     }
 
     <!-- ── Clone Dieta modal ───────────────────────────────────────────── -->
+    <!-- ── Water reminder modal ────────────────────────────────────────── -->
+    @if (waterReminderModal()) {
+      <div class="clone-overlay" (click)="closeWaterReminderModal()">
+        <div class="clone-modal" (click)="$event.stopPropagation()" style="max-width:420px">
+          <h3>💧 Gerar Lembretes de Agua</h3>
+          <p style="font-size:.82rem;color:var(--color-text-muted);margin-bottom:1rem;line-height:1.5">
+            Configure a frequencia e o horario para gerar lembretes automaticos de agua ao longo do dia.
+          </p>
+
+          <div class="clone-fields">
+            <label>Frequencia (minutos)
+              <input type="number" [(ngModel)]="waterFrequency" min="10" max="240" step="5" />
+            </label>
+            <label>Horario de inicio
+              <input type="time" [(ngModel)]="waterStartTime" />
+            </label>
+            <label>Horario de termino
+              <input type="time" [(ngModel)]="waterEndTime" />
+            </label>
+          </div>
+
+          <div style="font-size:.75rem;color:var(--color-text-muted);margin-bottom:1rem;background:var(--color-surface-2);padding:.75rem;border-radius:var(--radius-sm)">
+            <strong>Previa:</strong> {{ waterPreviewCount() }} lembretes de agua
+            a cada {{ waterFrequency }} minutos, das {{ waterStartTime }} as {{ waterEndTime }}.
+          </div>
+
+          <div class="clone-actions">
+            <button class="btn btn-secondary" style="flex:1" (click)="closeWaterReminderModal()">Cancelar</button>
+            <button class="btn" style="flex:1" (click)="generateWaterReminders()" [disabled]="generatingWater() || waterFrequency < 10">
+              {{ generatingWater() ? 'Gerando...' : 'Gerar Lembretes' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
     @if (cloneModal()) {
       <div class="clone-overlay" (click)="closeCloneModal()">
         <div class="clone-modal" (click)="$event.stopPropagation()">
@@ -1460,6 +1501,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ── Apply schedules ─────────────────────────────────────────────────────────
   applyingSchedules = signal(false);
 
+  // ── Water reminders ────────────────────────────────────────────────────────
+  waterReminderModal = signal(false);
+  waterFrequency     = 60;  // minutes
+  waterStartTime     = '07:00';
+  waterEndTime       = '22:00';
+  generatingWater    = signal(false);
+
+  waterPreviewCount(): number {
+    const startMin = timeToMinutes(this.waterStartTime);
+    const endMin   = timeToMinutes(this.waterEndTime);
+    if (startMin >= endMin || this.waterFrequency < 10) return 0;
+    let count = 0;
+    for (let m = startMin; m < endMin; m += this.waterFrequency) count++;
+    return count;
+  }
+
   // ── Canvas: Add Event modal ──────────────────────────────────────────────────
   addEventModal = signal(false);
   savingEvent   = signal(false);
@@ -1533,6 +1590,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const now = this.nowMinutes(); const isToday = this.selectedDate() === this.todayStr;
     const map = new Map<string, RoutineBlock[]>();
     for (const b of this.blocks()) { if (!map.has(b.startTime)) map.set(b.startTime, []); map.get(b.startTime)!.push(b); }
+
+    // Inject orphaned scheduledMeals (not linked to any block) as synthetic blocks
+    const linkedMealIds = new Set<string>();
+    for (const b of this.blocks()) {
+      const smId = b.metadata?.['scheduledMealId'] as string | undefined;
+      if (smId) linkedMealIds.add(smId);
+    }
+    for (const meal of this.scheduledMeals()) {
+      if (linkedMealIds.has(meal.id)) continue;
+      const synth: RoutineBlock = {
+        id: `synth-meal-${meal.id}`,
+        userId: meal.userId,
+        type: 'meal',
+        startTime: meal.scheduledTime,
+        endTime: addMinutes(meal.scheduledTime, 30),
+        label: meal.name,
+        caloricTarget: meal.caloricTarget,
+        sortOrder: 0,
+        metadata: { scheduledMealId: meal.id },
+      };
+      if (!map.has(synth.startTime)) map.set(synth.startTime, []);
+      map.get(synth.startTime)!.push(synth);
+    }
+
     return Array.from(map.entries())
       .sort((a, b) => timeToMinutes(a[0]) - timeToMinutes(b[0]))
       .map(([time, blks]) => {
@@ -1643,6 +1724,55 @@ export class DashboardComponent implements OnInit, OnDestroy {
       },
       error: () => this.applyingSchedules.set(false),
     });
+  }
+
+  // ── Water reminders ──────────────────────────────────────────────────────────
+  openWaterReminderModal(): void {
+    this.waterFrequency = 60;
+    this.waterStartTime = '07:00';
+    this.waterEndTime   = '22:00';
+    this.waterReminderModal.set(true);
+  }
+
+  closeWaterReminderModal(): void { this.waterReminderModal.set(false); }
+
+  generateWaterReminders(): void {
+    if (this.waterFrequency < 10 || !this.waterStartTime || !this.waterEndTime) return;
+    this.generatingWater.set(true);
+
+    const startMin = timeToMinutes(this.waterStartTime);
+    const endMin   = timeToMinutes(this.waterEndTime);
+    if (startMin >= endMin) { this.generatingWater.set(false); return; }
+
+    const slots: Array<{ start: string; end: string }> = [];
+    for (let m = startMin; m < endMin; m += this.waterFrequency) {
+      const blockEnd = Math.min(m + 10, endMin); // 10-min block duration
+      slots.push({
+        start: `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`,
+        end:   `${pad2(Math.floor(blockEnd / 60))}:${pad2(blockEnd % 60)}`,
+      });
+    }
+
+    let remaining = slots.length;
+    const done = () => {
+      remaining--;
+      if (remaining <= 0) {
+        this.generatingWater.set(false);
+        this.closeWaterReminderModal();
+        this.routineSvc.load(this.selectedDate()).subscribe({ error: () => {} });
+      }
+    };
+
+    for (const slot of slots) {
+      const dto: CreateBlockDto = {
+        type:       'water',
+        label:      `Lembrete de Agua`,
+        startTime:  slot.start,
+        endTime:    slot.end,
+        routineDate: this.selectedDate(),
+      };
+      this.routineSvc.createBlock(dto).subscribe({ next: done, error: done });
+    }
   }
 
   // ── Clone diet ───────────────────────────────────────────────────────────────
