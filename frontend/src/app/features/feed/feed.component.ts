@@ -17,6 +17,18 @@ const BLOCK_EMOJI: Record<string, string> = {
   medication:   '💊',
 };
 
+const BLOCK_LABELS: Record<string, string> = {
+  exercise:     'Exercicio',
+  sleep:        'Sono',
+  water:        'Agua',
+  meal:         'Refeicao',
+  sun_exposure: 'Sol',
+  work:         'Trabalho',
+  free:         'Livre',
+  custom:       'Custom',
+  medication:   'Medicacao',
+};
+
 @Component({
   selector: 'app-feed',
   standalone: true,
@@ -219,6 +231,7 @@ export class FeedComponent implements OnInit {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   blockEmoji(type: string): string { return BLOCK_EMOJI[type] ?? '⭐'; }
+  blockLabel(type: string): string { return BLOCK_LABELS[type] ?? type; }
 
   initials(name: string): string {
     return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();

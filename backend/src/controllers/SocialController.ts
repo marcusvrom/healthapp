@@ -7,6 +7,7 @@ import { BlockPost } from "../entities/BlockPost";
 import { BlockLike } from "../entities/BlockLike";
 import { BlockComment } from "../entities/BlockComment";
 import { User } from "../entities/User";
+import { Friendship, FriendshipStatus } from "../entities/Friendship";
 import { extractExifDateTimeOriginal } from "../utils/exifParser";
 
 const uploadsDir = path.join(process.cwd(), "uploads", "posts");
@@ -36,7 +37,8 @@ interface FeedItem {
 export class SocialController {
   /**
    * GET /social/feed?page=1&limit=20
-   * Returns public posts ordered newest first with like/comment counts.
+   * Returns posts from the user's accepted friends + own posts,
+   * ordered newest first with like/comment counts.
    */
   static async feed(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -44,12 +46,28 @@ export class SocialController {
       const limit = Math.min(50, Math.max(1, Number(req.query["limit"] ?? 20)));
       const skip  = (page - 1) * limit;
 
-      const posts = await postRepo().find({
-        where: { isPublic: true },
-        order: { createdAt: "DESC" },
-        take: limit,
-        skip,
+      // Resolve accepted friend IDs
+      const friendships = await AppDataSource.getRepository(Friendship).find({
+        where: [
+          { requesterId: req.userId, status: FriendshipStatus.ACCEPTED },
+          { addresseeId: req.userId, status: FriendshipStatus.ACCEPTED },
+        ],
       });
+      const friendIds = friendships.map(f =>
+        f.requesterId === req.userId ? f.addresseeId : f.requesterId
+      );
+
+      // Include own user + friends
+      const allowedUserIds = [req.userId, ...friendIds];
+
+      const posts = await postRepo()
+        .createQueryBuilder("p")
+        .where("p.is_public = true")
+        .andWhere("p.user_id IN (:...ids)", { ids: allowedUserIds })
+        .orderBy("p.created_at", "DESC")
+        .take(limit)
+        .skip(skip)
+        .getMany();
 
       if (!posts.length) { res.json([]); return; }
 

@@ -1,179 +1,250 @@
-<div class="page">
-  <div class="page-header">
-    <h2>🌐 Feed Social</h2>
-    <p>Conquistas compartilhadas pela comunidade</p>
-  </div>
+<div class="feed-page">
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header class="feed-header">
+    <div class="header-content">
+      <h1>Feed de Amigos</h1>
+      <p class="subtitle">Acompanhe as conquistas de quem treina com voce</p>
+    </div>
+  </header>
 
-  <div class="tabs">
-    <button class="tab-btn" [class.active]="tab() === 'community'" (click)="setTab('community')">
-      Comunidade
+  <!-- ── Tabs ────────────────────────────────────────────────────────── -->
+  <nav class="feed-tabs">
+    <button
+      class="tab"
+      [class.active]="tab() === 'community'"
+      (click)="setTab('community')">
+      <span class="tab-icon">👥</span>
+      <span>Amigos</span>
     </button>
-    <button class="tab-btn" [class.active]="tab() === 'mine'" (click)="setTab('mine')">
-      Meus Posts
+    <button
+      class="tab"
+      [class.active]="tab() === 'mine'"
+      (click)="setTab('mine')">
+      <span class="tab-icon">📸</span>
+      <span>Meus Posts</span>
     </button>
-  </div>
+  </nav>
 
-  <!-- ── Comunidade ────────────────────────────────────────────────────── -->
+  <!-- ── Community (Friends) Feed ────────────────────────────────────── -->
   @if (tab() === 'community') {
     @if (loading() && feed().length === 0) {
-      <div class="feed-empty"><span class="emoji">⏳</span><p>Carregando...</p></div>
+      <div class="feed-skeleton">
+        @for (i of [1,2,3]; track i) {
+          <div class="skeleton-card">
+            <div class="sk-header"><div class="sk-avatar"></div><div class="sk-lines"><div class="sk-line w60"></div><div class="sk-line w40"></div></div></div>
+            <div class="sk-photo"></div>
+            <div class="sk-actions"><div class="sk-line w30"></div></div>
+          </div>
+        }
+      </div>
     } @else if (feed().length === 0) {
-      <div class="feed-empty">
-        <span class="emoji">🏃</span>
-        <p>Nenhuma publicação ainda.<br>Conclua um bloco e compartilhe sua conquista!</p>
+      <div class="empty-state">
+        <div class="empty-illustration">👥</div>
+        <h3>Nenhuma publicacao ainda</h3>
+        <p>Adicione amigos e acompanhe suas conquistas aqui.<br>Complete um bloco e compartilhe sua jornada!</p>
       </div>
     } @else {
-      @for (post of feed(); track post.id) {
-        <div class="post-card">
-          <div class="post-header">
-            @if (post.avatarUrl) {
-              <img [src]="img(post.avatarUrl)" class="avatar" [alt]="post.userName">
-            } @else {
-              <div class="avatar">{{ initials(post.userName) }}</div>
-            }
-            <div class="meta">
-              <div class="name">{{ post.userName }}</div>
-              <div class="sub"><span>{{ post.createdAt | date:'dd/MM · HH:mm' }}</span></div>
-            </div>
-            @if (post.blockType) {
-              <span class="block-badge">{{ blockEmoji(post.blockType) }} {{ post.blockType }}</span>
-            }
-          </div>
-
-          @if (post.photoUrl) {
-            <div style="position:relative">
-              <img [src]="img(post.photoUrl)" class="post-photo" [alt]="post.caption ?? 'foto'">
-              @if (post.photoVerified) {
-                <span style="position:absolute;bottom:.5rem;right:.5rem;background:rgba(0,0,0,.55);
-                  color:#fff;font-size:.68rem;font-weight:700;padding:.2rem .5rem;
-                  border-radius:99px;">✅ Verificado</span>
-              }
-            </div>
-          }
-
-          @if (post.caption) {
-            <p class="post-caption">{{ post.caption }}</p>
-          }
-
-          <div class="post-actions">
-            <button class="action-btn" [class.liked]="post.userLiked" (click)="toggleLike(post)">
-              <span class="icon">{{ post.userLiked ? '❤️' : '🤍' }}</span>
-              {{ post.likeCount }}
-            </button>
-            <button class="action-btn" (click)="toggleComments(post.id)">
-              <span class="icon">💬</span>
-              {{ post.commentCount }}
-            </button>
-          </div>
-
-          @if (openComments().has(post.id)) {
-            <div class="comments-section">
-              @if (commentsLoading().has(post.id)) {
-                <p style="font-size:.8rem;color:var(--color-text-muted)">Carregando...</p>
-              }
-              @for (c of commentsFor(post.id); track c.id) {
-                <div class="comment-row">
-                  @if (c.avatarUrl) {
-                    <img [src]="img(c.avatarUrl)" class="c-avatar" [alt]="c.userName">
-                  } @else {
-                    <div class="c-avatar">{{ initials(c.userName) }}</div>
-                  }
-                  <div class="c-body">
-                    <span class="c-name">{{ c.userName }}</span>{{ c.body }}
-                  </div>
-                  @if (c.isOwn) {
-                    <button class="c-delete" (click)="deleteComment(post, c)">✕</button>
-                  }
+      <div class="posts-grid">
+        @for (post of feed(); track post.id) {
+          <article class="post-card">
+            <!-- Post Header -->
+            <div class="post-header">
+              <div class="author-info">
+                @if (post.avatarUrl) {
+                  <img [src]="img(post.avatarUrl)" class="author-avatar" [alt]="post.userName">
+                } @else {
+                  <div class="author-avatar fallback">{{ initials(post.userName) }}</div>
+                }
+                <div class="author-meta">
+                  <span class="author-name">{{ post.userName }}</span>
+                  <span class="post-time">{{ post.createdAt | date:'dd MMM · HH:mm' }}</span>
                 </div>
+              </div>
+              @if (post.blockType) {
+                <span class="activity-badge" [attr.data-type]="post.blockType">
+                  {{ blockEmoji(post.blockType) }}
+                  <span class="badge-label">{{ blockLabel(post.blockType) }}</span>
+                </span>
               }
-              <div class="comment-form">
-                <input
-                  type="text"
-                  placeholder="Escreva um comentário..."
-                  [(ngModel)]="commentDraft[post.id]"
-                  (keyup.enter)="submitComment(post)"
-                  maxlength="300" />
+            </div>
+
+            <!-- Post Photo -->
+            @if (post.photoUrl) {
+              <div class="post-image-wrapper">
+                <img [src]="img(post.photoUrl)" class="post-image" [alt]="post.caption ?? 'foto'" loading="lazy">
+                @if (post.photoVerified) {
+                  <span class="verified-badge">✅ Verificado</span>
+                }
+              </div>
+            }
+
+            <!-- Caption -->
+            @if (post.caption) {
+              <div class="post-body">
+                <p class="caption">{{ post.caption }}</p>
+              </div>
+            }
+
+            <!-- Actions -->
+            <div class="post-footer">
+              <div class="actions-row">
                 <button
-                  (click)="submitComment(post)"
-                  [disabled]="!commentDraft[post.id]?.trim() || sendingComment().has(post.id)">
-                  Enviar
+                  class="action-btn like-btn"
+                  [class.liked]="post.userLiked"
+                  (click)="toggleLike(post)">
+                  <span class="action-icon">{{ post.userLiked ? '❤️' : '🤍' }}</span>
+                  <span class="action-count">{{ post.likeCount }}</span>
+                </button>
+                <button
+                  class="action-btn comment-btn"
+                  [class.open]="openComments().has(post.id)"
+                  (click)="toggleComments(post.id)">
+                  <span class="action-icon">💬</span>
+                  <span class="action-count">{{ post.commentCount }}</span>
                 </button>
               </div>
             </div>
-          }
-        </div>
-      }
+
+            <!-- Comments Section -->
+            @if (openComments().has(post.id)) {
+              <div class="comments-panel">
+                @if (commentsLoading().has(post.id)) {
+                  <div class="comments-loading">Carregando comentarios...</div>
+                }
+                @for (c of commentsFor(post.id); track c.id) {
+                  <div class="comment">
+                    @if (c.avatarUrl) {
+                      <img [src]="img(c.avatarUrl)" class="comment-avatar" [alt]="c.userName">
+                    } @else {
+                      <div class="comment-avatar fallback">{{ initials(c.userName) }}</div>
+                    }
+                    <div class="comment-bubble">
+                      <span class="comment-author">{{ c.userName }}</span>
+                      <span class="comment-text">{{ c.body }}</span>
+                    </div>
+                    @if (c.isOwn) {
+                      <button class="comment-delete" (click)="deleteComment(post, c)" title="Excluir">✕</button>
+                    }
+                  </div>
+                }
+                <div class="comment-input-row">
+                  <input
+                    type="text"
+                    placeholder="Escreva um comentario..."
+                    [(ngModel)]="commentDraft[post.id]"
+                    (keyup.enter)="submitComment(post)"
+                    maxlength="300" />
+                  <button
+                    class="send-btn"
+                    (click)="submitComment(post)"
+                    [disabled]="!commentDraft[post.id]?.trim() || sendingComment().has(post.id)">
+                    Enviar
+                  </button>
+                </div>
+              </div>
+            }
+          </article>
+        }
+      </div>
+
       @if (!allLoaded()) {
-        <button class="load-more" (click)="loadMore()" [disabled]="loading()">
-          {{ loading() ? 'Carregando...' : 'Carregar mais' }}
+        <button class="load-more-btn" (click)="loadMore()" [disabled]="loading()">
+          @if (loading()) {
+            <span class="spinner"></span> Carregando...
+          } @else {
+            Ver mais publicacoes
+          }
         </button>
       }
     }
   }
 
-  <!-- ── Meus Posts ────────────────────────────────────────────────────── -->
+  <!-- ── My Posts Tab ────────────────────────────────────────────────── -->
   @if (tab() === 'mine') {
     @if (myLoading() && myPosts().length === 0) {
-      <div class="feed-empty"><span class="emoji">⏳</span><p>Carregando...</p></div>
+      <div class="feed-skeleton">
+        @for (i of [1,2]; track i) {
+          <div class="skeleton-card">
+            <div class="sk-header"><div class="sk-avatar"></div><div class="sk-lines"><div class="sk-line w60"></div><div class="sk-line w40"></div></div></div>
+            <div class="sk-photo"></div>
+          </div>
+        }
+      </div>
     } @else if (myPosts().length === 0) {
-      <div class="feed-empty">
-        <span class="emoji">📸</span>
-        <p>Você ainda não compartilhou nenhum post.<br>Complete um bloco e registre sua conquista!</p>
+      <div class="empty-state">
+        <div class="empty-illustration">📸</div>
+        <h3>Nenhuma publicacao sua</h3>
+        <p>Complete um bloco da sua rotina e registre<br>sua conquista com uma foto!</p>
       </div>
     } @else {
-      @for (post of myPosts(); track post.id) {
-        <div class="post-card">
-          <div class="post-header">
-            @if (post.avatarUrl) {
-              <img [src]="img(post.avatarUrl)" class="avatar" [alt]="post.userName">
-            } @else {
-              <div class="avatar">{{ initials(post.userName) }}</div>
-            }
-            <div class="meta">
-              <div class="name">{{ post.userName }}</div>
-              <div class="sub"><span>{{ post.createdAt | date:'dd/MM/yy · HH:mm' }}</span></div>
-            </div>
-            @if (post.blockType) {
-              <span class="block-badge">{{ blockEmoji(post.blockType) }} {{ post.blockType }}</span>
-            }
-            <button
-              class="delete-post-btn"
-              title="Excluir post"
-              [disabled]="deleting().has(post.id)"
-              (click)="deletePost(post)">
-              🗑️
-            </button>
-          </div>
-
-          @if (post.photoUrl) {
-            <div style="position:relative">
-              <img [src]="img(post.photoUrl)" class="post-photo" [alt]="post.caption ?? 'foto'">
-              @if (post.photoVerified) {
-                <span style="position:absolute;bottom:.5rem;right:.5rem;background:rgba(0,0,0,.55);
-                  color:#fff;font-size:.68rem;font-weight:700;padding:.2rem .5rem;
-                  border-radius:99px;">✅ Verificado</span>
+      <div class="posts-grid">
+        @for (post of myPosts(); track post.id) {
+          <article class="post-card own-post">
+            <div class="post-header">
+              <div class="author-info">
+                @if (post.avatarUrl) {
+                  <img [src]="img(post.avatarUrl)" class="author-avatar" [alt]="post.userName">
+                } @else {
+                  <div class="author-avatar fallback">{{ initials(post.userName) }}</div>
+                }
+                <div class="author-meta">
+                  <span class="author-name">{{ post.userName }}</span>
+                  <span class="post-time">{{ post.createdAt | date:'dd MMM yyyy · HH:mm' }}</span>
+                </div>
+              </div>
+              @if (post.blockType) {
+                <span class="activity-badge" [attr.data-type]="post.blockType">
+                  {{ blockEmoji(post.blockType) }}
+                  <span class="badge-label">{{ blockLabel(post.blockType) }}</span>
+                </span>
               }
+              <button
+                class="delete-btn"
+                title="Excluir post"
+                [disabled]="deleting().has(post.id)"
+                (click)="deletePost(post)">
+                🗑️
+              </button>
             </div>
-          }
 
-          @if (post.caption) {
-            <p class="post-caption">{{ post.caption }}</p>
-          }
+            @if (post.photoUrl) {
+              <div class="post-image-wrapper">
+                <img [src]="img(post.photoUrl)" class="post-image" [alt]="post.caption ?? 'foto'" loading="lazy">
+                @if (post.photoVerified) {
+                  <span class="verified-badge">✅ Verificado</span>
+                }
+              </div>
+            }
 
-          <div class="post-actions">
-            <span class="action-btn" style="cursor:default">
-              <span class="icon">❤️</span> {{ post.likeCount }}
-            </span>
-            <span class="action-btn" style="cursor:default">
-              <span class="icon">💬</span> {{ post.commentCount }}
-            </span>
-          </div>
-        </div>
-      }
+            @if (post.caption) {
+              <div class="post-body">
+                <p class="caption">{{ post.caption }}</p>
+              </div>
+            }
+
+            <div class="post-footer">
+              <div class="actions-row">
+                <span class="action-btn static">
+                  <span class="action-icon">❤️</span>
+                  <span class="action-count">{{ post.likeCount }}</span>
+                </span>
+                <span class="action-btn static">
+                  <span class="action-icon">💬</span>
+                  <span class="action-count">{{ post.commentCount }}</span>
+                </span>
+              </div>
+            </div>
+          </article>
+        }
+      </div>
 
       @if (!myAllLoaded()) {
-        <button class="load-more" (click)="loadMoreMine()" [disabled]="myLoading()">
-          {{ myLoading() ? 'Carregando...' : 'Carregar mais' }}
+        <button class="load-more-btn" (click)="loadMoreMine()" [disabled]="myLoading()">
+          @if (myLoading()) {
+            <span class="spinner"></span> Carregando...
+          } @else {
+            Ver mais publicacoes
+          }
         </button>
       }
     }
