@@ -137,45 +137,76 @@ interface LinkedRecipeView extends LinkedRecipe {
       }
     }
     /* ── Event creation / edit modal ───────────────────────────────────────────── */
-    .event-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 1rem;
+    .event-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); backdrop-filter: blur(4px); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 1rem;
+      animation: fadeIn .2s ease-out;
       @media (max-width: 480px) { align-items: flex-end; padding: 0; }
     }
-    .event-modal { background: var(--color-surface); border-radius: var(--radius-md); padding: 1.5rem; width: 100%; max-width: 440px; box-shadow: var(--shadow-lg);
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+    .event-modal { background: var(--color-surface); border-radius: var(--radius-lg, 16px); padding: 0; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.06); overflow: hidden; animation: slideUp .25s ease-out;
       @media (max-width: 480px) {
-        border-radius: var(--radius-md) var(--radius-md) 0 0; max-width: 100%;
-        padding: 1.25rem 1rem calc(env(safe-area-inset-bottom, 0px) + 1rem);
+        border-radius: 20px 20px 0 0; max-width: 100%;
         max-height: 92vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
       }
-      h3 { font-size: 1rem; font-weight: 700; margin-bottom: 1.25rem; }
-      .em-section-label { font-size: .72rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .5rem; }
+      .em-header { padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-border);
+        h3 { font-size: 1.05rem; font-weight: 800; margin: 0; display: flex; align-items: center; gap: .5rem; }
+        .em-close { width: 32px; height: 32px; border: none; background: var(--color-surface-2); border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .85rem; color: var(--color-text-muted); transition: .15s;
+          &:hover { background: var(--color-border); color: var(--color-text); }
+          &:active { transform: scale(.9); }
+        }
+      }
+      .em-body { padding: 1.25rem 1.5rem;
+        @media (max-width: 480px) { padding: 1rem; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem); }
+      }
+      .em-section-label { font-size: .7rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .5rem; }
       .em-type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-bottom: 1.25rem;
-        .em-type-btn { display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .625rem .375rem; border-radius: var(--radius-sm); border: 1.5px solid var(--color-border); background: var(--color-surface-2); cursor: pointer; transition: .15s; min-height: 52px; -webkit-tap-highlight-color: transparent;
-          .et-icon { font-size: 1.25rem; }
-          .et-label { font-size: .68rem; font-weight: 700; color: var(--color-text-muted); }
-          &.selected { border-color: var(--color-primary); background: var(--color-primary-light); .et-label { color: var(--color-primary-dark); } }
-          &:hover:not(.selected) { border-color: var(--color-border); background: var(--color-surface); }
+        .em-type-btn { display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: .75rem .375rem; border-radius: 12px; border: 2px solid var(--color-border); background: var(--color-surface); cursor: pointer; transition: all .2s ease; min-height: 60px; -webkit-tap-highlight-color: transparent; position: relative;
+          .et-icon { font-size: 1.35rem; transition: transform .2s; }
+          .et-label { font-size: .68rem; font-weight: 700; color: var(--color-text-muted); transition: color .2s; }
+          &.selected { border-color: var(--color-primary); background: var(--color-primary-light); box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb, 99,102,241), .15);
+            .et-label { color: var(--color-primary-dark); }
+            .et-icon { transform: scale(1.15); }
+          }
+          &:hover:not(.selected) { border-color: var(--color-text-subtle); background: var(--color-surface-2); transform: translateY(-1px); }
           &:active { transform: scale(.95); }
         }
         @media (max-width: 360px) { grid-template-columns: repeat(2, 1fr); }
       }
       .em-fields { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1.25rem;
-        label { font-size: .78rem; font-weight: 600; color: var(--color-text-muted); display: flex; flex-direction: column; gap: .25rem;
-          input { font-size: 1rem; padding: .5rem .625rem; border-radius: var(--radius-sm); border: 1.5px solid var(--color-border); background: var(--color-surface-2); min-height: 44px; }
+        label { font-size: .78rem; font-weight: 600; color: var(--color-text-muted); display: flex; flex-direction: column; gap: .3rem;
+          input { font-size: .95rem; padding: .6rem .75rem; border-radius: 10px; border: 1.5px solid var(--color-border); background: var(--color-surface-2); min-height: 44px; transition: border-color .2s, box-shadow .2s; outline: none;
+            &:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb, 99,102,241), .12); }
+          }
         }
         .em-time-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
       }
       .em-recurrence { margin-bottom: 1.25rem;
         .em-days-row { display: flex; gap: .375rem; margin-top: .5rem; flex-wrap: wrap;
-          button { width: 40px; height: 40px; border-radius: 50%; font-size: .75rem; font-weight: 700; border: 1.5px solid var(--color-border); background: var(--color-surface-2); cursor: pointer; transition: .15s; -webkit-tap-highlight-color: transparent;
-            &.selected { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
-            &:hover:not(.selected) { background: var(--color-border); }
+          button { width: 40px; height: 40px; border-radius: 50%; font-size: .75rem; font-weight: 700; border: 2px solid var(--color-border); background: var(--color-surface); cursor: pointer; transition: all .2s; -webkit-tap-highlight-color: transparent;
+            &.selected { background: var(--color-primary); border-color: var(--color-primary); color: #fff; box-shadow: 0 2px 8px rgba(var(--color-primary-rgb, 99,102,241), .3); }
+            &:hover:not(.selected) { background: var(--color-surface-2); border-color: var(--color-text-subtle); }
             &:active { transform: scale(.9); }
           }
         }
-        .em-recurrence-hint { font-size: .72rem; color: var(--color-text-muted); margin-top: .375rem; }
+        .em-recurrence-hint { font-size: .72rem; color: var(--color-text-muted); margin-top: .5rem; line-height: 1.4; }
       }
-      .em-actions { display: flex; gap: .625rem;
-        button { flex: 1; min-height: 44px; font-size: .875rem; }
+      .em-actions { display: flex; gap: .625rem; padding-top: .25rem;
+        button { flex: 1; min-height: 46px; font-size: .875rem; font-weight: 600; border-radius: 10px; }
+      }
+      .em-divider { height: 1px; background: var(--color-border); margin: 1rem 0; }
+      /* ── Copilot suggestion bubble ───────────────────────── */
+      .em-copilot { background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%); border: 1px solid rgba(99,102,241,.15); border-radius: 12px; padding: .875rem 1rem; margin-bottom: 1.25rem; animation: slideUp .3s ease-out;
+        .emc-header { display: flex; align-items: center; gap: .4rem; margin-bottom: .4rem;
+          .emc-avatar { font-size: 1.1rem; }
+          .emc-title { font-size: .75rem; font-weight: 700; color: #4338ca; }
+        }
+        .emc-message { font-size: .78rem; color: #374151; line-height: 1.5; }
+        .emc-suggestion { display: flex; align-items: center; gap: .375rem; margin-top: .5rem; padding: .4rem .625rem; background: rgba(99,102,241,.08); border-radius: 8px; cursor: pointer; transition: .15s;
+          &:hover { background: rgba(99,102,241,.15); }
+          .emc-s-icon { font-size: .8rem; }
+          .emc-s-text { font-size: .72rem; font-weight: 600; color: #4338ca; }
+        }
+        .emc-suggestions { display: flex; flex-direction: column; gap: .35rem; margin-top: .5rem; }
       }
     }
     /* ── Copilot feedback panel ───────────────────────────────────────────────── */
@@ -710,54 +741,83 @@ interface LinkedRecipeView extends LinkedRecipe {
       @if (addEventModal()) {
         <div class="event-overlay" (click)="closeAddEventModal()">
           <div class="event-modal" (click)="$event.stopPropagation()">
-            <h3>Novo Evento</h3>
+            <div class="em-header">
+              <h3><span>+</span> Novo Evento</h3>
+              <button class="em-close" (click)="closeAddEventModal()" type="button" title="Fechar">X</button>
+            </div>
 
-            <div class="em-section-label">Tipo de evento</div>
-            <div class="em-type-grid">
-              @for (t of eventTypeOptions; track t.type) {
-                <button class="em-type-btn" [class.selected]="newEvent.type === t.type" (click)="newEvent.type = t.type" type="button">
-                  <span class="et-icon">{{ t.icon }}</span>
-                  <span class="et-label">{{ t.label }}</span>
+            <div class="em-body">
+              <!-- Copilot suggestion -->
+              <div class="em-copilot">
+                <div class="emc-header">
+                  <span class="emc-avatar">🤖</span>
+                  <span class="emc-title">Copiloto</span>
+                </div>
+                <div class="emc-message">{{ copilotEventTip() }}</div>
+                @if (copilotEventSuggestions().length > 0) {
+                  <div class="emc-suggestions">
+                    @for (s of copilotEventSuggestions(); track s.label) {
+                      <div class="emc-suggestion" (click)="applyCopilotSuggestion(s)">
+                        <span class="emc-s-icon">{{ s.icon }}</span>
+                        <span class="emc-s-text">{{ s.label }}</span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+
+              <div class="em-section-label">Que tipo de evento voce quer criar?</div>
+              <div class="em-type-grid">
+                @for (t of eventTypeOptions; track t.type) {
+                  <button class="em-type-btn" [class.selected]="newEvent.type === t.type" (click)="newEvent.type = t.type" type="button">
+                    <span class="et-icon">{{ t.icon }}</span>
+                    <span class="et-label">{{ t.label }}</span>
+                  </button>
+                }
+              </div>
+
+              <div class="em-divider"></div>
+
+              <div class="em-section-label">Detalhes</div>
+              <div class="em-fields">
+                <label>
+                  Titulo / Descricao
+                  <input type="text" [(ngModel)]="newEvent.label" [placeholder]="copilotLabelPlaceholder()" />
+                </label>
+                <div class="em-time-row">
+                  <label>Inicio <input type="time" [(ngModel)]="newEvent.startTime" /></label>
+                  <label>Fim    <input type="time" [(ngModel)]="newEvent.endTime" /></label>
+                </div>
+                <label>
+                  Data alvo
+                  <input type="date" [(ngModel)]="newEvent.targetDate" />
+                </label>
+              </div>
+
+              <div class="em-divider"></div>
+
+              <div class="em-recurrence">
+                <div class="em-section-label">Repetir toda semana?</div>
+                <div class="em-days-row">
+                  @for (d of allDays; track d) {
+                    <button type="button" [class.selected]="newEvent.daysOfWeek.includes(d)" (click)="toggleNewEventDay(d)">{{ dayShort(d) }}</button>
+                  }
+                </div>
+                <div class="em-recurrence-hint">
+                  @if (newEvent.daysOfWeek.length === 0) {
+                    Evento unico — salvo apenas para {{ selectedDate() }}.
+                  } @else {
+                    Evento recorrente toda semana nos dias selecionados.
+                  }
+                </div>
+              </div>
+
+              <div class="em-actions">
+                <button class="btn btn-secondary" (click)="closeAddEventModal()" type="button">Cancelar</button>
+                <button class="btn btn-primary" (click)="saveNewEvent()" type="button" [disabled]="savingEvent()">
+                  {{ savingEvent() ? 'Salvando...' : 'Criar Evento' }}
                 </button>
-              }
-            </div>
-
-            <div class="em-fields">
-              <label>
-                Título / Descrição
-                <input type="text" [(ngModel)]="newEvent.label" placeholder="Ex: Treino de força, Almoço..." />
-              </label>
-              <div class="em-time-row">
-                <label>Início <input type="time" [(ngModel)]="newEvent.startTime" /></label>
-                <label>Fim    <input type="time" [(ngModel)]="newEvent.endTime" /></label>
               </div>
-              <label>
-                Data alvo
-                <input type="date" [(ngModel)]="newEvent.targetDate" />
-              </label>
-            </div>
-
-            <div class="em-recurrence">
-              <div class="em-section-label">Recorrência semanal</div>
-              <div class="em-days-row">
-                @for (d of allDays; track d) {
-                  <button type="button" [class.selected]="newEvent.daysOfWeek.includes(d)" (click)="toggleNewEventDay(d)">{{ dayShort(d) }}</button>
-                }
-              </div>
-              <div class="em-recurrence-hint">
-                @if (newEvent.daysOfWeek.length === 0) {
-                  Sem dias marcados — salvo apenas para {{ selectedDate() }}.
-                } @else {
-                  Salvo como recorrente toda semana nos dias marcados.
-                }
-              </div>
-            </div>
-
-            <div class="em-actions">
-              <button class="btn btn-secondary" (click)="closeAddEventModal()" type="button">Cancelar</button>
-              <button class="btn btn-primary" (click)="saveNewEvent()" type="button" [disabled]="savingEvent()">
-                {{ savingEvent() ? 'Salvando...' : 'Salvar Evento' }}
-              </button>
             </div>
           </div>
         </div>
@@ -767,54 +827,62 @@ interface LinkedRecipeView extends LinkedRecipe {
       @if (editEventModal()) {
         <div class="event-overlay" (click)="closeEditModal()">
           <div class="event-modal" (click)="$event.stopPropagation()">
-            <h3>Editar Evento</h3>
+            <div class="em-header">
+              <h3><span>&#9998;</span> Editar Evento</h3>
+              <button class="em-close" (click)="closeEditModal()" type="button" title="Fechar">X</button>
+            </div>
 
-            <div class="em-section-label">Tipo de evento</div>
-            <div class="em-type-grid">
-              @for (t of eventTypeOptions; track t.type) {
-                <button class="em-type-btn" [class.selected]="editEvent.type === t.type" (click)="editEvent.type = t.type" type="button">
-                  <span class="et-icon">{{ t.icon }}</span>
-                  <span class="et-label">{{ t.label }}</span>
+            <div class="em-body">
+              <div class="em-section-label">Tipo de evento</div>
+              <div class="em-type-grid">
+                @for (t of eventTypeOptions; track t.type) {
+                  <button class="em-type-btn" [class.selected]="editEvent.type === t.type" (click)="editEvent.type = t.type" type="button">
+                    <span class="et-icon">{{ t.icon }}</span>
+                    <span class="et-label">{{ t.label }}</span>
+                  </button>
+                }
+              </div>
+
+              <div class="em-divider"></div>
+              <div class="em-section-label">Detalhes</div>
+              <div class="em-fields">
+                <label>
+                  Titulo / Descricao
+                  <input type="text" [(ngModel)]="editEvent.label" placeholder="Ex: Treino de forca, Almoco..." />
+                </label>
+                <div class="em-time-row">
+                  <label>Inicio <input type="time" [(ngModel)]="editEvent.startTime" /></label>
+                  <label>Fim    <input type="time" [(ngModel)]="editEvent.endTime" /></label>
+                </div>
+                <label>
+                  Data alvo
+                  <input type="date" [(ngModel)]="editEvent.targetDate" />
+                </label>
+              </div>
+
+              <div class="em-divider"></div>
+              <div class="em-recurrence">
+                <div class="em-section-label">Repetir toda semana?</div>
+                <div class="em-days-row">
+                  @for (d of allDays; track d) {
+                    <button type="button" [class.selected]="editEvent.daysOfWeek.includes(d)" (click)="toggleEditEventDay(d)">{{ dayShort(d) }}</button>
+                  }
+                </div>
+                <div class="em-recurrence-hint">
+                  @if (editEvent.daysOfWeek.length === 0) {
+                    Evento unico — salvo apenas para {{ editEvent.targetDate || selectedDate() }}.
+                  } @else {
+                    Evento recorrente toda semana nos dias selecionados.
+                  }
+                </div>
+              </div>
+
+              <div class="em-actions">
+                <button class="btn btn-secondary" (click)="closeEditModal()" type="button">Cancelar</button>
+                <button class="btn btn-primary" (click)="saveEditEvent()" type="button" [disabled]="savingEdit()">
+                  {{ savingEdit() ? 'Salvando...' : 'Salvar' }}
                 </button>
-              }
-            </div>
-
-            <div class="em-fields">
-              <label>
-                Título / Descrição
-                <input type="text" [(ngModel)]="editEvent.label" placeholder="Ex: Treino de força, Almoço..." />
-              </label>
-              <div class="em-time-row">
-                <label>Início <input type="time" [(ngModel)]="editEvent.startTime" /></label>
-                <label>Fim    <input type="time" [(ngModel)]="editEvent.endTime" /></label>
               </div>
-              <label>
-                Data alvo
-                <input type="date" [(ngModel)]="editEvent.targetDate" />
-              </label>
-            </div>
-
-            <div class="em-recurrence">
-              <div class="em-section-label">Recorrência semanal</div>
-              <div class="em-days-row">
-                @for (d of allDays; track d) {
-                  <button type="button" [class.selected]="editEvent.daysOfWeek.includes(d)" (click)="toggleEditEventDay(d)">{{ dayShort(d) }}</button>
-                }
-              </div>
-              <div class="em-recurrence-hint">
-                @if (editEvent.daysOfWeek.length === 0) {
-                  Sem dias marcados — salvo apenas para {{ editEvent.targetDate || selectedDate() }}.
-                } @else {
-                  Salvo como recorrente toda semana nos dias marcados.
-                }
-              </div>
-            </div>
-
-            <div class="em-actions">
-              <button class="btn btn-secondary" (click)="closeEditModal()" type="button">Cancelar</button>
-              <button class="btn btn-primary" (click)="saveEditEvent()" type="button" [disabled]="savingEdit()">
-                {{ savingEdit() ? 'Salvando...' : 'Salvar Alterações' }}
-              </button>
             </div>
           </div>
         </div>
@@ -1515,6 +1583,91 @@ export class DashboardComponent implements OnInit, OnDestroy {
     let count = 0;
     for (let m = startMin; m < endMin; m += this.waterFrequency) count++;
     return count;
+  }
+
+  // ── Copilot event suggestions ────────────────────────────────────────────────
+  private readonly COPILOT_TIPS: Record<BlockType, string> = {
+    meal:         'Registrar suas refeicoes ajuda o copiloto a monitorar seu consumo calorico. Dica: crie blocos para cafe, almoco, lanche e jantar!',
+    work:         'Blocos de trabalho ajudam a manter o equillbrio entre produtividade e descanso. Tente nao exceder 4 horas sem uma pausa.',
+    study:        'Estudo focado rende mais em blocos de 45-60 minutos. Considere adicionar pausas curtas entre eles.',
+    exercise:     'Exercicio regular e fundamental! O ideal e distribuir sessoes ao longo da semana. Voce ganha +25 XP por treino concluido.',
+    water:        'Hidratacao e essencial! Use o botao "Lembretes de Agua" para gerar lembretes automaticos ao longo do dia.',
+    sleep:        'Registre seu horario de sono para que o copiloto analise sua qualidade de descanso. Adultos precisam de 7-9 horas.',
+    sun_exposure: 'Exposicao solar moderada ajuda na producao de vitamina D. 15-20 minutos pela manha e o ideal.',
+    free:         'Tempo livre e importante para a saude mental. Nao subestime momentos de descanso na sua rotina.',
+    custom:       'Crie eventos personalizados para acompanhar qualquer atividade que faca parte da sua rotina.',
+    medication:   'Protocolos e medicamentos sao gerenciados na area de protocolos clinicos.',
+  };
+
+  copilotEventTip(): string {
+    const type = this.newEvent.type;
+    const blocks = this.blocks();
+    const meals = blocks.filter(b => b.type === 'meal');
+    const water = blocks.filter(b => b.type === 'water');
+    const exercise = blocks.filter(b => b.type === 'exercise');
+
+    // Context-aware tips
+    if (type === 'meal' && meals.length === 0) {
+      return 'Voce ainda nao tem nenhuma refeicao agendada hoje! Comece criando as refeicoes principais: cafe da manha, almoco e jantar.';
+    }
+    if (type === 'water' && water.length >= 5) {
+      return 'Voce ja tem ' + water.length + ' lembretes de agua hoje. Se precisar de mais, ajuste a frequencia no gerador automatico.';
+    }
+    if (type === 'exercise' && exercise.length >= 2) {
+      return 'Ja tem ' + exercise.length + ' blocos de exercicio hoje. Cuidado para nao exagerar — descanso tambem faz parte do treino!';
+    }
+    if (blocks.length === 0) {
+      return 'Sua agenda esta vazia! Comece montando sua rotina com os principais eventos do dia. Eu vou te orientar conforme voce adiciona.';
+    }
+
+    return this.COPILOT_TIPS[type] ?? 'Adicione este evento para organizar melhor sua rotina diaria.';
+  }
+
+  copilotEventSuggestions(): Array<{ icon: string; label: string; type: BlockType; name: string; start: string; end: string }> {
+    const blocks = this.blocks();
+    const suggestions: Array<{ icon: string; label: string; type: BlockType; name: string; start: string; end: string }> = [];
+
+    const hasMeal = (name: string) => blocks.some(b => b.type === 'meal' && b.label.toLowerCase().includes(name));
+    const hasExercise = blocks.some(b => b.type === 'exercise');
+    const hasWater = blocks.some(b => b.type === 'water');
+
+    if (!hasMeal('cafe') && !hasMeal('breakfast')) {
+      suggestions.push({ icon: '☕', label: 'Adicionar Cafe da manha (07:00)', type: 'meal', name: 'Cafe da Manha', start: '07:00', end: '07:30' });
+    }
+    if (!hasMeal('almoc') && !hasMeal('lunch')) {
+      suggestions.push({ icon: '🍛', label: 'Adicionar Almoco (12:00)', type: 'meal', name: 'Almoco', start: '12:00', end: '13:00' });
+    }
+    if (!hasMeal('jantar') && !hasMeal('dinner') && !hasMeal('janta')) {
+      suggestions.push({ icon: '🌙', label: 'Adicionar Jantar (19:00)', type: 'meal', name: 'Jantar', start: '19:00', end: '20:00' });
+    }
+    if (!hasExercise) {
+      suggestions.push({ icon: '💪', label: 'Adicionar Treino (06:00)', type: 'exercise', name: 'Treino', start: '06:00', end: '07:00' });
+    }
+    if (!hasWater) {
+      suggestions.push({ icon: '💧', label: 'Adicionar Lembrete de Agua', type: 'water', name: 'Lembrete de Agua', start: '08:00', end: '08:10' });
+    }
+
+    return suggestions.slice(0, 3);
+  }
+
+  copilotLabelPlaceholder(): string {
+    const placeholders: Record<BlockType, string> = {
+      meal: 'Ex: Cafe da Manha, Almoco, Lanche...',
+      work: 'Ex: Reuniao de equipe, Foco profundo...',
+      study: 'Ex: Leitura, Curso online...',
+      exercise: 'Ex: Treino de forca, Corrida, Yoga...',
+      water: 'Ex: Lembrete de Agua',
+      sleep: 'Ex: Sono noturno, Cochilo...',
+      sun_exposure: 'Ex: Banho de sol matinal',
+      free: 'Ex: Tempo livre, Descanso...',
+      custom: 'Ex: Meditacao, Hobbie...',
+      medication: 'Ex: Suplemento, Remedio...',
+    };
+    return placeholders[this.newEvent.type] ?? 'Descreva o evento...';
+  }
+
+  applyCopilotSuggestion(s: { type: BlockType; name: string; start: string; end: string }): void {
+    this.newEvent = { ...this.newEvent, type: s.type, label: s.name, startTime: s.start, endTime: s.end };
   }
 
   // ── Canvas: Add Event modal ──────────────────────────────────────────────────
