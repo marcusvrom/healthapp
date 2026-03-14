@@ -20,11 +20,12 @@ import { RecipeScheduleService }     from '../../core/services/recipe-schedule.s
 import { NotificationService }       from '../../core/services/notification.service';
 import { CheckInService }            from '../../core/services/check-in.service';
 import { CopilotService }            from '../../core/services/copilot.service';
+import { WorkoutService }            from '../../core/services/workout.service';
 
 import {
   RoutineBlock, BlockType, DailySummary, ClinicalProtocolWithLog,
   ScheduledMeal, LinkedRecipe, Recipe, RecipeFeedItem, RecipeSchedule,
-  BlockCompleteResult, FeedbackResponse, CreateBlockDto,
+  BlockCompleteResult, FeedbackResponse, CreateBlockDto, WorkoutSheet,
 } from '../../core/models';
 import { WaterTrackerComponent } from '../water/water-tracker.component';
 
@@ -110,6 +111,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private checkInSvc      = inject(CheckInService);
   private copilotSvc      = inject(CopilotService);
   private notifSvc        = inject(NotificationService);
+  private workoutSvc      = inject(WorkoutService);
 
   @ViewChild(DailyMissionsWidgetComponent) missionsWidget?: DailyMissionsWidgetComponent;
 
@@ -276,9 +278,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     { type: 'sleep',        icon: '😴', label: 'Sono' },
   ];
 
-  newEvent: { type: BlockType; label: string; startTime: string; endTime: string; daysOfWeek: number[]; targetDate: string } = {
-    type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [], targetDate: '',
+  newEvent: { type: BlockType; label: string; startTime: string; endTime: string; daysOfWeek: number[]; targetDate: string; workoutSheetId: string } = {
+    type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [], targetDate: '', workoutSheetId: '',
   };
+
+  // ── Workout sheets for exercise blocks ──────────────────────────────────────
+  workoutSheets = signal<WorkoutSheet[]>([]);
+  private workoutSheetsLoaded = false;
+
+  // ── Workout detail panel for exercise blocks ────────────────────────────────
+  expandedWorkoutBlock = signal<string | null>(null);
 
   // ── Edit block state ──────────────────────────────────────────────────────
   editEventModal = signal(false);
@@ -710,8 +719,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ── Canvas: Add Event modal ──────────────────────────────────────────────────
   openAddEventModal(): void {
-    this.newEvent = { type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [], targetDate: this.selectedDate() };
+    this.newEvent = { type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [], targetDate: this.selectedDate(), workoutSheetId: '' };
     this.addEventModal.set(true);
+    if (!this.workoutSheetsLoaded) {
+      this.workoutSvc.list().subscribe({
+        next: sheets => { this.workoutSheets.set(sheets); this.workoutSheetsLoaded = true; },
+      });
+    }
+  }
+
+  onWorkoutSheetSelected(): void {
+    const sheet = this.workoutSheets().find(s => s.id === this.newEvent.workoutSheetId);
+    if (sheet) {
+      this.newEvent.label = sheet.name;
+      const dur = sheet.estimatedMinutes ?? 60;
+      const [h, m] = this.newEvent.startTime.split(':').map(Number);
+      const endTotal = (h ?? 0) * 60 + (m ?? 0) + dur;
+      this.newEvent.endTime = `${pad2(Math.floor(endTotal / 60) % 24)}:${pad2(endTotal % 60)}`;
+    }
   }
 
   closeAddEventModal(): void { this.addEventModal.set(false); }
@@ -727,6 +752,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
   saveNewEvent(): void {
     if (!this.newEvent.label.trim() || !this.newEvent.startTime || !this.newEvent.endTime) return;
     const isRecurring = this.newEvent.daysOfWeek.length > 0;
+
+    // Build metadata for exercise blocks linked to a workout sheet
+    let metadata: Record<string, unknown> | undefined;
+    if (this.newEvent.type === 'exercise' && this.newEvent.workoutSheetId) {
+      const sheet = this.workoutSheets().find(s => s.id === this.newEvent.workoutSheetId);
+      if (sheet) {
+        metadata = {
+          workoutSheetId: sheet.id,
+          workoutSheetName: sheet.name,
+          exercises: (sheet.exercises ?? []).map(e => ({
+            name: e.name, sets: e.sets, reps: e.reps,
+            restSeconds: e.restSeconds, notes: e.notes,
+          })),
+        };
+      }
+    }
+
     const dto: CreateBlockDto = {
       type:        this.newEvent.type,
       label:       this.newEvent.label.trim(),
@@ -735,6 +777,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       isRecurring,
       daysOfWeek:  isRecurring ? this.newEvent.daysOfWeek : [],
       routineDate: isRecurring ? undefined : (this.newEvent.targetDate || this.selectedDate()),
+      metadata,
     };
     this.savingEvent.set(true);
     this.routineSvc.createBlock(dto).subscribe({
@@ -752,6 +795,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
       },
       error: () => this.savingEvent.set(false),
     });
+  }
+
+  toggleWorkoutDetail(blockId: string): void {
+    this.expandedWorkoutBlock.set(this.expandedWorkoutBlock() === blockId ? null : blockId);
+  }
+
+  blockExercises(block: RoutineBlock): Array<{ name: string; sets: number; reps: string; restSeconds: number; notes?: string }> {
+    const meta = block.metadata as any;
+    return meta?.exercises ?? [];
+  }
+
+  hasLinkedWorkout(block: RoutineBlock): boolean {
+    return !!(block.metadata as any)?.workoutSheetId;
   }
 
   dayShort(day: number): string {

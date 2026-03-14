@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { WorkoutSheet, WorkoutTemplate, WorkoutSheetExercise } from '../models';
+import { WorkoutSheet, WorkoutTemplate, WorkoutSheetExercise, RoutineBlock } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class WorkoutService {
@@ -48,5 +48,13 @@ export class WorkoutService {
 
   removeExercise(sheetId: string, exId: string): Observable<void> {
     return this.api.delete<void>(`/workouts/${sheetId}/exercises/${exId}`);
+  }
+
+  // ── Schedule to routine ──────────────────────────────────────────
+  schedule(sheetId: string, data: {
+    startTime: string; endTime: string;
+    routineDate?: string; isRecurring?: boolean; daysOfWeek?: number[];
+  }): Observable<RoutineBlock> {
+    return this.api.post<RoutineBlock>(`/workouts/${sheetId}/schedule`, data);
   }
 }

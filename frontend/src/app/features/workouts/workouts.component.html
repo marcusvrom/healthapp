@@ -261,7 +261,8 @@
         <div class="modal-footer">
           <button class="btn-outline btn-danger" (click)="deleteSheet(selectedSheet()!)">Excluir ficha</button>
           <button class="btn-outline" (click)="openEdit(selectedSheet()!)">Editar</button>
-          <button class="btn-primary" (click)="closeModal()">Fechar</button>
+          <button class="btn-primary" (click)="openSchedule()">📅 Agendar na Rotina</button>
+          <button class="btn-outline" (click)="closeModal()">Fechar</button>
         </div>
       </div>
     </div>
@@ -302,6 +303,57 @@
         <div class="modal-footer">
           <button class="btn-outline" (click)="backToDetail()">Cancelar</button>
           <button class="btn-primary" [disabled]="!exName.trim()" (click)="submitAddExercise()">Adicionar</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Schedule Modal -->
+  @if (modal() === 'schedule' && selectedSheet()) {
+    <div class="modal-overlay" (click)="backToDetail()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Agendar na Rotina</h2>
+          <button class="modal-close" (click)="backToDetail()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="schedule-info">
+            A ficha <strong>{{ selectedSheet()!.name }}</strong> sera adicionada como bloco de exercicio no seu cronograma.
+          </p>
+          <div class="field-row">
+            <label class="field">
+              <span>Inicio</span>
+              <input type="time" [(ngModel)]="schedStartTime">
+            </label>
+            <label class="field">
+              <span>Fim</span>
+              <input type="time" [(ngModel)]="schedEndTime">
+            </label>
+          </div>
+          <label class="field">
+            <span>Data (se evento unico)</span>
+            <input type="date" [(ngModel)]="schedDate">
+          </label>
+          <div class="field">
+            <span>Repetir toda semana</span>
+            <div class="days-selector">
+              @for (d of [0,1,2,3,4,5,6]; track d) {
+                <button
+                  type="button"
+                  class="day-toggle"
+                  [class.selected]="schedDays[d]"
+                  (click)="schedDays[d] = !schedDays[d]">
+                  {{ dayLabel(d) }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-outline" (click)="backToDetail()">Cancelar</button>
+          <button class="btn-primary" [disabled]="scheduling()" (click)="submitSchedule()">
+            {{ scheduling() ? 'Agendando...' : 'Agendar' }}
+          </button>
         </div>
       </div>
     </div>

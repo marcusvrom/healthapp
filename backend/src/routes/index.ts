@@ -216,6 +216,7 @@ router.post("/workouts",                                 ...auth(WorkoutControll
 router.get("/workouts/:id",                              ...auth(WorkoutController.detail));
 router.patch("/workouts/:id",                            ...auth(WorkoutController.update));
 router.delete("/workouts/:id",                           ...auth(WorkoutController.remove));
+router.post("/workouts/:id/schedule",                    ...auth(WorkoutController.schedule));
 router.post("/workouts/:id/exercises",                   ...auth(WorkoutController.addExercise));
 router.patch("/workouts/:sheetId/exercises/:exId",       ...auth(WorkoutController.updateExercise));
 router.delete("/workouts/:sheetId/exercises/:exId",      ...auth(WorkoutController.removeExercise));

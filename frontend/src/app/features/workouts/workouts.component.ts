@@ -5,7 +5,7 @@ import { WorkoutService } from '../../core/services/workout.service';
 import { WorkoutSheet, WorkoutTemplate, WorkoutSheetExercise } from '../../core/models';
 
 type Tab = 'sheets' | 'templates';
-type ModalMode = 'none' | 'create' | 'edit' | 'detail' | 'add-exercise';
+type ModalMode = 'none' | 'create' | 'edit' | 'detail' | 'add-exercise' | 'schedule';
 
 const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
 
@@ -55,6 +55,13 @@ export class WorkoutsComponent implements OnInit {
   exReps = '8-12';
   exRest = 60;
   exNotes = '';
+
+  // Schedule form
+  schedStartTime = '07:00';
+  schedEndTime = '08:00';
+  schedDate = new Date().toISOString().slice(0, 10);
+  schedDays: boolean[] = [false, false, false, false, false, false, false];
+  scheduling = signal(false);
 
   ngOnInit(): void {
     this.loadSheets();
@@ -214,6 +221,46 @@ export class WorkoutsComponent implements OnInit {
         this.tab.set('sheets');
         this.openDetail(sheet);
       },
+    });
+  }
+
+  // ── Schedule to routine ──────────────────────────────────────────────
+
+  openSchedule(): void {
+    const sheet = this.selectedSheet();
+    if (!sheet) return;
+    this.schedStartTime = '07:00';
+    const dur = sheet.estimatedMinutes ?? 60;
+    const endMin = 7 * 60 + dur;
+    const h = Math.floor(endMin / 60) % 24;
+    const m = endMin % 60;
+    this.schedEndTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    this.schedDate = new Date().toISOString().slice(0, 10);
+    this.schedDays = sheet.daysOfWeek.length
+      ? [0,1,2,3,4,5,6].map(d => sheet.daysOfWeek.includes(d))
+      : [false, false, false, false, false, false, false];
+    this.modal.set('schedule');
+  }
+
+  submitSchedule(): void {
+    const sheet = this.selectedSheet();
+    if (!sheet) return;
+    const daysOfWeek = this.schedDays.map((v, i) => v ? i : -1).filter(i => i >= 0);
+    const isRecurring = daysOfWeek.length > 0;
+    this.scheduling.set(true);
+    this.svc.schedule(sheet.id, {
+      startTime: this.schedStartTime,
+      endTime: this.schedEndTime,
+      routineDate: isRecurring ? undefined : this.schedDate,
+      isRecurring,
+      daysOfWeek: isRecurring ? daysOfWeek : undefined,
+    }).subscribe({
+      next: () => {
+        this.scheduling.set(false);
+        this.closeModal();
+        alert('Treino agendado no cronograma!');
+      },
+      error: () => this.scheduling.set(false),
     });
   }
 

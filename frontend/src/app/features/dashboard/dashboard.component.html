@@ -92,6 +92,19 @@
 
           <div class="em-divider"></div>
 
+          <!-- Workout sheet picker (only for exercise type) -->
+          @if (newEvent.type === 'exercise' && workoutSheets().length > 0) {
+            <div class="em-workout-picker">
+              <div class="em-section-label">Vincular ficha de treino</div>
+              <select [(ngModel)]="newEvent.workoutSheetId" (ngModelChange)="onWorkoutSheetSelected()">
+                <option value="">Sem ficha (exercicio livre)</option>
+                @for (s of workoutSheets(); track s.id) {
+                  <option [value]="s.id">{{ s.name }} ({{ (s.exercises ?? []).length }} exercicios · {{ s.estimatedMinutes }}min)</option>
+                }
+              </select>
+            </div>
+          }
+
           <div class="em-section-label">Detalhes</div>
           <div class="em-fields">
             <label>
@@ -432,6 +445,27 @@
                       }
                     </div>
                   </div>
+
+                  <!-- Linked workout exercises -->
+                  @if (hasLinkedWorkout(b)) {
+                    <button class="workout-toggle" (click)="toggleWorkoutDetail(b.id); $event.stopPropagation()">
+                      🏋️ {{ blockExercises(b).length }} exercicios da ficha
+                      <span class="toggle-arrow">{{ expandedWorkoutBlock() === b.id ? '▲' : '▼' }}</span>
+                    </button>
+                    @if (expandedWorkoutBlock() === b.id) {
+                      <div class="workout-exercises-panel">
+                        @for (ex of blockExercises(b); track ex.name; let i = $index) {
+                          <div class="we-row">
+                            <span class="we-num">{{ i + 1 }}</span>
+                            <div class="we-info">
+                              <span class="we-name">{{ ex.name }}</span>
+                              <span class="we-detail">{{ ex.sets }}x{{ ex.reps }} · {{ ex.restSeconds >= 60 ? (ex.restSeconds / 60 | number:'1.0-0') + 'min' : ex.restSeconds + 's' }} descanso</span>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
+                  }
                 </div>
               }
             </div>

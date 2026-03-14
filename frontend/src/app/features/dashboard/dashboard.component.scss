@@ -587,3 +587,99 @@
   }
 }
 @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+
+/* ── Workout sheet picker in add-event modal ───────────────────────── */
+.em-workout-picker {
+  margin-bottom: .75rem;
+
+  select {
+    width: 100%;
+    padding: .55rem .75rem;
+    border: 1.5px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: .82rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+    margin-top: .35rem;
+
+    &:focus { outline: none; border-color: var(--color-primary); }
+  }
+}
+
+/* ── Workout exercises panel inside block card ─────────────────────── */
+.workout-toggle {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  width: 100%;
+  padding: .4rem .75rem;
+  margin-top: .35rem;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-primary);
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+
+  &:hover { background: var(--color-border); }
+
+  .toggle-arrow {
+    margin-left: auto;
+    font-size: .6rem;
+    color: var(--color-text-muted);
+  }
+}
+
+.workout-exercises-panel {
+  padding: .5rem .75rem .75rem;
+  background: var(--color-surface-2);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.we-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem .45rem;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  font-size: .75rem;
+
+  .we-num {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: .65rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .we-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .we-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .we-detail {
+    font-size: .68rem;
+    color: var(--color-text-muted);
+  }
+}

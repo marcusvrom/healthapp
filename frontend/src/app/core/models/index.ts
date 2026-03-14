@@ -237,6 +237,7 @@ export interface CreateBlockDto {
   mealType?: MealType;
   caloricTarget?: number;
   waterMl?: number;
+  metadata?: Record<string, unknown>;
 }
 
 // ── Food ──────────────────────────────────────────────────────────────────────

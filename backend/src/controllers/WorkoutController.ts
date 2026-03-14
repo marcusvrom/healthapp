@@ -3,9 +3,11 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { AppDataSource } from "../config/typeorm.config";
 import { WorkoutSheet } from "../entities/WorkoutSheet";
 import { WorkoutSheetExercise } from "../entities/WorkoutSheetExercise";
+import { RoutineBlock, BlockType } from "../entities/RoutineBlock";
 
 function sheetRepo() { return AppDataSource.getRepository(WorkoutSheet); }
 function exerciseRepo() { return AppDataSource.getRepository(WorkoutSheetExercise); }
+function routineRepo() { return AppDataSource.getRepository(RoutineBlock); }
 
 // ── Workout Templates ─────────────────────────────────────────────────────────
 export interface TemplateExercise {
@@ -447,6 +449,71 @@ export class WorkoutController {
 
       await exerciseRepo().remove(ex);
       res.status(204).end();
+    } catch (err) { next(err); }
+  }
+
+  // ── Schedule a workout sheet into the routine ────────────────────────────
+
+  /**
+   * POST /workouts/:id/schedule — create a RoutineBlock linked to this sheet
+   * Body: { startTime, endTime, routineDate?, isRecurring?, daysOfWeek? }
+   */
+  static async schedule(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const sheet = await sheetRepo().findOne({
+        where: { id: req.params["id"]!, userId: req.userId },
+        relations: ["exercises"],
+      });
+      if (!sheet) { res.status(404).json({ message: "Ficha nao encontrada." }); return; }
+
+      const { startTime, endTime, routineDate, isRecurring, daysOfWeek } = req.body as {
+        startTime: string; endTime: string; routineDate?: string;
+        isRecurring?: boolean; daysOfWeek?: number[];
+      };
+
+      if (!startTime || !endTime) {
+        res.status(400).json({ message: "startTime e endTime sao obrigatorios." });
+        return;
+      }
+
+      const recurring = isRecurring === true && Array.isArray(daysOfWeek) && daysOfWeek.length > 0;
+      const effectiveDate = recurring ? undefined : (routineDate ?? new Date().toISOString().slice(0, 10));
+
+      // Build exercise summary for metadata
+      const exercisesSummary = (sheet.exercises ?? [])
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(e => ({
+          name: e.name,
+          sets: e.sets,
+          reps: e.reps,
+          restSeconds: e.restSeconds,
+          notes: e.notes,
+        }));
+
+      const timeToMinutes = (t: string) => {
+        const [h, m] = t.split(":").map(Number);
+        return (h ?? 0) * 60 + (m ?? 0);
+      };
+
+      const block = routineRepo().create({
+        userId: req.userId,
+        type: BlockType.EXERCISE,
+        startTime,
+        endTime,
+        label: sheet.name,
+        routineDate: effectiveDate,
+        isRecurring: recurring,
+        daysOfWeek: recurring ? daysOfWeek! : [],
+        metadata: {
+          workoutSheetId: sheet.id,
+          workoutSheetName: sheet.name,
+          exercises: exercisesSummary,
+        },
+        sortOrder: timeToMinutes(startTime),
+      });
+
+      const saved = await routineRepo().save(block);
+      res.status(201).json(saved);
     } catch (err) { next(err); }
   }
 }
