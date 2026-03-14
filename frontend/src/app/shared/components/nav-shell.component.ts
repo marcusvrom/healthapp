@@ -33,7 +33,7 @@ import { AppNotification } from '../../core/models';
         box-shadow: 0 -10px 25px rgba(0,0,0,0.1);
         /* Must sit above the bottom-nav (z-index 110) when open */
         z-index: 120;
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px));
 
         &.open { transform: translateY(0); }
       }

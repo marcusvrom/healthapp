@@ -397,9 +397,6 @@ function toMinutes(time: string): number {
                 <div class="linked-recipes">
                   <div class="lr-header">
                     <span class="lr-title">Receitas vinculadas</span>
-                    @if (!item.data.isConsumed) {
-                      <button class="lr-add-btn" (click)="openRecipePicker(item.data)">+ Vincular receita</button>
-                    }
                   </div>
 
                   @if (item.data.linkedRecipes && item.data.linkedRecipes.length > 0) {

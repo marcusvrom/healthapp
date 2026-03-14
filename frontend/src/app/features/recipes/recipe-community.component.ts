@@ -375,7 +375,7 @@ const EMPTY_FORM = (): CreateRecipeDto & { ingredients: IngredientDto[] } => ({
       <div class="search-section">
         <div class="search-bar">
           <div class="search-wrap">
-            <span class="si">&#128269;</span>
+            <span class="si">🔍</span>
             @if (tab() === 'feed') {
               <input type="text"
                 [placeholder]="searchPlaceholder()"
