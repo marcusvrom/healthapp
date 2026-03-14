@@ -16,6 +16,7 @@ import { ChallengeService } from "../services/ChallengeService";
 import { DailyMissionService } from "../services/DailyMissionService";
 import { MissionType } from "../entities/DailyMission";
 import { ExerciseCalcInput } from "../types/calculation.types";
+import { WaterService } from "../services/WaterService";
 
 // ── Time-window helpers ────────────────────────────────────────────────────────
 
@@ -690,6 +691,24 @@ export class RoutineController {
         }
 
         if (!outOfWindow) {
+          // ── Water XP gate: require 70% of daily water goal ─────────────
+          if (block.type === BlockType.WATER) {
+            const profile = await profileRepo().findOne({ where: { userId: req.userId } });
+            const waterGoalMl = profile ? Number(profile.weight) * 35 : 2500;
+            const { totalMl } = await WaterService.getDay(req.userId, today);
+            const waterPct = totalMl / waterGoalMl;
+
+            if (waterPct < 0.70) {
+              message = `XP de agua liberado apenas ao atingir 70% da meta diaria (${Math.round(waterPct * 100)}% atual). Continue bebendo!`;
+              // Block marked done but no XP
+              await routineRepo().save(block);
+              if (totalXp === 0) totalXp = await GamificationService.getXp(req.userId);
+              const level = GamificationService.levelFromXp(totalXp);
+              res.json({ block, xpGained: 0, totalXp, level, capReached: false, outOfWindow: false, message });
+              return;
+            }
+          }
+
           // ── Daily cap check ──────────────────────────────────────────────
           const category = block.type as string; // e.g. "exercise"
           const remaining = await GamificationService.remainingDailyXp(
