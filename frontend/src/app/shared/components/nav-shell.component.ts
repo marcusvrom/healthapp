@@ -1,15 +1,17 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, HostListener } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { UserService } from '../../core/services/user.service';
 import { ThemeService } from '../../core/services/theme.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { environment } from '../../environments/environment';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
+import { AppNotification } from '../../core/models';
 
 @Component({
   selector: 'app-nav-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, DatePipe],
   styles: [`
     .shell { display: flex; min-height: 100vh; background: var(--color-bg); }
 
@@ -21,16 +23,16 @@ import { CommonModule } from '@angular/common';
       position: sticky; top: 0; height: 100vh;
       z-index: 100; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-      @media (max-width: 768px) { 
+      @media (max-width: 768px) {
         position: fixed;
         bottom: 0; left: 0; right: 0; top: auto;
         width: 100%; height: auto; max-height: 85vh;
         border-radius: 20px 20px 0 0;
-        transform: translateY(105%); // Escondido abaixo
+        transform: translateY(105%);
         border-right: none; border-top: 1px solid var(--color-border);
         box-shadow: 0 -10px 25px rgba(0,0,0,0.1);
-        
-        &.open { transform: translateY(0); } // Slide up effect
+
+        &.open { transform: translateY(0); }
       }
 
       .brand {
@@ -41,10 +43,9 @@ import { CommonModule } from '@angular/common';
         .name  { font-size: 1rem; font-weight: 800; color: var(--color-primary); flex: 1; }
         .beta  { font-size: .65rem; background: var(--color-primary-light); color: var(--color-primary-dark);
           padding: .1rem .4rem; border-radius: 99px; font-weight: 700; }
-        @media (max-width: 768px) { display: none; } // Esconde logo no menu mobile
+        @media (max-width: 768px) { display: none; }
       }
 
-      /* Handle para mobile (aquela barrinha de puxar) */
       .mobile-handle {
         display: none;
         @media (max-width: 768px) {
@@ -59,15 +60,14 @@ import { CommonModule } from '@angular/common';
         display: flex; align-items: center; gap: .75rem;
         padding: .75rem 1rem; border-radius: var(--radius-sm);
         color: var(--color-text-muted); font-size: .9rem; font-weight: 500;
-        text-decoration: none; transition: .15s;
-        transition: all .15s;
+        text-decoration: none; transition: all .15s;
 
         .icon { font-size: 1.1rem; width: 1.5rem; text-align: center; }
         &:hover { background: var(--color-surface-2); color: var(--color-text); }
         &.active-link { background: var(--color-primary-light); color: var(--color-primary-dark); font-weight: 600; }
       }
 
-      .nav-section { font-size: .7rem; font-weight: 700; text-transform: uppercase; 
+      .nav-section { font-size: .7rem; font-weight: 700; text-transform: uppercase;
         color: var(--color-text-subtle); padding: 1rem 1rem .4rem; }
 
         .sidebar-footer {
@@ -83,8 +83,15 @@ import { CommonModule } from '@angular/common';
             .name { font-size: .82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-text); }
             .role { font-size: .7rem; color: var(--color-text-subtle); }
           }
+          .icon-btn {
+              width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--color-border);
+              background: var(--color-surface-2); cursor: pointer; display: flex;
+              align-items: center; justify-content: center; font-size: .9rem;
+              transition: all .2s; flex-shrink: 0; position: relative;
+              &:hover { background: var(--color-border); }
+              &:active { transform: scale(.9); }
+          }
           .theme-btn {
-              margin-left: auto;
               width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--color-border);
               background: var(--color-border); cursor: pointer; display: flex;
               align-items: center; justify-content: center; font-size: .9rem;
@@ -99,8 +106,6 @@ import { CommonModule } from '@angular/common';
           color: var(--color-text-muted); font-size: .82rem; cursor: pointer; transition: .15s;
           &:hover { background: #fee2e2; color: var(--color-danger); }
         }
-
-        
       }
     }
 
@@ -121,11 +126,12 @@ import { CommonModule } from '@angular/common';
         padding-bottom: env(safe-area-inset-bottom);
         box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
 
-        .bn-item { 
-          flex: 1; display: flex; flex-direction: column; align-items: center; 
-          padding: 10px 0; gap: 4px; color: var(--color-text-subtle); 
+        .bn-item {
+          flex: 1; display: flex; flex-direction: column; align-items: center;
+          padding: 10px 0; gap: 4px; color: var(--color-text-subtle);
           text-decoration: none; border: none; background: none; font-size: .65rem; font-weight: 600;
-          
+          position: relative;
+
           .bn-icon { font-size: 1.4rem; }
           &.active-link { color: var(--color-primary); }
           &:active { transform: scale(0.95); }
@@ -136,6 +142,118 @@ import { CommonModule } from '@angular/common';
     .main { flex: 1; min-width: 0; display: flex; flex-direction: column;
       @media (max-width: 768px) { padding-bottom: 80px; }
     }
+
+    /* ── Notification badge ─────────────────────────────────── */
+    .notif-badge {
+      position: absolute; top: -4px; right: -4px;
+      min-width: 16px; height: 16px; padding: 0 4px;
+      border-radius: 99px; background: #ef4444; color: #fff;
+      font-size: .6rem; font-weight: 800; display: flex;
+      align-items: center; justify-content: center;
+      line-height: 1; border: 2px solid var(--color-surface);
+      animation: badgePop .3s ease-out;
+    }
+    @keyframes badgePop { 0% { transform: scale(0) } 50% { transform: scale(1.3) } 100% { transform: scale(1) } }
+
+    /* ── Mobile top bar (notification bell on mobile) ───────── */
+    .mobile-top-bar {
+      display: none;
+      @media (max-width: 768px) {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: .75rem 1rem; background: var(--color-surface);
+        border-bottom: 1px solid var(--color-border);
+        position: sticky; top: 0; z-index: 50;
+
+        .mtb-brand { display: flex; align-items: center; gap: .5rem;
+          .mtb-emoji { font-size: 1.2rem; }
+          .mtb-name { font-size: .9rem; font-weight: 800; color: var(--color-primary); }
+        }
+        .mtb-actions { display: flex; align-items: center; gap: .5rem; }
+        .mtb-btn { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--color-border);
+          background: var(--color-surface-2); cursor: pointer; display: flex;
+          align-items: center; justify-content: center; font-size: 1rem;
+          position: relative; transition: .15s;
+          &:hover { background: var(--color-border); }
+          &:active { transform: scale(.9); }
+        }
+      }
+    }
+
+    /* ── Notification dropdown ──────────────────────────────── */
+    .notif-dropdown-overlay {
+      position: fixed; inset: 0; z-index: 500; background: transparent;
+    }
+    .notif-dropdown {
+      position: fixed; z-index: 501;
+      width: 360px; max-height: 480px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.15), 0 0 0 1px rgba(0,0,0,.04);
+      overflow: hidden;
+      animation: slideUp .2s ease-out;
+
+      /* Desktop: position near sidebar footer bell */
+      left: 268px; bottom: 60px;
+      @media (max-width: 768px) {
+        left: 8px; right: 8px; top: 60px; bottom: auto;
+        width: auto; max-height: 70vh;
+      }
+
+      .nd-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 1rem 1.25rem; border-bottom: 1px solid var(--color-border);
+        .nd-title { font-size: .9rem; font-weight: 700; }
+        .nd-actions { display: flex; gap: .5rem; }
+        .nd-btn { font-size: .72rem; font-weight: 600; color: var(--color-primary); background: none; border: none; cursor: pointer; padding: .25rem .5rem; border-radius: 6px;
+          &:hover { background: var(--color-primary-light); }
+        }
+      }
+
+      .nd-list {
+        overflow-y: auto; max-height: 360px;
+        @media (max-width: 768px) { max-height: calc(70vh - 120px); }
+      }
+
+      .nd-item {
+        display: flex; align-items: flex-start; gap: .75rem;
+        padding: .875rem 1.25rem; border-bottom: 1px solid var(--color-border);
+        cursor: pointer; transition: background .15s;
+        &:hover { background: var(--color-surface-2); }
+        &.unread { background: rgba(var(--color-primary-rgb, 99,102,241), .04);
+          .nd-dot { background: var(--color-primary); }
+        }
+        .nd-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: .1rem; }
+        .nd-content { flex: 1; min-width: 0;
+          .nd-item-title { font-size: .82rem; font-weight: 600; color: var(--color-text); }
+          .nd-message { font-size: .75rem; color: var(--color-text-muted); margin-top: .15rem; line-height: 1.4;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .nd-time { font-size: .65rem; color: var(--color-text-subtle); margin-top: .25rem; }
+        }
+        .nd-dot { width: 8px; height: 8px; border-radius: 50%; background: transparent; flex-shrink: 0; margin-top: .4rem; }
+      }
+
+      .nd-empty { text-align: center; padding: 2.5rem 1rem; color: var(--color-text-muted); font-size: .82rem;
+        .nd-empty-icon { font-size: 2rem; margin-bottom: .5rem; display: block; }
+      }
+
+      .nd-footer {
+        padding: .75rem 1.25rem; border-top: 1px solid var(--color-border);
+        display: flex; align-items: center; justify-content: space-between;
+        .nd-toggle { display: flex; align-items: center; gap: .5rem; font-size: .75rem; color: var(--color-text-muted);
+          .toggle-switch { width: 36px; height: 20px; border-radius: 10px; position: relative; cursor: pointer; border: none;
+            transition: background .2s;
+            &.on { background: #22c55e; }
+            &.off { background: var(--color-border); }
+            .toggle-knob { position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: left .2s;
+              &.on { left: 18px; }
+              &.off { left: 2px; }
+            }
+          }
+        }
+      }
+    }
+    @keyframes slideUp { from { transform: translateY(10px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
   `],
   template: `
     <div class="shell">
@@ -143,7 +261,7 @@ import { CommonModule } from '@angular/common';
 
       <aside class="sidebar" [class.open]="isMobileMenuOpen()">
         <div class="mobile-handle"></div>
-        
+
         <div class="brand">
           <span class="emoji">🌿</span>
           <span class="name">HealthApp</span>
@@ -216,9 +334,15 @@ import { CommonModule } from '@angular/common';
             }
             <div class="info">
               <div class="name">{{ userName() }}</div>
-              <div class="role">Nível {{ userLevel() }}</div>
+              <div class="role">Nivel {{ userLevel() }}</div>
             </div>
 
+            <button class="icon-btn" (click)="toggleNotifDropdown($event)" title="Notificacoes">
+              🔔
+              @if (notifSvc.unreadCount() > 0) {
+                <span class="notif-badge">{{ notifSvc.unreadCount() > 9 ? '9+' : notifSvc.unreadCount() }}</span>
+              }
+            </button>
             <button class="theme-btn" (click)="theme.toggle()"
                   [title]="theme.isDark() ? 'Modo Claro' : 'Modo Escuro'">
                   {{ theme.isDark() ? '☀️' : '🌙' }}
@@ -229,13 +353,73 @@ import { CommonModule } from '@angular/common';
       </aside>
 
       <main class="main">
+        <!-- Mobile top bar with bell -->
+        <div class="mobile-top-bar">
+          <div class="mtb-brand">
+            <span class="mtb-emoji">🌿</span>
+            <span class="mtb-name">HealthApp</span>
+          </div>
+          <div class="mtb-actions">
+            <button class="mtb-btn" (click)="toggleNotifDropdown($event)" title="Notificacoes">
+              🔔
+              @if (notifSvc.unreadCount() > 0) {
+                <span class="notif-badge">{{ notifSvc.unreadCount() > 9 ? '9+' : notifSvc.unreadCount() }}</span>
+              }
+            </button>
+          </div>
+        </div>
         <router-outlet />
       </main>
     </div>
 
+    <!-- Notification dropdown -->
+    @if (notifDropdownOpen()) {
+      <div class="notif-dropdown-overlay" (click)="notifDropdownOpen.set(false)"></div>
+      <div class="notif-dropdown">
+        <div class="nd-header">
+          <span class="nd-title">Notificacoes</span>
+          <div class="nd-actions">
+            @if (notifSvc.unreadCount() > 0) {
+              <button class="nd-btn" (click)="markAllRead()">Marcar todas como lidas</button>
+            }
+          </div>
+        </div>
+
+        <div class="nd-list">
+          @if (notifSvc.notifications().length === 0) {
+            <div class="nd-empty">
+              <span class="nd-empty-icon">🔔</span>
+              Nenhuma notificacao ainda.<br>Seus lembretes da agenda aparecerao aqui.
+            </div>
+          } @else {
+            @for (n of notifSvc.notifications(); track n.id) {
+              <div class="nd-item" [class.unread]="!n.isRead" (click)="onNotifClick(n)">
+                <span class="nd-icon">{{ notifIcon(n.type) }}</span>
+                <div class="nd-content">
+                  <div class="nd-item-title">{{ n.title }}</div>
+                  <div class="nd-message">{{ n.message }}</div>
+                  <div class="nd-time">{{ n.createdAt | date:'dd/MM HH:mm' }}</div>
+                </div>
+                <span class="nd-dot" [class]="n.isRead ? '' : 'unread'"></span>
+              </div>
+            }
+          }
+        </div>
+
+        <div class="nd-footer">
+          <div class="nd-toggle">
+            <button class="toggle-switch" [class.on]="notifSvc.pushEnabled()" [class.off]="!notifSvc.pushEnabled()" (click)="togglePushEnabled()">
+              <span class="toggle-knob" [class.on]="notifSvc.pushEnabled()" [class.off]="!notifSvc.pushEnabled()"></span>
+            </button>
+            <span>{{ notifSvc.pushEnabled() ? 'Notificacoes ativadas' : 'Notificacoes desativadas' }}</span>
+          </div>
+        </div>
+      </div>
+    }
+
     <nav class="bottom-nav">
       <a routerLink="/dashboard" routerLinkActive="active-link" class="bn-item">
-        <span class="bn-icon">📅</span><span>Início</span>
+        <span class="bn-icon">📅</span><span>Inicio</span>
       </a>
       <a routerLink="/diet" routerLinkActive="active-link" class="bn-item">
         <span class="bn-icon">🍽️</span><span>Dieta</span>
@@ -246,7 +430,7 @@ import { CommonModule } from '@angular/common';
         </div>
       </a>
       <a routerLink="/progress" routerLinkActive="active-link" class="bn-item">
-        <span class="bn-icon">📊</span><span>Evolução</span>
+        <span class="bn-icon">📊</span><span>Evolucao</span>
       </a>
       <button (click)="toggleMobileMenu()" class="bn-item">
         <span class="bn-icon">☰</span><span>Mais</span>
@@ -258,6 +442,7 @@ export class NavShellComponent implements OnInit {
   private auth    = inject(AuthService);
   private userSvc = inject(UserService);
   readonly theme  = inject(ThemeService);
+  readonly notifSvc = inject(NotificationService);
 
   readonly apiBase = environment.apiUrl.replace('/api/v1', '');
 
@@ -265,6 +450,7 @@ export class NavShellComponent implements OnInit {
   userLevel = signal<number>(1);
   avatarUrl = signal<string | null>(null);
   isMobileMenuOpen = signal(false);
+  notifDropdownOpen = signal(false);
 
   ngOnInit(): void {
     this.userSvc.loadMe().subscribe({
@@ -275,6 +461,11 @@ export class NavShellComponent implements OnInit {
       },
       error: () => {},
     });
+
+    // Load notification state
+    this.notifSvc.refreshUnreadCount().subscribe({ error: () => {} });
+    this.notifSvc.getPreference().subscribe({ error: () => {} });
+    this.notifSvc.startPolling();
   }
 
   toggleMobileMenu() {
@@ -289,6 +480,51 @@ export class NavShellComponent implements OnInit {
 
   getInitials(name: string): string {
     return name && name !== 'Minha conta' ? name.charAt(0).toUpperCase() : '👤';
+  }
+
+  // ── Notifications ──────────────────────────────────────────────────────────
+
+  toggleNotifDropdown(ev: Event): void {
+    ev.stopPropagation();
+    const opening = !this.notifDropdownOpen();
+    this.notifDropdownOpen.set(opening);
+    if (opening) {
+      this.notifSvc.list().subscribe({ error: () => {} });
+    }
+  }
+
+  onNotifClick(n: AppNotification): void {
+    if (!n.isRead) {
+      this.notifSvc.markRead(n.id).subscribe({ error: () => {} });
+    }
+  }
+
+  markAllRead(): void {
+    this.notifSvc.markAllRead().subscribe({ error: () => {} });
+  }
+
+  async togglePushEnabled(): Promise<void> {
+    const current = this.notifSvc.pushEnabled();
+    if (!current) {
+      // Enabling: request browser permission first
+      if (this.notifSvc.pushSupported) {
+        const perm = await this.notifSvc.requestPermission();
+        if (perm !== 'granted') return;
+      }
+    }
+    this.notifSvc.setPreference(!current).subscribe({ error: () => {} });
+  }
+
+  notifIcon(type: string): string {
+    const icons: Record<string, string> = {
+      meal_reminder: '🍽️',
+      water_reminder: '💧',
+      exercise_reminder: '💪',
+      medication_reminder: '💊',
+      block_reminder: '📅',
+      system: '🔔',
+    };
+    return icons[type] ?? '🔔';
   }
 
   private calculateLevel(xp: number): number {

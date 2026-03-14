@@ -26,6 +26,7 @@ import { FriendshipController } from "../controllers/FriendshipController";
 import { CommunityController } from "../controllers/CommunityController";
 import { DailyMissionController } from "../controllers/DailyMissionController";
 import { OnboardingController } from "../controllers/OnboardingController";
+import { NotificationController } from "../controllers/NotificationController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -217,5 +218,17 @@ router.post("/onboarding/complete",    ...auth(OnboardingController.complete));
 
 // ── Daily Missions ────────────────────────────────────────────────────────────
 router.get("/missions/today",          ...auth(DailyMissionController.today));
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+// NOTE: static sub-paths must come BEFORE parameterized routes
+router.get("/notifications/unread-count",  ...auth(NotificationController.unreadCount));
+router.get("/notifications/preference",    ...auth(NotificationController.getPreference));
+router.patch("/notifications/preference",  ...auth(NotificationController.setPreference));
+router.patch("/notifications/read-all",    ...auth(NotificationController.markAllRead));
+router.post("/notifications/generate",     ...auth(NotificationController.generate));
+router.post("/notifications/subscribe",    ...auth(NotificationController.subscribe));
+router.post("/notifications/unsubscribe",  ...auth(NotificationController.unsubscribe));
+router.get("/notifications",               ...auth(NotificationController.list));
+router.patch("/notifications/:id/read",    ...auth(NotificationController.markRead));
 
 export default router;

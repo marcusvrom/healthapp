@@ -17,6 +17,7 @@ import { ClinicalProtocolService }   from '../../core/services/clinical-protocol
 import { RecipeService }             from '../../core/services/recipe.service';
 import { ScheduledMealService }      from '../../core/services/scheduled-meal.service';
 import { RecipeScheduleService }     from '../../core/services/recipe-schedule.service';
+import { NotificationService }       from '../../core/services/notification.service';
 import { CheckInService }            from '../../core/services/check-in.service';
 import { CopilotService }            from '../../core/services/copilot.service';
 
@@ -284,6 +285,7 @@ interface LinkedRecipeView extends LinkedRecipe {
         &:disabled { opacity: .4; cursor: wait; }
       }
       .bc-action-del:hover { background: rgba(239,68,68,.12); }
+      .bc-action-btn.notif-active { opacity: 1; background: rgba(234,179,8,.12); }
       /* Desktop: show on hover */
       &:hover .bc-action-btn { opacity: 1; }
       /* Mobile/touch: always show action buttons */
@@ -1107,10 +1109,15 @@ interface LinkedRecipeView extends LinkedRecipe {
                               {{ completingBlock() === b.id ? '…' : isBlockCompleted(b) ? '✓' : '○' }}
                             </button>
                           }
-                          <button class="bc-action-btn" title="Editar" (click)="openEditModal(b, $event)">✏️</button>
-                          <button class="bc-action-btn bc-action-del" title="Excluir" (click)="deleteBlock(b, $event)" [disabled]="deletingBlock() === b.id">
-                            {{ deletingBlock() === b.id ? '…' : '🗑️' }}
+                          <button class="bc-action-btn" [class.notif-active]="blockNotifEnabled().has(b.id)" title="Ativar lembrete" (click)="toggleBlockNotif(b); $event.stopPropagation()">
+                            {{ blockNotifEnabled().has(b.id) ? '🔔' : '🔕' }}
                           </button>
+                          @if (!b.id.startsWith('synth-')) {
+                            <button class="bc-action-btn" title="Editar" (click)="openEditModal(b, $event)">✏️</button>
+                            <button class="bc-action-btn bc-action-del" title="Excluir" (click)="deleteBlock(b, $event)" [disabled]="deletingBlock() === b.id">
+                              {{ deletingBlock() === b.id ? '…' : '🗑️' }}
+                            </button>
+                          }
                         </div>
                       </div>
                     </div>
@@ -1517,6 +1524,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private recipeSchedSvc  = inject(RecipeScheduleService);
   private checkInSvc      = inject(CheckInService);
   private copilotSvc      = inject(CopilotService);
+  private notifSvc        = inject(NotificationService);
 
   @ViewChild(DailyMissionsWidgetComponent) missionsWidget?: DailyMissionsWidgetComponent;
 
@@ -1707,6 +1715,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ── Block completion ────────────────────────────────────────────────────────
   completingBlock = signal<string | null>(null);
+
+  // ── Per-block notification toggle ──────────────────────────────────────────
+  /** Set of block IDs that have notifications enabled */
+  blockNotifEnabled = signal<Set<string>>(new Set());
 
   // ── Photo share prompt ───────────────────────────────────────────────────────
   photoPromptBlock  = signal<{ id: string; event: MouseEvent } | null>(null);
@@ -2419,6 +2431,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.isBlockCompleted(b)) return '#22c55e';
     if (this.mealConsumed(b))     return '#22c55e';
     return BLOCK_META[b.type]?.color ?? '#9ca3af';
+  }
+
+  toggleBlockNotif(b: RoutineBlock): void {
+    const blockId = b.id;
+    this.blockNotifEnabled.update(set => {
+      const next = new Set(set);
+      if (next.has(blockId)) {
+        next.delete(blockId);
+      } else {
+        next.add(blockId);
+        // Create a notification for this block
+        if (!blockId.startsWith('synth-')) {
+          this.notifSvc.generate(this.selectedDate()).subscribe({ error: () => {} });
+        }
+        // Show local browser notification as confirmation
+        this.notifSvc.showLocalNotification(
+          'Lembrete ativado',
+          `Voce sera lembrado: ${b.label} as ${b.startTime}`
+        );
+      }
+      return next;
+    });
   }
 
   toggleBlockComplete(b: RoutineBlock, event: MouseEvent): void {

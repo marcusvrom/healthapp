@@ -40,6 +40,9 @@ export class User {
   @Column({ type: "varchar", length: 80, nullable: true })
   state?: string;
 
+  @Column({ name: "notifications_enabled", type: "boolean", default: true })
+  notificationsEnabled!: boolean;
+
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
 

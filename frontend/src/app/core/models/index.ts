@@ -721,3 +721,26 @@ export interface GroupDetail {
   leaderboard:        GroupMemberEntry[];
   collectiveProgress: GroupChallengeProgress[];
 }
+
+// ── Notifications ────────────────────────────────────────────────────────────
+export type NotificationType =
+  | 'meal_reminder' | 'water_reminder' | 'exercise_reminder'
+  | 'medication_reminder' | 'block_reminder' | 'system';
+
+export interface AppNotification {
+  id:               string;
+  userId:           string;
+  type:             NotificationType;
+  title:            string;
+  message:          string;
+  blockId?:         string;
+  scheduledTime?:   string;
+  notificationDate?:string;
+  isRead:           boolean;
+  createdAt:        string;
+}
+
+export interface NotificationListResponse {
+  notifications: AppNotification[];
+  unreadCount:   number;
+}
