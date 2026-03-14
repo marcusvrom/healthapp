@@ -271,7 +271,7 @@ import { AppNotification } from '../../core/models';
           <span class="beta">BETA</span>
         </div>
 
-        <nav>
+        <nav (click)="onNavClick($event)">
           <span class="nav-section">Principal</span>
           <a routerLink="/dashboard" routerLinkActive="active-link" class="nav-item">
             <span class="icon">📅</span> Dashboard
@@ -477,6 +477,12 @@ export class NavShellComponent implements OnInit {
 
   closeMenu() {
     this.isMobileMenuOpen.set(false);
+  }
+
+  /** Close mobile menu when a nav link is clicked */
+  onNavClick(ev: Event): void {
+    const target = (ev.target as HTMLElement).closest('a');
+    if (target) this.closeMenu();
   }
 
   logout(): void { this.auth.logout(); }
