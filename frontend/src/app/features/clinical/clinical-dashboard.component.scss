@@ -1,0 +1,145 @@
+.page { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+.page-header { margin-bottom: 1.25rem; h2 { font-size: 1.5rem; } p { color: var(--color-text-muted); } }
+
+/* ── Tab navigation ─────────────────────────────────────────────────────── */
+.tab-nav {
+  display: flex; gap: .375rem; flex-wrap: wrap; margin-bottom: 1.5rem;
+  border-bottom: 1.5px solid var(--color-border); padding-bottom: .75rem;
+}
+.tab-btn {
+  padding: .4rem .875rem; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border: 1.5px solid transparent; background: transparent;
+  cursor: pointer; font-size: .82rem; font-weight: 600;
+  color: var(--color-text-muted); transition: .15s;
+  display: flex; align-items: center; gap: .375rem;
+
+  &:hover:not(.active) { background: var(--color-surface-2); color: var(--color-text); }
+  &.active {
+    background: var(--color-surface); border-color: var(--color-border);
+    border-bottom-color: var(--color-surface); color: var(--color-primary);
+    margin-bottom: -1.5px;
+  }
+}
+
+/* ── Marker selector ────────────────────────────────────────────────────── */
+.marker-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: .5rem;
+  margin-bottom: 1.5rem;
+}
+.marker-btn {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .75rem; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border); background: var(--color-surface);
+  cursor: pointer; transition: .15s; text-align: left; min-width: 0;
+
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .mlabel { font-size: .8rem; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); }
+  .mval   { font-size: .72rem; color: var(--color-text-muted); flex-shrink: 0; }
+
+  &.active { border-color: var(--dot-color); background: color-mix(in srgb, var(--dot-color) 10%, transparent); }
+  &:hover:not(.active) { background: var(--color-surface-2); }
+}
+
+/* ── Main chart area ────────────────────────────────────────────────────── */
+.chart-section { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; margin-bottom: 1.5rem;
+  @media (max-width: 900px) { grid-template-columns: 1fr; }
+}
+
+.chart-card {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 1.25rem;
+
+  .chart-title { font-size: .95rem; font-weight: 700; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .chart-empty { height: 300px; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: .75rem; color: var(--color-text-muted);
+    .emoji { font-size: 2.5rem; }
+  }
+  .chart-container { position: relative; height: 300px; }
+}
+
+.svg-chart { width: 100%; height: 100%; overflow: visible; }
+.axis-line   { stroke: var(--color-border); stroke-width: 1; }
+.grid-line   { stroke: var(--color-border); stroke-width: 0.5; stroke-dasharray: 4 3; opacity: .5; }
+.axis-label  { font-size: 10px; fill: var(--color-text-subtle); font-family: inherit; }
+
+/* Zone lines */
+.zone-optimal-line  { stroke: #22c55e; stroke-width: 1.5; stroke-dasharray: 5 3; opacity: .7; }
+.zone-attention-line{ stroke: #f59e0b; stroke-width: 1.5; stroke-dasharray: 4 2; opacity: .7; }
+.zone-alert-line    { stroke: #ef4444; stroke-width: 1.5; stroke-dasharray: 3 2; opacity: .6; }
+.hormone-line       { stroke-width: 1.5; stroke-dasharray: 3 3; opacity: .7; }
+
+/* Zone legend strip */
+.legend-strip {
+  display: flex; flex-wrap: wrap; gap: .625rem; margin-top: .75rem;
+  .leg { display: flex; align-items: center; gap: .3rem; font-size: .72rem;
+    .leg-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .leg-line { width: 18px; height: 2px; border-radius: 1px; }
+  }
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+.sidebar { display: flex; flex-direction: column; gap: 1rem; }
+.sidebar-card {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 1.25rem;
+  h4 { font-size: .875rem; font-weight: 700; margin-bottom: .875rem; }
+}
+
+.hormone-item {
+  padding: .5rem 0; border-bottom: 1px solid var(--color-border);
+  &:last-child { border-bottom: none; }
+  .hname { font-size: .82rem; font-weight: 600; }
+  .hmeta { font-size: .72rem; color: var(--color-text-muted); margin-top: .125rem; }
+}
+.cat-pills { display: flex; flex-wrap: wrap; gap: .375rem; margin-bottom: .875rem;
+  .cpill { padding: .2rem .625rem; border-radius: 99px; font-size: .72rem; font-weight: 600;
+    border: 1px solid var(--color-border); background: var(--color-surface-2); cursor: pointer;
+    &.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+  }
+}
+
+/* ── Snapshot grid (último exame) ───────────────────────────────────────── */
+.snapshot-section {
+  margin-top: .5rem;
+  h4 { font-size: .875rem; font-weight: 700; margin-bottom: .75rem; }
+}
+.snapshot-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .625rem;
+}
+.snapshot-card {
+  background: var(--color-surface-2); border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); padding: .75rem;
+  cursor: pointer; transition: border-color .15s;
+  &:hover { border-color: var(--color-primary-light); }
+
+  .sc-label { font-size: .7rem; color: var(--color-text-muted); margin-bottom: .2rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sc-value { font-size: 1.2rem; font-weight: 800; line-height: 1; margin-bottom: .3rem; }
+  .sc-unit  { font-size: .65rem; color: var(--color-text-subtle); margin-left: .15rem;
+    font-weight: 400; }
+}
+
+/* ── Status badge ───────────────────────────────────────────────────────── */
+.status-badge {
+  display: inline-flex; align-items: center; gap: .25rem;
+  padding: .15rem .5rem; border-radius: 99px;
+  font-size: .7rem; font-weight: 700; line-height: 1.4;
+  &.optimal   { background: rgba(34,197,94,.15);  color: #16a34a; }
+  &.normal    { background: rgba(59,130,246,.15);  color: #2563eb; }
+  &.attention { background: rgba(234,179,8,.15);   color: #d97706; }
+  &.alert     { background: rgba(239,68,68,.15);   color: #dc2626; }
+}
+
+/* ── Full-width snapshot bar (when no chart marker selected) ────────────── */
+.tab-summary-card {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;
+  h4 { font-size: .95rem; font-weight: 700; margin-bottom: 1rem; }
+}
+
+/* ── Empty states ───────────────────────────────────────────────────────── */
+.empty-state { text-align: center; padding: 3rem; color: var(--color-text-muted);
+  .es-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+}

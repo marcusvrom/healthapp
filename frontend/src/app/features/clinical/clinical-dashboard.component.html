@@ -1,0 +1,250 @@
+<div class="page">
+  <div class="page-header">
+    <h2>🩺 Dashboard Clínico</h2>
+    <p>Acompanhe a evolução dos seus marcadores laboratoriais e doses hormonais ao longo do tempo.</p>
+  </div>
+
+  @if (loading()) {
+    <div class="empty-state">
+      <div class="spinner" style="margin: 0 auto 1rem"></div>
+      Carregando dados clínicos...
+    </div>
+  } @else if (bloodTests().length === 0) {
+    <div class="empty-state">
+      <div class="es-icon">🩸</div>
+      <p>Nenhum exame de sangue registrado ainda.<br>
+         Cadastre exames na tela de Perfil para visualizar a evolução.</p>
+    </div>
+  } @else {
+
+    <!-- ── Tab navigation ────────────────────────────────────────────── -->
+    <nav class="tab-nav">
+      @for (tab of tabs; track tab.id) {
+        <button class="tab-btn" [class.active]="activeTab() === tab.id"
+          (click)="switchTab(tab.id)">
+          {{ tab.icon }} {{ tab.label }}
+          @if (tabAlertCount(tab.id) > 0) {
+            <span style="background:#ef4444;color:#fff;border-radius:99px;
+              font-size:.65rem;padding:.05rem .35rem;font-weight:800">
+              {{ tabAlertCount(tab.id) }}
+            </span>
+          }
+        </button>
+      }
+    </nav>
+
+    <!-- ── Marker selector (filtered to current tab) ────────────────── -->
+    @if (tabMarkersWithData().length > 0) {
+      <div class="marker-grid">
+        @for (m of tabMarkersWithData(); track m.key) {
+          <button class="marker-btn"
+            [class.active]="selectedMarker() === m.key"
+            [style]="'--dot-color:' + m.color"
+            (click)="selectMarker(m.key)">
+            <span class="dot" [style.background]="m.color"></span>
+            <span class="mlabel">{{ m.label }}</span>
+            <span class="mval">{{ latestValue(m.key) | number:'1.0-2' }}</span>
+          </button>
+        }
+      </div>
+    }
+
+    <!-- ── Chart + sidebar (only when a marker is selected) ─────────── -->
+    @if (activeMarker(); as am) {
+      <div class="chart-section">
+
+        <!-- Line chart -->
+        <div class="chart-card">
+          <div class="chart-title">
+            <span class="dot" style="width:10px;height:10px;border-radius:50%;flex-shrink:0"
+              [style.background]="am.color"></span>
+            📈 {{ am.label }} ({{ am.unit }})
+          </div>
+
+          @if (chartPoints().length < 2) {
+            <div class="chart-empty">
+              <span class="emoji">📉</span>
+              <p>Registre pelo menos 2 exames para visualizar a evolução.</p>
+            </div>
+          } @else {
+            <div class="chart-container">
+              <svg class="svg-chart" [attr.viewBox]="'0 0 ' + W + ' ' + H" preserveAspectRatio="xMidYMid meet">
+
+                <!-- Grid lines + Y labels -->
+                @for (t of yTicks(); track t.y) {
+                  <line class="grid-line" [attr.x1]="padL" [attr.x2]="W - padR" [attr.y1]="t.y" [attr.y2]="t.y"/>
+                  <text class="axis-label" [attr.x]="padL - 4" [attr.y]="t.y + 3" text-anchor="end">{{ t.label }}</text>
+                }
+
+                <!-- ① Alert zone lines -->
+                @for (ln of alertLines(); track ln.y) {
+                  <line class="zone-alert-line"
+                    [attr.x1]="padL" [attr.x2]="W - padR" [attr.y1]="ln.y" [attr.y2]="ln.y"/>
+                }
+
+                <!-- ② Attention zone lines -->
+                @for (ln of attentionLines(); track ln.y) {
+                  <line class="zone-attention-line"
+                    [attr.x1]="padL" [attr.x2]="W - padR" [attr.y1]="ln.y" [attr.y2]="ln.y"/>
+                }
+
+                <!-- ③ Optimal zone — green filled band -->
+                @if (optimalBand(); as band) {
+                  <rect [attr.x]="padL" [attr.y]="band.top"
+                    [attr.width]="W - padL - padR"
+                    [attr.height]="band.bottom - band.top"
+                    fill="#22c55e" fill-opacity="0.10"/>
+                  <line class="zone-optimal-line"
+                    [attr.x1]="padL" [attr.x2]="W - padR" [attr.y1]="band.top" [attr.y2]="band.top"/>
+                  <line class="zone-optimal-line"
+                    [attr.x1]="padL" [attr.x2]="W - padR" [attr.y1]="band.bottom" [attr.y2]="band.bottom"/>
+                }
+
+                <!-- Hormone dose overlay lines -->
+                @for (hl of filteredHormoneLogs(); track hl.id) {
+                  <line class="hormone-line"
+                    [attr.x1]="hormoneX(hl)" [attr.x2]="hormoneX(hl)"
+                    [attr.y1]="padT" [attr.y2]="H - padB"
+                    stroke="#6366f1"/>
+                }
+
+                <!-- Area fill -->
+                <path [attr.d]="areaPath()" [attr.fill]="am.color" fill-opacity="0.10"/>
+
+                <!-- Main line -->
+                <path [attr.d]="linePath()" fill="none"
+                  [attr.stroke]="am.color" stroke-width="2.5"
+                  stroke-linejoin="round" stroke-linecap="round"/>
+
+                <!-- Dots with status color ring -->
+                @for (pt of chartPoints(); track pt.date) {
+                  <circle [attr.cx]="pt.x" [attr.cy]="pt.y" r="6"
+                    [attr.fill]="pointStatusColor(pt.value)" stroke="#fff" stroke-width="2.5"/>
+                  <text class="axis-label" [attr.x]="pt.x" [attr.y]="pt.y - 11"
+                    text-anchor="middle" [attr.fill]="am.color">
+                    {{ pt.value | number:'1.0-1' }}
+                  </text>
+                }
+
+                <!-- X labels -->
+                @for (pt of chartPoints(); track pt.date) {
+                  <text class="axis-label" [attr.x]="pt.x" [attr.y]="H - padB + 14" text-anchor="middle">
+                    {{ shortDate(pt.date) }}
+                  </text>
+                }
+
+                <!-- Axes -->
+                <line class="axis-line" [attr.x1]="padL" [attr.x2]="padL" [attr.y1]="padT" [attr.y2]="H - padB"/>
+                <line class="axis-line" [attr.x1]="padL" [attr.x2]="W - padR" [attr.y1]="H - padB" [attr.y2]="H - padB"/>
+              </svg>
+            </div>
+
+            <!-- Legend -->
+            <div class="legend-strip">
+              <div class="leg">
+                <div class="leg-dot" [style.background]="am.color"></div>
+                {{ am.label }}
+              </div>
+              <div class="leg">
+                <div class="leg-line" style="background:#22c55e;opacity:.7;border-style:dashed;border-width:1px;border-color:#22c55e;background:none"></div>
+                Faixa ideal
+              </div>
+              <div class="leg">
+                <div class="leg-line" style="background:none;border-style:dashed;border-width:1px;border-color:#f59e0b"></div>
+                Limite atenção
+              </div>
+              @if (filteredHormoneLogs().length > 0) {
+                <div class="leg">
+                  <div class="leg-dot" style="background:#6366f1;opacity:.7"></div>
+                  Dose hormonal
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Sidebar: snapshot + hormone log -->
+        <div class="sidebar">
+
+          <!-- Last exam status for active tab markers -->
+          @if (snapshotItems().length > 0) {
+            <div class="sidebar-card">
+              <h4>🔬 Último Exame · {{ lastExamDate() | date:'dd/MM/yyyy' }}</h4>
+              @for (item of snapshotItems(); track item.marker.key) {
+                <div style="display:flex;align-items:center;justify-content:space-between;
+                  padding:.4rem 0;border-bottom:1px solid var(--color-border);"
+                  [style.border-bottom-color]="'var(--color-border)'"
+                  style="cursor:pointer"
+                  (click)="selectMarker(item.marker.key)">
+                  <div>
+                    <div style="font-size:.72rem;color:var(--color-text-muted)">{{ item.marker.label }}</div>
+                    <div style="font-size:.95rem;font-weight:700">
+                      {{ item.value | number:'1.0-2' }}
+                      <span style="font-size:.65rem;color:var(--color-text-subtle);font-weight:400">{{ item.marker.unit }}</span>
+                    </div>
+                  </div>
+                  <span class="status-badge" [class]="item.status.status">
+                    {{ item.status.dot }} {{ item.status.label }}
+                  </span>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Hormone log -->
+          <div class="sidebar-card">
+            <h4>💉 Log Hormonal</h4>
+            <div class="cat-pills">
+              @for (cat of hormoneCategories; track cat) {
+                <span class="cpill" [class.active]="hormoneFilter() === cat"
+                  (click)="setHormoneFilter(cat)">{{ cat }}</span>
+              }
+            </div>
+            @for (hl of filteredHormoneLogs().slice(-8).reverse(); track hl.id) {
+              <div class="hormone-item">
+                <div class="hname">{{ hl.name }} {{ hl.dosage }}{{ hl.unit }}</div>
+                <div class="hmeta">{{ hl.administeredAt | date:'dd/MM/yy HH:mm' }} · {{ hl.category }}</div>
+              </div>
+            }
+            @if (filteredHormoneLogs().length === 0) {
+              <p style="font-size:.82rem;color:var(--color-text-muted)">Sem registros hormonais.</p>
+            }
+          </div>
+        </div>
+      </div>
+    } @else {
+
+      <!-- No marker selected: show full-width snapshot for the tab -->
+      @if (snapshotItems().length > 0) {
+        <div class="tab-summary-card">
+          <h4>🔬 Último Exame — {{ activeTabDef()?.label }}
+            <span style="font-size:.75rem;color:var(--color-text-muted);font-weight:400;margin-left:.5rem">
+              {{ lastExamDate() | date:'dd/MM/yyyy' }}
+            </span>
+          </h4>
+          <div class="snapshot-grid">
+            @for (item of snapshotItems(); track item.marker.key) {
+              <div class="snapshot-card" (click)="selectMarker(item.marker.key)">
+                <div class="sc-label">{{ item.marker.label }}</div>
+                <div class="sc-value" [style.color]="item.status.color">
+                  {{ item.value | number:'1.0-2' }}
+                  <span class="sc-unit">{{ item.marker.unit }}</span>
+                </div>
+                <span class="status-badge" [class]="item.status.status">
+                  {{ item.status.dot }} {{ item.status.label }}
+                </span>
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="empty-state">
+          <div class="es-icon">🩸</div>
+          <p>Nenhum dado para esta categoria ainda.<br>
+             Cadastre exames no Perfil para visualizar aqui.</p>
+        </div>
+      }
+    }
+
+  }
+</div>

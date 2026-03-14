@@ -1,0 +1,174 @@
+<div class="page">
+  <div class="page-header">
+    <h2>💉 Controle Hormonal</h2>
+    <p>Registre e monitore todas as suas administrações de hormônios e suplementos.</p>
+  </div>
+
+  <!-- Last dose per category -->
+  <div class="summary-grid">
+    @for (cat of categoryKeys; track cat) {
+      <div class="summary-card animate-fade" [style.background]="catMeta(cat).bg">
+        <div class="s-header">
+          <span class="icon">{{ catMeta(cat).icon }}</span>
+          <span class="label" [style.color]="catMeta(cat).color">{{ catMeta(cat).label }}</span>
+        </div>
+        @if (lastDose(cat)) {
+          <div class="s-name">{{ lastDose(cat)!.name }}</div>
+          <div class="s-dose" [style.color]="catMeta(cat).color">
+            {{ lastDose(cat)!.dosage }} {{ lastDose(cat)!.unit }}
+          </div>
+          <div class="s-time">
+            Última: {{ lastDose(cat)!.administeredAt | date:'dd/MM HH:mm' }}
+            · {{ daysAgo(lastDose(cat)!.administeredAt) }}
+          </div>
+        } @else {
+          <div class="no-log">Nenhum registro</div>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="main-grid">
+    <!-- Add new log -->
+    <div class="card form-card">
+      <div class="card-title">➕ Novo Registro</div>
+
+      @if (formError()) { <div class="alert alert-error mb-4">{{ formError() }}</div> }
+
+      <div class="fields">
+        <!-- Category selector -->
+        <div class="form-group">
+          <label>Categoria</label>
+          <div class="cat-selector">
+            @for (cat of categoryKeys; track cat) {
+              <button type="button" class="cat-btn"
+                [class.active]="form.category === cat"
+                [style.border-color]="form.category === cat ? catMeta(cat).color : ''"
+                [style.background]="form.category === cat ? catMeta(cat).bg : ''"
+                [style.color]="form.category === cat ? catMeta(cat).color : ''"
+                (click)="setCategory(cat)">
+                <span class="btn-icon">{{ catMeta(cat).icon }}</span>
+                {{ catMeta(cat).label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Name -->
+        <div class="form-group">
+          <label>Nome</label>
+          <input type="text" [(ngModel)]="form.name" placeholder="ex: Enantato de Testosterona" />
+          @if (suggestions().length > 0) {
+            <div class="suggestions">
+              @for (s of suggestions(); track s) {
+                <span class="sug-chip" (click)="form.name = s">{{ s }}</span>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Dose + unit -->
+        <div class="row-3">
+          <div class="form-group">
+            <label>Dose</label>
+            <input type="number" [(ngModel)]="form.dosage" min="0.001" step="any" placeholder="ex: 250" />
+          </div>
+          <div class="form-group">
+            <label>Unidade</label>
+            <select [(ngModel)]="form.unit">
+              @for (u of units; track u) { <option [value]="u">{{ u }}</option> }
+            </select>
+          </div>
+          <div></div>
+        </div>
+
+        <!-- Date + time -->
+        <div class="form-group">
+          <label>Data e hora da administração</label>
+          <input type="datetime-local" [(ngModel)]="form.administeredAt" />
+        </div>
+
+        <!-- Notes -->
+        <div class="form-group">
+          <label>Observações (opcional)</label>
+          <textarea [(ngModel)]="form.notes" rows="2"
+            placeholder="Local da aplicação, como se sentiu, etc."></textarea>
+        </div>
+
+        <button class="btn btn-primary submit-btn" (click)="save()" [disabled]="saving()">
+          {{ saving() ? 'Salvando...' : '💉 Registrar Administração' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="history-panel">
+      <div class="panel-header">
+        <h3>📋 Histórico</h3>
+        <span class="chip chip-gray">{{ total() }} registro{{ total() !== 1 ? 's' : '' }}</span>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="filter-tabs">
+        <button class="tab" [class.active]="!activeFilter()"
+          [style.border-color]="!activeFilter() ? 'var(--color-primary)' : ''"
+          [style.color]="!activeFilter() ? 'var(--color-primary)' : ''"
+          (click)="filterBy(undefined)">Todos</button>
+        @for (cat of categoryKeys; track cat) {
+          @if (hasLogs(cat)) {
+            <button class="tab" [class.active]="activeFilter() === cat"
+              [style.border-color]="activeFilter() === cat ? catMeta(cat).color : ''"
+              [style.color]="activeFilter() === cat ? catMeta(cat).color : ''"
+              (click)="filterBy(cat)">
+              {{ catMeta(cat).icon }} {{ catMeta(cat).label }}
+            </button>
+          }
+        }
+      </div>
+
+      @if (loading()) {
+        <div class="flex items-center justify-center" style="padding:2rem">
+          <span class="spinner"></span>
+        </div>
+      } @else if (logs().length === 0) {
+        <div class="empty-state">
+          <span class="emoji">💊</span>
+          <p>Nenhum registro encontrado.<br>Adicione sua primeira administração ao lado.</p>
+        </div>
+      } @else {
+        <div class="history-list stagger">
+          @for (log of logs(); track log.id) {
+            <div class="log-item animate-fade">
+              <span class="log-icon">{{ catMeta(log.category).icon }}</span>
+              <div class="log-body">
+                <div class="log-header">
+                  <span class="log-name">{{ log.name }}</span>
+                  <span class="log-cat"
+                    [style.background]="catMeta(log.category).bg"
+                    [style.color]="catMeta(log.category).color">
+                    {{ catMeta(log.category).label }}
+                  </span>
+                </div>
+                <div class="log-dose">
+                  <strong>{{ log.dosage }} {{ log.unit }}</strong>
+                </div>
+                <div class="log-time">
+                  🕐 {{ log.administeredAt | date:'dd/MM/yyyy HH:mm' }}
+                  · {{ daysAgo(log.administeredAt) }}
+                </div>
+                @if (log.notes) {
+                  <div class="log-notes">📝 {{ log.notes }}</div>
+                }
+              </div>
+              <button class="del-btn" (click)="remove(log.id)" title="Excluir">🗑️</button>
+            </div>
+          }
+        </div>
+
+        @if (hasMore()) {
+          <button class="btn btn-secondary load-more" (click)="loadMore()">Carregar mais...</button>
+        }
+      }
+    </div>
+  </div>
+</div>

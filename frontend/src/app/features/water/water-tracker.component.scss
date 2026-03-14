@@ -1,0 +1,127 @@
+:host { display: block; }
+
+.water-card {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  border: 1px solid #7dd3fc;
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+}
+
+/* Card header */
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem;
+
+  .title { font-size: .95rem; font-weight: 700; color: #0c4a6e; display: flex; align-items: center; gap: .5rem; }
+  .toggle-btn {
+    background: rgba(14,165,233,.15); border: none; border-radius: var(--radius-sm);
+    padding: .3rem .65rem; font-size: .75rem; font-weight: 600; color: #0369a1;
+    cursor: pointer; transition: background .15s;
+    &:hover { background: rgba(14,165,233,.3); }
+  }
+}
+
+/* Progress section */
+.progress-section {
+  margin-bottom: 1.25rem;
+
+  .amounts {
+    display: flex; align-items: baseline; gap: .375rem; margin-bottom: .625rem;
+    .current  { font-size: 2.25rem; font-weight: 800; color: #0369a1; line-height: 1; }
+    .slash    { font-size: 1.1rem; color: #7dd3fc; }
+    .goal     { font-size: 1.1rem; color: #0369a1; }
+    .unit     { font-size: .75rem; color: #38bdf8; }
+    .pct-chip {
+      margin-left: auto;
+      background: rgba(14,165,233,.2); border-radius: 99px;
+      padding: .2rem .6rem; font-size: .75rem; font-weight: 700; color: #0369a1;
+    }
+  }
+
+  .bar-track {
+    height: 10px; background: rgba(255,255,255,.5); border-radius: 99px; overflow: hidden;
+    .bar-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, #38bdf8, #0284c7);
+      transition: width .6s cubic-bezier(.22,1,.36,1);
+    }
+  }
+
+  .bar-label { display: flex; justify-content: space-between; margin-top: .375rem;
+    font-size: .7rem; color: #0369a1; }
+}
+
+/* Quick-add buttons */
+.quick-add {
+  display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem;
+
+  .qa-btn {
+    flex: 1; min-width: 60px;
+    padding: .5rem .25rem;
+    background: rgba(255,255,255,.6); border: 1.5px solid #7dd3fc;
+    border-radius: var(--radius-sm); font-size: .82rem; font-weight: 700;
+    color: #0369a1; cursor: pointer; transition: all .15s;
+    text-align: center;
+
+    &:hover { background: #fff; border-color: #0284c7; }
+    &:active { transform: scale(.96); }
+  }
+}
+
+/* Custom add form */
+.custom-add {
+  background: rgba(255,255,255,.55); border-radius: var(--radius-sm);
+  padding: .875rem; border: 1px solid #7dd3fc;
+
+  .form-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: .625rem; margin-bottom: .625rem;
+  }
+
+  label { font-size: .75rem; font-weight: 600; color: #0369a1; display: block; margin-bottom: .2rem; }
+  input  {
+    width: 100%; padding: .45rem .65rem;
+    border: 1.5px solid #7dd3fc; border-radius: 6px;
+    background: #fff; font-size: .85rem; outline: none;
+    &:focus { border-color: #0284c7; }
+  }
+
+  .submit-row { display: flex; gap: .5rem; }
+  .add-btn {
+    flex: 1; padding: .55rem; font-size: .85rem; font-weight: 700;
+    background: #0284c7; color: #fff; border: none; border-radius: 6px;
+    cursor: pointer; transition: background .15s;
+    &:hover { background: #0369a1; }
+    &:disabled { opacity: .6; cursor: wait; }
+  }
+}
+
+/* Today's log list */
+.log-section {
+  margin-top: 1rem;
+
+  .log-title {
+    font-size: .78rem; font-weight: 700; color: #0369a1;
+    margin-bottom: .5rem; display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .log-list { display: flex; flex-direction: column; gap: .3rem; max-height: 200px; overflow-y: auto; }
+
+  .log-item {
+    display: flex; align-items: center;
+    background: rgba(255,255,255,.55); border-radius: 6px;
+    padding: .3rem .625rem; font-size: .78rem;
+
+    .log-qty  { font-weight: 700; color: #0284c7; margin-right: .375rem; }
+    .log-time { color: #38bdf8; margin-right: auto; }
+    .del-btn  { background: none; border: none; cursor: pointer; color: #7dd3fc; font-size: .9rem;
+      &:hover { color: #dc2626; } }
+  }
+
+  .no-logs { font-size: .78rem; color: #38bdf8; text-align: center; padding: .5rem; }
+}
+
+/* Compact mode (for dashboard widget) */
+:host(.compact) {
+  .log-section { display: none; }
+  .custom-add { display: none; }
+}

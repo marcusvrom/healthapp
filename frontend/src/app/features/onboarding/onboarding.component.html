@@ -1,0 +1,369 @@
+<div class="onboarding">
+  <!-- Progress bar -->
+  <header class="progress-bar">
+    <div class="logo">🌿 HealthApp</div>
+    <div class="steps">
+      @for (s of steps; track s; let i = $index) {
+        <div class="step-item">
+          <div class="bubble" [class.active]="step() === i" [class.completed]="step() > i">
+            @if (step() > i) { ✓ } @else { {{ i + 1 }} }
+          </div>
+          <span class="step-label" [class.active]="step() === i">{{ s }}</span>
+          @if (i < steps.length - 1) {
+            <div class="line" [class.done]="step() > i"></div>
+          }
+        </div>
+      }
+    </div>
+  </header>
+
+  <!-- Step content -->
+  <main class="content">
+    <div class="step-card" [class.wide]="step() === 5">
+
+      <!-- Step 0: Personal info -->
+      @if (step() === 0) {
+        <div class="step-header">
+          <span class="emoji">👤</span>
+          <h2>Sobre você</h2>
+          <p>Precisamos de algumas informações básicas para personalizar seu plano.</p>
+        </div>
+        <div class="fields">
+          <div class="form-group">
+            <label>Nome completo</label>
+            <input type="text" [(ngModel)]="personal.name" placeholder="Como você quer ser chamado?" />
+          </div>
+          <div class="row-2">
+            <div class="form-group">
+              <label>Idade (anos)</label>
+              <input type="number" [(ngModel)]="personal.age" min="10" max="120" placeholder="Ex: 28" />
+            </div>
+            <div class="form-group">
+              <label>Peso (kg)</label>
+              <input type="number" [(ngModel)]="personal.weight" min="30" max="300" step="0.1" placeholder="Ex: 75.5" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Altura (cm)</label>
+            <input type="number" [(ngModel)]="personal.height" min="100" max="250" placeholder="Ex: 175" />
+          </div>
+          <div class="form-group">
+            <label>Gênero</label>
+            <div class="gender-cards">
+              @for (g of genderOptions; track g.value) {
+                <div class="option-card" [class.selected]="personal.gender === g.value" (click)="personal.gender = g.value">
+                  <span class="emoji">{{ g.emoji }}</span>
+                  <div class="label">{{ g.label }}</div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Step 1: Schedule + Main Activity -->
+      @if (step() === 1) {
+        <div class="step-header">
+          <span class="emoji">🕐</span>
+          <h2>Sua rotina de horários</h2>
+          <p>Vamos entender como é seu dia para encaixar tudo no momento certo.</p>
+        </div>
+        <div class="fields">
+          <div class="form-group">
+            <label>Qual é sua atividade principal?</label>
+            <div class="activity-cards">
+              @for (opt of mainActivityOptions; track opt.value) {
+                <div class="activity-card"
+                     [class.selected]="schedule.mainActivity === opt.value"
+                     (click)="schedule.mainActivity = opt.value">
+                  <span class="icon">{{ opt.icon }}</span>
+                  <div class="info">
+                    <div class="title">{{ opt.label }}</div>
+                    <div class="desc">{{ opt.desc }}</div>
+                  </div>
+                  <div class="check">@if (schedule.mainActivity === opt.value) { ✓ }</div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="row-2">
+            <div class="form-group">
+              <label>⏰ Acorda às</label>
+              <input type="time" [(ngModel)]="schedule.wakeUpTime" />
+            </div>
+            <div class="form-group">
+              <label>🌙 Dorme às</label>
+              <input type="time" [(ngModel)]="schedule.sleepTime" />
+            </div>
+          </div>
+
+          @if (hasFixedSchedule()) {
+            <div class="row-2">
+              <div class="form-group">
+                <label>{{ activityStartLabel() }}</label>
+                <input type="time" [(ngModel)]="schedule.workStartTime" />
+              </div>
+              <div class="form-group">
+                <label>{{ activityEndLabel() }}</label>
+                <input type="time" [(ngModel)]="schedule.workEndTime" />
+              </div>
+            </div>
+          }
+
+          <div class="alert alert-info">
+            💡 Esses horários serão usados para distribuir refeições, hidratação e exercícios ao longo do dia.
+          </div>
+        </div>
+      }
+
+      <!-- Step 2: Activity level -->
+      @if (step() === 2) {
+        <div class="step-header">
+          <span class="emoji">⚡</span>
+          <h2>Nível de atividade física</h2>
+          <p>Quanto você se movimenta durante um dia normal?</p>
+        </div>
+        <div class="activity-cards">
+          @for (a of activityOptions; track a.value) {
+            <div class="activity-card" [class.selected]="activity.activityFactor === a.value" (click)="activity.activityFactor = a.value">
+              <span class="icon">{{ a.icon }}</span>
+              <div class="info">
+                <div class="title">{{ a.label }}</div>
+                <div class="desc">{{ a.desc }}</div>
+              </div>
+              <div class="check">@if (activity.activityFactor === a.value) { ✓ }</div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Step 3: Exercises -->
+      @if (step() === 3) {
+        <div class="step-header">
+          <span class="emoji">🏋️</span>
+          <h2>Atividades físicas</h2>
+          <p>Selecione as atividades que você pratica (pode escolher mais de uma).</p>
+        </div>
+        @if (presets().length === 0) {
+          <div class="flex items-center justify-center" style="padding:2rem">
+            <span class="spinner"></span>
+          </div>
+        } @else {
+          <div class="fields">
+            <div class="exercise-grid">
+              @for (p of presets(); track p.name) {
+                <div class="exercise-card" [class.selected]="isExerciseSelected(p)" (click)="toggleExercise(p)">
+                  <div class="ex-name">{{ categoryIcon(p.category) }} {{ p.name }}</div>
+                  <div class="ex-meta">MET {{ p.met }} · Score hipertrofia: {{ p.hypertrophyScore }}/10</div>
+                </div>
+              }
+            </div>
+
+            @if (exercise.selected.length > 0) {
+              <div class="form-group">
+                <label>Dias da semana</label>
+                <div class="day-selector">
+                  @for (d of days; track d; let i = $index) {
+                    <button type="button" class="day-btn" [class.active]="isDaySelected(i)" (click)="toggleDay(i)">{{ d }}</button>
+                  }
+                </div>
+              </div>
+              <div class="row-2">
+                <div class="form-group">
+                  <label>Horário preferido</label>
+                  <input type="time" [(ngModel)]="exercise.preferredTime" />
+                </div>
+                <div class="form-group">
+                  <label>Duração (min)</label>
+                  <input type="number" [(ngModel)]="exercise.durationMinutes" min="10" max="300" />
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+
+      <!-- Step 4: Goal -->
+      @if (step() === 4) {
+        <div class="step-header">
+          <span class="emoji">🎯</span>
+          <h2>Objetivo principal</h2>
+          <p>Qual é a sua meta de saúde? Isso ajustará sua meta calórica diária.</p>
+        </div>
+        <div class="fields">
+          <div class="goal-cards">
+            @for (g of goalOptions; track g.value) {
+              <div class="goal-card" [class.selected]="goal.primaryGoal === g.value" (click)="goal.primaryGoal = g.value">
+                <span class="icon">{{ g.icon }}</span>
+                <div class="info">
+                  <div class="title">{{ g.label }}</div>
+                  <div class="desc">{{ g.desc }}</div>
+                </div>
+                <span class="kcal">{{ g.kcal }}</span>
+                <div class="check">@if (goal.primaryGoal === g.value) { ✓ }</div>
+              </div>
+            }
+          </div>
+          @if (goal.primaryGoal === 'emagrecimento' || goal.primaryGoal === 'ganho_massa') {
+            <div class="form-group">
+              <label>Peso alvo (kg) <span style="font-weight:400;color:var(--color-text-subtle)">(opcional)</span></label>
+              <input type="number" [(ngModel)]="goal.targetWeight" min="30" max="300" step="0.5" placeholder="Ex: 75.0" />
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Step 5: Summary + Routine Base -->
+      @if (step() === 5) {
+        @if (saving()) {
+          <div style="text-align:center;padding:3rem 0">
+            <div style="font-size:3rem;margin-bottom:1rem">⏳</div>
+            <h2>Calculando seu plano...</h2>
+            <p style="font-size:.9rem;margin-top:.5rem">Processando sua TMB, metas de macronutrientes e montando sua rotina base.</p>
+            <div class="flex items-center justify-center mt-4"><span class="spinner" style="width:2rem;height:2rem"></span></div>
+          </div>
+        } @else if (errorMsg()) {
+          <div style="text-align:center;padding:2rem 0">
+            <div style="font-size:3rem;margin-bottom:1rem">😕</div>
+            <h2>Algo deu errado</h2>
+            <p>{{ errorMsg() }}</p>
+          </div>
+        } @else {
+          <div class="step-header">
+            <span class="emoji">🗺️</span>
+            <h2>Resumo e Rotina Base</h2>
+            <p>Confira suas metas calculadas e defina o esqueleto padrão dos seus dias.</p>
+          </div>
+
+          <div class="summary-grid">
+            <!-- Block 1: Metabolic Summary -->
+            <div class="summary-block">
+              <h3>📊 Resumo Metabólico</h3>
+              @if (metabolic()) {
+                <div class="metric-grid">
+                  <div class="metric">
+                    <div class="value">{{ metabolic()!.bmr | number:'1.0-0' }}</div>
+                    <div class="label">TMB (kcal)</div>
+                  </div>
+                  <div class="metric">
+                    <div class="value">{{ metabolic()!.tee | number:'1.0-0' }}</div>
+                    <div class="label">GET (kcal)</div>
+                  </div>
+                  <div class="metric full">
+                    <div class="value">{{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }} kcal/dia</div>
+                    <div class="label">Meta Diária ({{ goalLabel() }})</div>
+                  </div>
+                  <div class="metric">
+                    <div class="value">{{ metabolic()!.macros.proteinG | number:'1.0-0' }}g</div>
+                    <div class="label">Proteína</div>
+                  </div>
+                  <div class="metric">
+                    <div class="value">{{ metabolic()!.macros.carbsG | number:'1.0-0' }}g</div>
+                    <div class="label">Carboidratos</div>
+                  </div>
+                  <div class="metric">
+                    <div class="value">{{ metabolic()!.macros.fatG | number:'1.0-0' }}g</div>
+                    <div class="label">Gordura</div>
+                  </div>
+                  <div class="metric">
+                    <div class="value">{{ metabolic()!.waterMlTotal | number:'1.0-0' }}</div>
+                    <div class="label">Água (ml/dia)</div>
+                  </div>
+                </div>
+              } @else {
+                <p style="font-size:.85rem;color:var(--color-text-muted)">Carregando...</p>
+              }
+            </div>
+
+            <!-- Block 2: Routine Base Builder -->
+            <div class="summary-block">
+              <h3>🧱 Rotina Base</h3>
+              <div class="routine-fields">
+                <div class="row-2">
+                  <div class="form-group">
+                    <label>⏰ Horário de Acordar</label>
+                    <input type="time" [(ngModel)]="routineBase.wakeUpTime" />
+                  </div>
+                  <div class="form-group">
+                    <label>🌙 Horário de Dormir</label>
+                    <input type="time" [(ngModel)]="routineBase.sleepTime" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>💪 Horário Preferido de Treino</label>
+                  <input type="time" [(ngModel)]="routineBase.preferredTrainTime" />
+                </div>
+
+                <div class="form-group">
+                  <label>Quais refeições você costuma fazer?</label>
+                  <div class="meal-checks">
+                    @for (m of mealOptions; track m.key) {
+                      <div class="meal-check"
+                           [class.active]="routineBase.meals[m.key]"
+                           (click)="routineBase.meals[m.key] = !routineBase.meals[m.key]">
+                        <div class="cb">@if (routineBase.meals[m.key]) { ✓ }</div>
+                        <span>{{ m.icon }} {{ m.label }}</span>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Water reminders -->
+                <div class="water-section">
+                  <div class="water-toggle"
+                       [class.active]="routineBase.waterReminders"
+                       (click)="routineBase.waterReminders = !routineBase.waterReminders">
+                    <div class="cb">@if (routineBase.waterReminders) { ✓ }</div>
+                    <span class="water-label">💧 Deseja lembretes para tomar água?</span>
+                  </div>
+
+                  @if (routineBase.waterReminders && metabolic()) {
+                    <div class="water-detail">
+                      <span class="water-goal">Meta diária: {{ metabolic()!.waterMlTotal | number:'1.0-0' }} ml</span>
+                    </div>
+                    <div class="form-group">
+                      <label>Com qual frequência deseja ser lembrado?</label>
+                      <div class="interval-options">
+                        @for (opt of waterIntervalOptions; track opt.value) {
+                          <div class="interval-chip"
+                               [class.active]="routineBase.waterIntervalMin === opt.value"
+                               (click)="routineBase.waterIntervalMin = opt.value">
+                            {{ opt.label }}
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      }
+
+      <!-- Navigation buttons -->
+      <div class="nav-btns">
+        @if (step() > 0 && !saving()) {
+          <button type="button" class="btn btn-secondary" (click)="back()">← Voltar</button>
+        } @else {
+          <div></div>
+        }
+
+        <span class="step-counter">{{ step() + 1 }} / {{ steps.length }}</span>
+
+        @if (step() < steps.length - 1) {
+          <button type="button" class="btn btn-primary" (click)="next()" [disabled]="!canProceed()">
+            Próximo →
+          </button>
+        } @else if (!saving() && !errorMsg()) {
+          <button type="button" class="btn btn-primary btn-lg" (click)="finish()"
+                  [disabled]="!hasSelectedMeals()">
+            Finalizar e Entrar 🚀
+          </button>
+        }
+      </div>
+    </div>
+  </main>
+</div>

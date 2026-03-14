@@ -1,0 +1,78 @@
+<div class="page">
+  <button class="back-btn" (click)="goBack()">← Voltar</button>
+
+  @if (loading()) {
+    <div class="loading-text">Carregando perfil…</div>
+  } @else if (notFound()) {
+    <div class="error-state">
+      <div class="icon">😕</div>
+      <p>Usuário não encontrado.</p>
+    </div>
+  } @else {
+    @if (profile(); as p) {
+
+    <!-- Hero card -->
+    <div class="hero-card">
+      @if (avatarSrc(p.avatarUrl); as src) {
+        <img [src]="src" class="hero-avatar" [alt]="p.name" />
+      } @else {
+        <div class="hero-avatar" [style.background]="levelColor(p.level)">
+          {{ p.name.charAt(0).toUpperCase() }}
+        </div>
+      }
+
+      <div class="hero-name">{{ p.name }}</div>
+
+      @if (p.city) {
+        <div class="hero-location">
+          📍 {{ p.city }}{{ p.state ? ', ' + p.state : '' }}
+        </div>
+      }
+
+      <span class="level-badge" [style.background]="levelColor(p.level)">
+        ⭐ Nível {{ p.level }} · {{ p.levelTitle }}
+      </span>
+
+      @if (p.primaryGoalLabel) {
+        <span class="goal-chip">🎯 {{ p.primaryGoalLabel }}</span>
+      }
+    </div>
+
+    <!-- Stats grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">{{ p.totalMissionsCompleted | number }}</div>
+        <div class="stat-label">Missões Concluídas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ p.xp | number }}</div>
+        <div class="stat-label">XP Total</div>
+      </div>
+    </div>
+
+    <!-- Action area -->
+    <div class="action-area">
+      @switch (p.friendship.status) {
+        @case ('NONE') {
+          <button class="btn-add" (click)="sendRequest(p)">
+            ➕ Adicionar como Amigo
+          </button>
+        }
+        @case ('PENDING') {
+          @if (p.friendship.iAmRequester) {
+            <button class="btn-sent">⏳ Solicitação Enviada</button>
+          } @else {
+            <div class="respond-row">
+              <button class="accept"  (click)="accept(p)">✓ Aceitar</button>
+              <button class="decline" (click)="decline(p)">✕ Recusar</button>
+            </div>
+          }
+        }
+        @case ('ACCEPTED') {
+          <button class="btn-friends">👥 Amigos ✓</button>
+        }
+      }
+    </div>
+    } <!-- end @if profile -->
+  } <!-- end @else -->
+</div>

@@ -1,0 +1,242 @@
+<div class="page">
+  <div class="page-header">
+    <h2>Dieta & Protocolos</h2>
+    <p>Sua timeline diaria com refeicoes e protocolos clinicos. Marque cada item e ganhe XP!
+    Vincule receitas para manter sua dieta organizada.</p>
+  </div>
+
+  <div class="controls">
+    <input type="date" [value]="selectedDate()" (change)="onDateChange($event)" />
+    <button class="btn btn-primary" (click)="generate()" [disabled]="generating()">
+      {{ generating() ? 'Gerando...' : 'Gerar Plano de Exemplo' }}
+    </button>
+    <button class="btn" (click)="load()">Recarregar</button>
+  </div>
+
+  <!-- Goal + caloric target banner -->
+  @if (metabolic()) {
+    <div class="goal-banner">
+      @if (goalLabel()) {
+        <div class="goal-pill">
+          <span class="g-emoji">{{ goalEmoji() }}</span>
+          <span>{{ goalLabel() }}</span>
+        </div>
+      }
+      <div class="caloric-info">
+        <span class="cal-val">{{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }}</span>
+        <span class="cal-lbl">kcal / dia (meta)</span>
+        @if (metabolic()!.goalAdjustmentKcal !== 0) {
+          <span class="adj-badge" [class.adj-pos]="metabolic()!.goalAdjustmentKcal > 0"
+            [class.adj-neg]="metabolic()!.goalAdjustmentKcal < 0">
+            {{ metabolic()!.goalAdjustmentKcal > 0 ? '+' : '' }}{{ metabolic()!.goalAdjustmentKcal | number:'1.0-0' }} kcal ajuste
+          </span>
+        } @else {
+          <span class="adj-badge adj-zero">{{ goalLabel() ?? 'Manutencao' }}</span>
+        }
+      </div>
+    </div>
+  }
+
+  @if (meals().length > 0 || metabolic()) {
+    <div class="macros-row">
+      <div class="macro-card">
+        <div class="mv">{{ targetCal() | number:'1.0-0' }}</div>
+        <div class="ml">Calorias</div><div class="mc">meta do dia</div>
+      </div>
+      <div class="macro-card">
+        <div class="mv">{{ targetProtein() | number:'1.0-0' }}g</div>
+        <div class="ml">Proteina</div><div class="mc">meta do dia</div>
+      </div>
+      <div class="macro-card">
+        <div class="mv">{{ targetCarbs() | number:'1.0-0' }}g</div>
+        <div class="ml">Carboidratos</div><div class="mc">meta do dia</div>
+      </div>
+      <div class="macro-card">
+        <div class="mv">{{ consumedMeals() }}/{{ meals().length }}</div>
+        <div class="ml">Refeicoes</div><div class="mc">concluidas</div>
+      </div>
+    </div>
+  }
+
+  @if (loading()) {
+    <div style="text-align:center;padding:3rem;color:var(--color-text-muted)">
+      <div class="spinner" style="margin:0 auto 1rem"></div> Carregando...
+    </div>
+  } @else if (timeline().length === 0) {
+    <div class="empty-state">
+      <span class="emoji">&#127860;</span>
+      <p>Nenhum item para este dia.<br>
+        Clique em <strong>Gerar Plano de Exemplo</strong> para criar seu plano alimentar.<br>
+        Adicione protocolos em <strong>Protocolos</strong> para ve-los aqui.</p>
+    </div>
+  } @else {
+    <div class="timeline">
+      @for (item of timeline(); track itemKey(item)) {
+
+        @if (item.kind === 'meal') {
+          <div class="timeline-card"
+            [class.done]="item.data.isConsumed"
+            [class.checking]="checking() === item.data.id">
+            <div class="card-row">
+              <span class="time-badge meal">{{ item.data.scheduledTime }}</span>
+              <div class="card-info">
+                <div class="item-name" [class.struck]="item.data.isConsumed">{{ item.data.name }}</div>
+                <div class="pill-row">
+                  @if (item.data.caloricTarget) {
+                    <span class="macro-pill kcal">{{ item.data.caloricTarget | number:'1.0-0' }} kcal</span>
+                  }
+                  @if (item.data.proteinG) {
+                    <span class="macro-pill prot">{{ item.data.proteinG | number:'1.0-0' }}g prot</span>
+                  }
+                  @if (item.data.carbsG) {
+                    <span class="macro-pill carb">{{ item.data.carbsG | number:'1.0-0' }}g carb</span>
+                  }
+                  @if (item.data.fatG) {
+                    <span class="macro-pill fat">{{ item.data.fatG | number:'1.0-0' }}g gord</span>
+                  }
+                </div>
+              </div>
+              <button class="check-btn" [class.done]="item.data.isConsumed"
+                (click)="toggleMeal(item.data, $event)" [disabled]="checking() === item.data.id">
+                {{ item.data.isConsumed ? '&#10003;' : '&#9675;' }}
+              </button>
+            </div>
+
+            @if (item.data.foods && item.data.foods.length > 0) {
+              <div class="food-list">
+                @for (food of item.data.foods; track food.name) {
+                  <div class="food-item">
+                    <span class="fname">{{ food.name }}</span>
+                    <span class="fmacro">{{ food.quantityG }}g · {{ food.calories | number:'1.0-0' }} kcal</span>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Linked recipes -->
+            <div class="linked-recipes">
+              <div class="lr-header">
+                <span class="lr-title">Receitas vinculadas</span>
+              </div>
+
+              @if (item.data.linkedRecipes && item.data.linkedRecipes.length > 0) {
+                @for (lr of item.data.linkedRecipes; track lr.recipeId) {
+                  <div class="lr-item">
+                    <span class="lr-name">{{ lr.title }}</span>
+                    <span class="lr-servings">x{{ lr.servings }}</span>
+                    <span class="lr-macro">{{ linkedRecipeKcal(lr) | number:'1.0-0' }} kcal</span>
+                    @if (!item.data.isConsumed) {
+                      <button class="lr-remove" (click)="unlinkRecipe(item.data, lr.recipeId)" title="Remover receita">&#10005;</button>
+                    }
+                  </div>
+                }
+              } @else {
+                @if (!item.data.isConsumed) {
+                  <button class="add-recipe-btn" (click)="openRecipePicker(item.data)">
+                    + Adicionar receita a esta refeicao
+                  </button>
+                }
+              }
+            </div>
+
+            @if (item.data.isConsumed && item.data.consumedAt) {
+              <div class="done-note" style="color:#16a34a">
+                &#10003; Consumida as {{ item.data.consumedAt | date:'HH:mm' }}
+                @if (item.data.xpAwarded) { · +{{ XP_MEAL }} XP! }
+              </div>
+            }
+          </div>
+        }
+
+        @if (item.kind === 'protocol') {
+          <div class="timeline-card proto-card"
+            [class.done]="!!item.data.log"
+            [class.checking]="checking() === 'proto-' + item.data.id">
+            <div class="card-row">
+              <span class="time-badge proto">{{ catIcon(item.data.category) }} {{ item.data.scheduledTime }}</span>
+              <div class="card-info">
+                <div class="item-name" [class.struck]="!!item.data.log">{{ item.data.name }}</div>
+                <div class="item-sub">{{ item.data.dosage }}</div>
+                <span class="cat-pill">{{ item.data.category }}</span>
+              </div>
+              <button class="check-btn" [class.proto-done]="!!item.data.log"
+                (click)="toggleProtocol(item.data, $event)" [disabled]="checking() === 'proto-' + item.data.id">
+                {{ item.data.log ? '&#10003;' : '&#9675;' }}
+              </button>
+            </div>
+            @if (item.data.log) {
+              <div class="done-note" style="color:#7c3aed">
+                &#10003; Tomado as {{ item.data.log.takenAt | date:'HH:mm' }}
+                @if (item.data.log.xpAwarded) { · +{{ XP_PROTO }} XP! }
+              </div>
+            }
+          </div>
+        }
+
+      }
+    </div>
+  }
+</div>
+
+<!-- ── Recipe Picker Modal ─────────────────────────────────── -->
+@if (pickerMeal()) {
+  <div class="modal-overlay" (click)="closeRecipePicker()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>Vincular receita a "{{ pickerMeal()!.name }}"</h3>
+        <button class="close-btn" (click)="closeRecipePicker()">&#10005;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="picker-search">
+          <input type="text" placeholder="Buscar nas minhas receitas..."
+            [(ngModel)]="pickerQuery" />
+        </div>
+
+        @if (filteredPickerRecipes().length > 0) {
+          <div class="picker-list">
+            @for (r of filteredPickerRecipes(); track r.id) {
+              <div class="picker-item">
+                <div class="pi-info">
+                  <div class="pi-name">{{ r.title }}</div>
+                  <div class="pi-macros">
+                    {{ r.kcal | number:'1.0-0' }} kcal · {{ r.proteinG | number:'1.0-0' }}g prot
+                    · {{ r.carbsG | number:'1.0-0' }}g carb · {{ r.fatG | number:'1.0-0' }}g gord
+                    @if (r.servings > 1) { · {{ r.servings }} porcoes }
+                  </div>
+                </div>
+                @if (pickerSelected()?.id === r.id) {
+                  <span style="font-size:.78rem;color:var(--color-primary);font-weight:700">Selecionada</span>
+                } @else {
+                  <button class="pi-add" (click)="selectPickerRecipe(r)">Selecionar</button>
+                }
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="picker-empty">
+            <p>Nenhuma receita encontrada.</p>
+            <p style="font-size:.78rem;margin-top:.5rem">Crie ou importe receitas na aba <strong>Receitas</strong>.</p>
+          </div>
+        }
+      </div>
+
+      @if (pickerSelected()) {
+        <div class="servings-input">
+          <span class="si-recipe">{{ pickerSelected()!.title }}</span>
+          <span class="si-label">Porcoes:</span>
+          <input type="number" [(ngModel)]="pickerServings" min="0.5" step="0.5" />
+          <button class="si-confirm" (click)="confirmLinkRecipe()" [disabled]="linking()">
+            {{ linking() ? 'Vinculando...' : 'Vincular' }}
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+@if (xpPopVisible()) {
+  <div class="xp-pop" [style.left]="xpPopX + 'px'" [style.top]="xpPopY + 'px'">
+    +{{ lastXp() }} XP
+  </div>
+}
