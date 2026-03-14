@@ -279,10 +279,7 @@ import { AppNotification } from '../../core/models';
           <a routerLink="/diet" routerLinkActive="active-link" class="nav-item">
             <span class="icon">🍽️</span> Dieta
           </a>
-          <a routerLink="/nutrition" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">🥗</span> Nutrição
-          </a>
-          <a routerLink="/recipes" routerLinkActive="active-link" class="nav-item">
+<a routerLink="/recipes" routerLinkActive="active-link" class="nav-item">
             <span class="icon">📖</span> Receitas
           </a>
           <a routerLink="/protocols" routerLinkActive="active-link" class="nav-item">

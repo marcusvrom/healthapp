@@ -175,7 +175,7 @@ export class LoginComponent {
     { icon: '🧮', text: 'Cálculo preciso de TMB e macronutrientes' },
     { icon: '🩸', text: 'Análise inteligente de exames de sangue' },
     { icon: '📅', text: 'Rotina personalizada com time-blocking' },
-    { icon: '🥗', text: 'Banco de alimentos TACO/TBCA integrado' },
+    { icon: '💧', text: 'Controle inteligente de hidratação e metas' },
   ];
 
   submit(): void {

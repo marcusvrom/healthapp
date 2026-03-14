@@ -240,7 +240,7 @@ export interface CreateBlockDto {
 }
 
 // ── Food ──────────────────────────────────────────────────────────────────────
-export type FoodSource = 'TACO' | 'TBCA' | 'OpenFoodFacts' | 'UserCustom';
+export type FoodSource = 'OpenFoodFacts' | 'UserCustom';
 
 export interface Food {
   id: string;

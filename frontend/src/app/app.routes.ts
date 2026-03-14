@@ -26,8 +26,7 @@ export const routes: Routes = [
     loadComponent: () => import('./shared/components/nav-shell.component').then(m => m.NavShellComponent),
     children: [
       { path: 'dashboard', loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent) },
-      { path: 'nutrition', loadComponent: () => import('./features/nutrition/nutrition.component').then(m => m.NutritionComponent) },
-      { path: 'water',     loadComponent: () => import('./features/water/water-tracker.component').then(m => m.WaterTrackerComponent) },
+{ path: 'water',     loadComponent: () => import('./features/water/water-tracker.component').then(m => m.WaterTrackerComponent) },
       { path: 'hormones',  loadComponent: () => import('./features/hormones/hormones.component').then(m => m.HormonesComponent) },
       { path: 'progress',  loadComponent: () => import('./features/progress/progress.component').then(m => m.ProgressComponent) },
       { path: 'profile',   loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent) },

@@ -4,7 +4,6 @@ import { HealthProfileController } from "../controllers/HealthProfileController"
 import { BloodTestController } from "../controllers/BloodTestController";
 import { ExerciseController } from "../controllers/ExerciseController";
 import { RoutineController } from "../controllers/RoutineController";
-import { FoodController } from "../controllers/FoodController";
 import { MealController } from "../controllers/MealController";
 import { WaterController } from "../controllers/WaterController";
 import { HormoneController } from "../controllers/HormoneController";
@@ -70,12 +69,6 @@ router.post("/routine/blocks",                    ...auth(RoutineController.crea
 router.patch("/routine/blocks/:id",               ...auth(RoutineController.updateBlock));
 router.patch("/routine/blocks/:id/complete",      ...auth(RoutineController.completeBlock));
 router.delete("/routine/blocks/:id",              ...auth(RoutineController.deleteBlock));
-
-// ── Foods (search is public; create requires auth) ────────────────────────────
-router.get("/foods/search", FoodController.search);
-router.get("/foods/barcode/:barcode", FoodController.byBarcode);
-router.get("/foods/:id", FoodController.getOne);
-router.post("/foods", ...auth(FoodController.create));
 
 // ── Meals ─────────────────────────────────────────────────────────────────────
 router.get("/meals", ...auth(MealController.list));
