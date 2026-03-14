@@ -1,0 +1,309 @@
+<div class="workouts-page">
+  <!-- ── Header ────────────────────────────────────────────────────── -->
+  <header class="page-header">
+    <div class="header-left">
+      <h1>Fichas de Treino</h1>
+      <p class="subtitle">Organize seus treinos e use templates prontos</p>
+    </div>
+    @if (tab() === 'sheets') {
+      <button class="btn-primary" (click)="openCreate()">+ Nova Ficha</button>
+    }
+  </header>
+
+  <!-- ── Tabs ──────────────────────────────────────────────────────── -->
+  <nav class="tabs">
+    <button class="tab" [class.active]="tab() === 'sheets'" (click)="setTab('sheets')">
+      <span class="tab-icon">📋</span> Minhas Fichas
+    </button>
+    <button class="tab" [class.active]="tab() === 'templates'" (click)="setTab('templates')">
+      <span class="tab-icon">⭐</span> Templates
+    </button>
+  </nav>
+
+  <!-- ═══════════════ Minhas Fichas ═══════════════ -->
+  @if (tab() === 'sheets') {
+    @if (loading()) {
+      <div class="loading-state">
+        @for (i of [1,2,3]; track i) {
+          <div class="skeleton-card"><div class="sk-bar w70"></div><div class="sk-bar w40"></div></div>
+        }
+      </div>
+    } @else if (sheets().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">🏋️</div>
+        <h3>Nenhuma ficha criada</h3>
+        <p>Crie sua primeira ficha de treino ou use um template pronto!</p>
+        <div class="empty-actions">
+          <button class="btn-primary" (click)="openCreate()">Criar ficha</button>
+          <button class="btn-outline" (click)="setTab('templates')">Ver templates</button>
+        </div>
+      </div>
+    } @else {
+      <div class="sheets-grid">
+        @for (sheet of sheets(); track sheet.id) {
+          <div class="sheet-card" (click)="openDetail(sheet)">
+            <div class="card-top-bar" [style.background]="categoryColor(sheet.category ?? '')"></div>
+            <div class="card-body">
+              <div class="card-header-row">
+                <span class="card-icon">{{ categoryIcon(sheet.category ?? '') }}</span>
+                <div class="card-title-block">
+                  <h3 class="card-title">{{ sheet.name }}</h3>
+                  @if (sheet.category) {
+                    <span class="card-category">{{ sheet.category }}</span>
+                  }
+                </div>
+                @if (sheet.fromTemplate) {
+                  <span class="template-tag">Template</span>
+                }
+              </div>
+
+              @if (sheet.description) {
+                <p class="card-desc">{{ sheet.description }}</p>
+              }
+
+              <div class="card-stats">
+                <div class="stat">
+                  <span class="stat-value">{{ (sheet.exercises ?? []).length }}</span>
+                  <span class="stat-label">exercicios</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-value">{{ totalSets(sheet) }}</span>
+                  <span class="stat-label">series</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-value">{{ sheet.estimatedMinutes }}min</span>
+                  <span class="stat-label">duracao</span>
+                </div>
+              </div>
+
+              @if (sheet.daysOfWeek.length) {
+                <div class="card-days">
+                  @for (d of [0,1,2,3,4,5,6]; track d) {
+                    <span class="day-chip" [class.active]="sheet.daysOfWeek.includes(d)">
+                      {{ dayLabel(d) }}
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- ═══════════════ Templates ═══════════════ -->
+  @if (tab() === 'templates') {
+    <!-- Category Filter -->
+    <div class="filter-row">
+      <button class="filter-chip" [class.active]="templateFilter() === 'all'" (click)="templateFilter.set('all')">
+        Todos
+      </button>
+      @for (cat of templateCategories; track cat) {
+        <button class="filter-chip" [class.active]="templateFilter() === cat" (click)="templateFilter.set(cat)">
+          {{ categoryIcon(cat) }} {{ cat }}
+        </button>
+      }
+    </div>
+
+    <div class="templates-grid">
+      @for (tpl of filteredTemplates; track tpl.slug) {
+        <div class="template-card">
+          <div class="tpl-top-bar" [style.background]="categoryColor(tpl.category)"></div>
+          <div class="tpl-body">
+            <div class="tpl-header">
+              <span class="tpl-icon">{{ categoryIcon(tpl.category) }}</span>
+              <div>
+                <h3 class="tpl-name">{{ tpl.name }}</h3>
+                <span class="tpl-cat">{{ tpl.category }} · {{ tpl.estimatedMinutes }}min</span>
+              </div>
+            </div>
+            <p class="tpl-desc">{{ tpl.description }}</p>
+
+            <div class="tpl-exercises">
+              @for (ex of tpl.exercises; track ex.name; let i = $index) {
+                <div class="tpl-exercise-row">
+                  <span class="tpl-ex-num">{{ i + 1 }}</span>
+                  <span class="tpl-ex-name">{{ ex.name }}</span>
+                  <span class="tpl-ex-detail">{{ ex.sets }}x{{ ex.reps }}</span>
+                </div>
+              }
+            </div>
+
+            <button class="btn-use-template" (click)="useTemplate(tpl)">
+              Usar este template
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ═══════════════ Modals ═══════════════ -->
+
+  <!-- Create / Edit Modal -->
+  @if (modal() === 'create' || modal() === 'edit') {
+    <div class="modal-overlay" (click)="closeModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>{{ modal() === 'create' ? 'Nova Ficha de Treino' : 'Editar Ficha' }}</h2>
+          <button class="modal-close" (click)="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <label class="field">
+            <span>Nome da ficha *</span>
+            <input type="text" [(ngModel)]="formName" placeholder="Ex: Treino A – Peito" maxlength="100">
+          </label>
+          <label class="field">
+            <span>Descricao</span>
+            <textarea [(ngModel)]="formDesc" placeholder="Detalhes ou observacoes..." rows="2" maxlength="300"></textarea>
+          </label>
+          <label class="field">
+            <span>Categoria</span>
+            <input type="text" [(ngModel)]="formCategory" placeholder="Ex: PPL, ABC, Full Body" maxlength="40">
+          </label>
+          <label class="field">
+            <span>Duracao estimada (min)</span>
+            <input type="number" [(ngModel)]="formMinutes" min="10" max="180">
+          </label>
+          <div class="field">
+            <span>Dias da semana</span>
+            <div class="days-selector">
+              @for (d of [0,1,2,3,4,5,6]; track d) {
+                <button
+                  type="button"
+                  class="day-toggle"
+                  [class.selected]="formDays[d]"
+                  (click)="formDays[d] = !formDays[d]">
+                  {{ dayLabel(d) }}
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-outline" (click)="closeModal()">Cancelar</button>
+          <button class="btn-primary" [disabled]="!formName.trim()"
+            (click)="modal() === 'create' ? submitCreate() : submitEdit()">
+            {{ modal() === 'create' ? 'Criar Ficha' : 'Salvar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Detail Modal -->
+  @if (modal() === 'detail' && selectedSheet()) {
+    <div class="modal-overlay" (click)="closeModal()">
+      <div class="modal modal-lg" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div class="detail-title-row">
+            <span class="detail-icon">{{ categoryIcon(selectedSheet()!.category ?? '') }}</span>
+            <div>
+              <h2>{{ selectedSheet()!.name }}</h2>
+              @if (selectedSheet()!.category) {
+                <span class="detail-cat">{{ selectedSheet()!.category }} · {{ selectedSheet()!.estimatedMinutes }}min</span>
+              }
+            </div>
+          </div>
+          <button class="modal-close" (click)="closeModal()">✕</button>
+        </div>
+
+        @if (selectedSheet()!.description) {
+          <p class="detail-desc">{{ selectedSheet()!.description }}</p>
+        }
+
+        @if (selectedSheet()!.daysOfWeek?.length) {
+          <div class="detail-days">
+            @for (d of [0,1,2,3,4,5,6]; track d) {
+              <span class="day-chip" [class.active]="selectedSheet()!.daysOfWeek.includes(d)">
+                {{ dayLabel(d) }}
+              </span>
+            }
+          </div>
+        }
+
+        <div class="detail-exercises">
+          <div class="detail-ex-header">
+            <h3>Exercicios ({{ (selectedSheet()!.exercises ?? []).length }})</h3>
+            <button class="btn-sm" (click)="openAddExercise()">+ Adicionar</button>
+          </div>
+
+          @if ((selectedSheet()!.exercises ?? []).length === 0) {
+            <div class="detail-ex-empty">
+              <p>Nenhum exercicio adicionado ainda.</p>
+            </div>
+          } @else {
+            <div class="exercise-list">
+              @for (ex of selectedSheet()!.exercises ?? []; track ex.id; let i = $index) {
+                <div class="exercise-item">
+                  <div class="ex-order">{{ i + 1 }}</div>
+                  <div class="ex-info">
+                    <span class="ex-name">{{ ex.name }}</span>
+                    <div class="ex-params">
+                      <span>{{ ex.sets }} series</span>
+                      <span class="dot">·</span>
+                      <span>{{ ex.reps }} reps</span>
+                      <span class="dot">·</span>
+                      <span>{{ formatRest(ex.restSeconds) }} descanso</span>
+                    </div>
+                    @if (ex.notes) {
+                      <span class="ex-notes">{{ ex.notes }}</span>
+                    }
+                  </div>
+                  <button class="ex-delete" (click)="removeExercise(ex)" title="Remover">✕</button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-outline btn-danger" (click)="deleteSheet(selectedSheet()!)">Excluir ficha</button>
+          <button class="btn-outline" (click)="openEdit(selectedSheet()!)">Editar</button>
+          <button class="btn-primary" (click)="closeModal()">Fechar</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Add Exercise Modal -->
+  @if (modal() === 'add-exercise') {
+    <div class="modal-overlay" (click)="backToDetail()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Adicionar Exercicio</h2>
+          <button class="modal-close" (click)="backToDetail()">✕</button>
+        </div>
+        <div class="modal-body">
+          <label class="field">
+            <span>Nome do exercicio *</span>
+            <input type="text" [(ngModel)]="exName" placeholder="Ex: Supino reto com barra" maxlength="100">
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>Series</span>
+              <input type="number" [(ngModel)]="exSets" min="1" max="20">
+            </label>
+            <label class="field">
+              <span>Repeticoes</span>
+              <input type="text" [(ngModel)]="exReps" placeholder="8-12" maxlength="20">
+            </label>
+            <label class="field">
+              <span>Descanso (s)</span>
+              <input type="number" [(ngModel)]="exRest" min="0" max="600">
+            </label>
+          </div>
+          <label class="field">
+            <span>Observacoes</span>
+            <input type="text" [(ngModel)]="exNotes" placeholder="Ex: ate a falha, drop set..." maxlength="200">
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-outline" (click)="backToDetail()">Cancelar</button>
+          <button class="btn-primary" [disabled]="!exName.trim()" (click)="submitAddExercise()">Adicionar</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

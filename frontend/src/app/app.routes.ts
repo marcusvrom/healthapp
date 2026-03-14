@@ -38,6 +38,7 @@ export const routes: Routes = [
       { path: 'recipes',      loadComponent: () => import('./features/recipes/recipe-community.component').then(m => m.RecipeCommunityComponent) },
       { path: 'glossary',     loadComponent: () => import('./features/glossary/glossary.component').then(m => m.GlossaryComponent) },
       { path: 'check-in',     loadComponent: () => import('./features/check-in/check-in.component').then(m => m.CheckInComponent) },
+      { path: 'workouts',     loadComponent: () => import('./features/workouts/workouts.component').then(m => m.WorkoutsComponent) },
       { path: 'feed',         loadComponent: () => import('./features/feed/feed.component').then(m => m.FeedComponent) },
       { path: 'challenges',   loadComponent: () => import('./features/challenges/challenges.component').then(m => m.ChallengesComponent) },
       { path: 'groups',       loadComponent: () => import('./features/groups/groups.component').then(m => m.GroupsComponent) },

@@ -26,6 +26,7 @@ import { CommunityController } from "../controllers/CommunityController";
 import { DailyMissionController } from "../controllers/DailyMissionController";
 import { OnboardingController } from "../controllers/OnboardingController";
 import { NotificationController } from "../controllers/NotificationController";
+import { WorkoutController } from "../controllers/WorkoutController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -205,6 +206,19 @@ router.delete("/friends/:id",          ...auth(FriendshipController.remove));
 // NOTE: /community/search must come BEFORE /community/profile/:id
 router.get("/community/search",        ...auth(CommunityController.search));
 router.get("/community/profile/:id",   ...auth(CommunityController.profile));
+
+// ── Workouts (Fichas de Treino) ──────────────────────────────────────────────
+// NOTE: static sub-paths must come BEFORE parameterized routes
+router.get("/workouts/templates",                        ...auth(WorkoutController.listTemplates));
+router.post("/workouts/from-template",                   ...auth(WorkoutController.createFromTemplate));
+router.get("/workouts",                                  ...auth(WorkoutController.list));
+router.post("/workouts",                                 ...auth(WorkoutController.create));
+router.get("/workouts/:id",                              ...auth(WorkoutController.detail));
+router.patch("/workouts/:id",                            ...auth(WorkoutController.update));
+router.delete("/workouts/:id",                           ...auth(WorkoutController.remove));
+router.post("/workouts/:id/exercises",                   ...auth(WorkoutController.addExercise));
+router.patch("/workouts/:sheetId/exercises/:exId",       ...auth(WorkoutController.updateExercise));
+router.delete("/workouts/:sheetId/exercises/:exId",      ...auth(WorkoutController.removeExercise));
 
 // ── Onboarding ───────────────────────────────────────────────────────────────
 router.post("/onboarding/complete",    ...auth(OnboardingController.complete));

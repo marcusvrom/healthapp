@@ -744,3 +744,47 @@ export interface NotificationListResponse {
   notifications: AppNotification[];
   unreadCount:   number;
 }
+
+// ── Workout Sheets (Fichas de Treino) ─────────────────────────────────────────
+
+export interface WorkoutSheetExercise {
+  id:          string;
+  sheetId:     string;
+  name:        string;
+  sets:        number;
+  reps:        string;
+  restSeconds: number;
+  notes?:      string;
+  sortOrder:   number;
+}
+
+export interface WorkoutSheet {
+  id:               string;
+  userId:           string;
+  name:             string;
+  description?:     string;
+  category?:        string;
+  daysOfWeek:       number[];
+  estimatedMinutes: number;
+  isActive:         boolean;
+  fromTemplate?:    string;
+  exercises?:       WorkoutSheetExercise[];
+  createdAt:        string;
+}
+
+export interface TemplateExercise {
+  name:        string;
+  sets:        number;
+  reps:        string;
+  restSeconds: number;
+  notes?:      string;
+}
+
+export interface WorkoutTemplate {
+  slug:             string;
+  name:             string;
+  description:      string;
+  category:         string;
+  estimatedMinutes: number;
+  exercises:        TemplateExercise[];
+}
