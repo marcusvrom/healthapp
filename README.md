@@ -1,4 +1,4 @@
-# HealthApp – MVP de Nutrição e Análise Metabólica
+# AiraFit – MVP de Nutrição e Análise Metabólica
 
 ## Stack
 

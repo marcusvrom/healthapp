@@ -1,4 +1,4 @@
-# CLAUDE.md - Convenções do Projeto HealthApp
+# CLAUDE.md - Convenções do Projeto AiraFit
 
 ## Estrutura de Componentes Angular (Frontend)
 

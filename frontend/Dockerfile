@@ -23,7 +23,7 @@ FROM nginx:1.27-alpine
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Angular 17+ application builder outputs to dist/<name>/browser
-COPY --from=builder /app/dist/healthapp/browser /usr/share/nginx/html
+COPY --from=builder /app/dist/airafit/browser /usr/share/nginx/html
 
 # SPA-friendly nginx config with PWA caching rules
 COPY nginx.conf /etc/nginx/conf.d/default.conf

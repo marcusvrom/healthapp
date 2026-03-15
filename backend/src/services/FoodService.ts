@@ -105,7 +105,7 @@ export class FoodService {
 
       const res = await fetch(url.toString(), {
         signal: AbortSignal.timeout(8_000),
-        headers: { "User-Agent": "HealthApp-MVP/1.0 (contact@healthapp.local)" },
+        headers: { "User-Agent": "AiraFit-MVP/1.0 (contact@airafit.local)" },
       });
 
       if (!res.ok) return [];
@@ -124,7 +124,7 @@ export class FoodService {
       const url = `${OFF_BASE}/api/v0/product/${encodeURIComponent(barcode)}.json?fields=${OFF_FIELDS}`;
       const res = await fetch(url, {
         signal: AbortSignal.timeout(8_000),
-        headers: { "User-Agent": "HealthApp-MVP/1.0 (contact@healthapp.local)" },
+        headers: { "User-Agent": "AiraFit-MVP/1.0 (contact@airafit.local)" },
       });
 
       if (!res.ok) return null;
