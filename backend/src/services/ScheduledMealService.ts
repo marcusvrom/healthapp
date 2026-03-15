@@ -135,9 +135,7 @@ export class ScheduledMealService {
     // Auto-complete ALL_MEALS mission when all meals for today are consumed
     if (saved.isConsumed) {
       const today = new Date().toISOString().slice(0, 10);
-      const todayMeals = await this.repo.find({
-        where: { userId, scheduledDate: today },
-      });
+      const todayMeals = await this.list(userId, today);
       const allConsumed = todayMeals.length > 0 && todayMeals.every(m => m.isConsumed);
       if (allConsumed) {
         DailyMissionService.checkAndComplete(userId, MissionType.ALL_MEALS).catch(() => {});
