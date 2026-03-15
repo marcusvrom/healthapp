@@ -660,6 +660,18 @@ export class RoutineController {
       }
 
       const isUndoing = !!block.completedAt;
+
+      // ── Sun exposure: only allow before 10h or after 16h ────────────────
+      if (!isUndoing && block.type === BlockType.SUN_EXPOSURE) {
+        const currentHour = new Date().getHours();
+        if (currentHour >= 10 && currentHour < 16) {
+          res.status(409).json({
+            message: "Exposição solar só pode ser registrada antes das 10h ou após as 16h para proteger sua saúde.",
+          });
+          return;
+        }
+      }
+
       block.completedAt = isUndoing ? undefined : new Date();
 
       const XP_FOR_TYPE: Partial<Record<BlockType, number>> = {

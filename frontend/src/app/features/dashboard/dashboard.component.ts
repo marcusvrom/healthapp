@@ -3,7 +3,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe, DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { debounceTime, distinctUntilChanged, Subject, switchMap, of } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { DailyMissionsWidgetComponent } from '../../shared/components/daily-missions-widget.component';
@@ -112,6 +112,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private copilotSvc      = inject(CopilotService);
   private notifSvc        = inject(NotificationService);
   private workoutSvc      = inject(WorkoutService);
+  private router          = inject(Router);
 
   @ViewChild(DailyMissionsWidgetComponent) missionsWidget?: DailyMissionsWidgetComponent;
 
@@ -797,6 +798,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  isSunSafeHour(): boolean {
+    const h = new Date().getHours();
+    return h < 10 || h >= 16;
+  }
+
   toggleWorkoutDetail(blockId: string): void {
     this.expandedWorkoutBlock.set(this.expandedWorkoutBlock() === blockId ? null : blockId);
   }
@@ -1102,6 +1108,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this._doCompleteBlock(b.id, event);
       return;
     }
+
+    // Exercise blocks: redirect to workouts page
+    if (b.type === 'exercise') {
+      this.router.navigate(['/workouts']);
+      return;
+    }
+
+    // Water blocks: redirect to water tracker
+    if (b.type === 'water') {
+      this.router.navigate(['/water']);
+      return;
+    }
+
+    // Sun exposure blocks: only allow before 10h or after 16h
+    if (b.type === 'sun_exposure') {
+      const now = new Date();
+      const currentHour = now.getHours();
+      if (currentHour >= 10 && currentHour < 16) {
+        alert('Exposicao solar so pode ser registrada antes das 10h ou apos as 16h para proteger sua saude. Evite o sol entre 10h e 16h!');
+        return;
+      }
+    }
+
     // New completion: show photo share prompt
     this.photoPromptBlock.set({ id: b.id, event });
     this.photoDraftDataUrl.set(null);
