@@ -379,97 +379,69 @@
                   (click)="b.type === 'meal' ? navigateToDiet() : null">
 
                   <div class="bc-row">
-                    <div class="bc-icon" [style.background]="blockMeta(b.type).bg" [style.color]="isBlockCompleted(b) ? '#16a34a' : blockMeta(b.type).color">{{ protocolIcon(b) }}</div>
-                    <div class="bc-body">
-                      <div class="bc-label" [style.text-decoration]="isBlockCompleted(b) ? 'line-through' : 'none'">{{ b.label }}</div>
-                      <div class="bc-sub">{{ b.startTime }}–{{ b.endTime }}
-                        @if (b.caloricTarget) { &nbsp;·&nbsp;{{ b.caloricTarget | number:'1.0-0' }} kcal alvo }
-                        @if (b.waterMl)       { &nbsp;·&nbsp;{{ b.waterMl | number:'1.0-0' }} ml }
-                        @if (mealConsumed(b)) { &nbsp;· <span style="color:#16a34a;font-weight:700">✓ consumida</span> }
-                        @if (isBlockCompleted(b) && b.type !== 'meal' && b.type !== 'medication') {
-                          &nbsp;· <span style="color:#16a34a;font-weight:700">✓ concluído</span>
-                        }
-                      </div>
-
-                      <!-- Recipe chips preview -->
-                      @if (b.type === 'meal' && mealLinkedRecipes(b).length > 0) {
-                        <div class="meal-recipes-preview">
-                          @for (r of mealLinkedRecipes(b).slice(0, 3); track r.recipeId) {
-                            <span class="recipe-chip">{{ r.title }} ×{{ r.servings }}</span>
-                          }
-                          @if (mealLinkedRecipes(b).length > 3) {
-                            <span class="recipe-chip">+{{ mealLinkedRecipes(b).length - 3 }}</span>
-                          }
-                        </div>
-                        <!-- Mini balance bar -->
-                        <div class="meal-balance-bar" style="margin-top:.35rem">
-                          @if (mealConsumedKcal(b) <= (b.caloricTarget ?? 0)) {
-                            <div class="mbb-fill" [style.width.%]="mealBalancePct(b)" style="background:#22c55e"></div>
-                          } @else {
-                            <div class="mbb-fill" style="width:100%;background:#f59e0b"></div>
-                            <div class="mbb-over" [style.width.%]="mealOverflowPct(b)"></div>
-                          }
-                        </div>
+                    <!-- Primary action (left side) -->
+                    @if (b.type === 'medication') {
+                      <button class="bc-check" [class.checked-purple]="isDone(b)" (click)="toggleProtocol(b, $event); $event.stopPropagation()" [disabled]="toggling() === b.id">{{ isDone(b) ? '✓' : '○' }}</button>
+                    } @else if (b.type === 'meal') {
+                      @if (mealConsumed(b)) {
+                        <div class="bc-done-icon">✓</div>
+                      } @else {
+                        <div class="bc-icon" [style.background]="blockMeta(b.type).bg" [style.color]="blockMeta(b.type).color">{{ protocolIcon(b) }}</div>
                       }
+                    } @else if (isCompletable(b)) {
+                      <button class="bc-check"
+                        [class.checked]="isBlockCompleted(b)"
+                        (click)="b.type === 'water' ? (waterModalOpen.set(true)) : null; toggleBlockComplete(b, $event); $event.stopPropagation()"
+                        [disabled]="completingBlock() === b.id || (b.type === 'sun_exposure' && !isSunSafeHour())"
+                        [title]="b.type === 'sun_exposure' && !isSunSafeHour() ? 'Disponivel antes das 10h ou apos 16h' : ''">
+                        {{ completingBlock() === b.id ? '…' : isBlockCompleted(b) ? '✓' : '○' }}
+                      </button>
+                    } @else {
+                      <div class="bc-icon" [style.background]="blockMeta(b.type).bg" [style.color]="blockMeta(b.type).color">{{ protocolIcon(b) }}</div>
+                    }
+
+                    <!-- Content -->
+                    <div class="bc-body">
+                      <div class="bc-label" [class.bc-label-done]="isBlockCompleted(b) || isDone(b) || mealConsumed(b)">{{ b.label }}</div>
+                      <div class="bc-sub">
+                        {{ b.startTime }}–{{ b.endTime }}
+                        @if (b.caloricTarget) { · {{ b.caloricTarget | number:'1.0-0' }} kcal }
+                        @if (b.waterMl)       { · {{ b.waterMl | number:'1.0-0' }} ml }
+                      </div>
                     </div>
 
+                    <!-- Contextual right action -->
                     <div class="bc-right">
-                      @if (b.type === 'medication') {
-                        <span class="bc-pill" style="background:#ede9fe;color:#6b21a8">+5 XP</span>
-                        <button class="bc-check" [class.checked-purple]="isDone(b)" (click)="toggleProtocol(b, $event); $event.stopPropagation()" [disabled]="toggling() === b.id">{{ isDone(b) ? '✓' : '○' }}</button>
-                      } @else if (b.type === 'meal') {
-                        @if (!mealConsumed(b)) {
-                          <span class="bc-pill" style="background:#fef3c7;color:#92400e">+10 XP</span>
-                          <button class="bc-redirect-btn" style="background:#fef3c7;color:#92400e"
-                            (click)="navigateToDiet(); $event.stopPropagation()"
-                            title="Ir para Dieta">
-                            🍽️ Ir
-                          </button>
-                        } @else {
-                          <span class="bc-pill" style="background:#d1fae5;color:#065f46">✓</span>
-                        }
+                      @if (b.type === 'meal' && !mealConsumed(b)) {
+                        <button class="bc-go-btn" style="color:#b45309"
+                          (click)="navigateToDiet(); $event.stopPropagation()">
+                          Ir →
+                        </button>
                       } @else if (b.type === 'exercise' && !isBlockCompleted(b)) {
-                        <span class="bc-pill" style="background:#dcfce7;color:#166534">+{{ blockXp(b) }} XP</span>
-                        <button class="bc-redirect-btn"
-                          (click)="toggleBlockComplete(b, $event); $event.stopPropagation()"
-                          title="Ir para Treinos">
-                          🏋️ Ir
+                        <button class="bc-go-btn" style="color:#166534"
+                          (click)="toggleBlockComplete(b, $event); $event.stopPropagation()">
+                          Ir →
                         </button>
-                      } @else if (b.type === 'water' && !isBlockCompleted(b)) {
-                        <span class="bc-pill" style="background:#e0f2fe;color:#0369a1">+{{ blockXp(b) }} XP</span>
-                        <button class="bc-redirect-btn"
-                          (click)="waterModalOpen.set(true); toggleBlockComplete(b, $event); $event.stopPropagation()"
-                          title="Registrar agua" style="background:#e0f2fe;color:#0369a1">
-                          💧 Registrar
-                        </button>
-                      } @else if (b.type === 'sun_exposure' && !isBlockCompleted(b)) {
-                        <span class="bc-pill" style="background:#fef9c3;color:#854d0e">+{{ blockXp(b) }} XP</span>
-                        <button class="bc-check"
-                          (click)="toggleBlockComplete(b, $event); $event.stopPropagation()"
-                          [disabled]="completingBlock() === b.id"
-                          [title]="isSunSafeHour() ? 'Registrar banho de sol' : 'Disponivel apenas antes das 10h ou apos as 16h'">
-                          {{ completingBlock() === b.id ? '…' : isSunSafeHour() ? '○' : '🚫' }}
-                        </button>
-                      } @else if (isCompletable(b)) {
-                        @if (!isBlockCompleted(b)) {
-                          <span class="bc-pill" style="background:#dcfce7;color:#166534">+{{ blockXp(b) }} XP</span>
-                        }
-                        <button class="bc-check"
-                          [class.checked]="isBlockCompleted(b)"
-                          (click)="toggleBlockComplete(b, $event); $event.stopPropagation()"
-                          [disabled]="completingBlock() === b.id"
-                          [title]="isBlockCompleted(b) ? 'Desmarcar' : 'Marcar como concluído'">
-                          {{ completingBlock() === b.id ? '…' : isBlockCompleted(b) ? '✓' : '○' }}
-                        </button>
+                      } @else if (!isBlockCompleted(b) && !isDone(b) && !mealConsumed(b) && !isCompletable(b)) {
+                        <!-- Non-completable: show nothing -->
                       }
-                      <button class="bc-action-btn" [class.notif-active]="blockNotifEnabled().has(b.id)" title="Ativar lembrete" (click)="toggleBlockNotif(b); $event.stopPropagation()">
-                        {{ blockNotifEnabled().has(b.id) ? '🔔' : '🔕' }}
-                      </button>
+
+                      <!-- Overflow menu (edit/delete/notif) -->
                       @if (!b.id.startsWith('synth-')) {
-                        <button class="bc-action-btn" title="Editar" (click)="openEditModal(b, $event)">✏️</button>
-                        <button class="bc-action-btn bc-action-del" title="Excluir" (click)="deleteBlock(b, $event)" [disabled]="deletingBlock() === b.id">
-                          {{ deletingBlock() === b.id ? '…' : '🗑️' }}
-                        </button>
+                        <div class="bc-overflow">
+                          <button class="bc-overflow-trigger" (click)="toggleOverflowMenu(b.id); $event.stopPropagation()" title="Mais opcoes">⋮</button>
+                          @if (overflowOpenId() === b.id) {
+                            <div class="bc-overflow-menu" (click)="$event.stopPropagation()">
+                              <button (click)="toggleBlockNotif(b); toggleOverflowMenu(null)">
+                                {{ blockNotifEnabled().has(b.id) ? '🔔 Lembrete ativo' : '🔕 Ativar lembrete' }}
+                              </button>
+                              <button (click)="openEditModal(b, $event); toggleOverflowMenu(null)">✏️ Editar</button>
+                              <button class="overflow-del" (click)="deleteBlock(b, $event); toggleOverflowMenu(null)" [disabled]="deletingBlock() === b.id">
+                                {{ deletingBlock() === b.id ? '…' : '🗑️ Excluir' }}
+                              </button>
+                            </div>
+                          }
+                        </div>
                       }
                     </div>
                   </div>
@@ -477,7 +449,7 @@
                   <!-- Linked workout exercises -->
                   @if (hasLinkedWorkout(b)) {
                     <button class="workout-toggle" (click)="toggleWorkoutDetail(b.id); $event.stopPropagation()">
-                      🏋️ {{ blockExercises(b).length }} exercicios da ficha
+                      🏋️ {{ blockExercises(b).length }} exercicios
                       <span class="toggle-arrow">{{ expandedWorkoutBlock() === b.id ? '▲' : '▼' }}</span>
                     </button>
                     @if (expandedWorkoutBlock() === b.id) {

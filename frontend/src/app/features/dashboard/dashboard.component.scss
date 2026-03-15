@@ -155,47 +155,105 @@
 .tg-dot  { width: 12px; height: 12px; border-radius: 50%; margin-top: .95rem; background: var(--color-border); border: 2px solid var(--color-surface); flex-shrink: 0; }
 .tg-cards { flex: 1; min-width: 0; padding: .5rem 0; display: flex; flex-direction: column; gap: .45rem; }
 
-.block-card { border-radius: var(--radius-sm); border: 1px solid var(--color-border); border-left-width: 3px; padding: .575rem .875rem; background: var(--color-surface); transition: box-shadow .15s, transform .1s; -webkit-tap-highlight-color: transparent;
-  &:hover { box-shadow: var(--shadow-sm); transform: translateX(2px); }
-  &.done { opacity: .65; }
-  &.block-completed { background: rgba(34,197,94,.05); border-left-color: #22c55e !important; }
+.block-card {
+  border-radius: var(--radius-sm); border: 1px solid var(--color-border);
+  border-left-width: 3px; padding: .5rem .75rem;
+  background: var(--color-surface); transition: box-shadow .15s;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover { box-shadow: var(--shadow-sm); }
+  &.done { opacity: .6; }
+  &.block-completed { background: rgba(34,197,94,.04); border-left-color: #22c55e !important; }
   &.meal-clickable { cursor: pointer; }
-  .bc-row { display: flex; align-items: center; gap: .625rem;
-    @media (max-width: 480px) { gap: .375rem; }
+
+  .bc-row { display: flex; align-items: center; gap: .5rem; }
+
+  .bc-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem; flex-shrink: 0;
   }
-  .bc-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .9rem; flex-shrink: 0; }
-  .bc-body { flex: 1; min-width: 0;
-    .bc-label { font-size: .8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-text);
-      @media (max-width: 480px) { font-size: .82rem; }
-    }
-    .bc-sub { font-size: .68rem; color: var(--color-text-subtle); margin-top: .1rem;
-      @media (max-width: 480px) { font-size: .7rem; }
-    }
+
+  .bc-done-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .82rem; flex-shrink: 0; font-weight: 700;
+    background: #dcfce7; color: #16a34a;
   }
-  .bc-right { display: flex; align-items: center; gap: .375rem; flex-shrink: 0;
-    @media (max-width: 480px) { gap: .25rem; }
-  }
-  .bc-pill  { font-size: .66rem; font-weight: 700; padding: .1rem .4rem; border-radius: 99px; }
-  .bc-check { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--color-border); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .8rem; transition: .15s; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+
+  .bc-check {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid var(--color-border); background: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: .75rem; transition: .15s; flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
     &.checked { background: #22c55e; border-color: #22c55e; color: #fff; }
     &.checked-purple { background: #7c3aed; border-color: #7c3aed; color: #fff; }
-    &:hover:not(.checked):not(.checked-purple) { border-color: #7c3aed; background: rgba(124,58,237,.08); }
-    &:active { transform: scale(.9); }
+    &:hover:not(.checked):not(.checked-purple) { border-color: #22c55e; background: rgba(34,197,94,.08); }
+    &:active { transform: scale(.92); }
+    &:disabled { opacity: .4; cursor: default; }
   }
-  .bc-action-btn { width: 32px; height: 32px; border: none; background: none; cursor: pointer; font-size: .7rem; opacity: 0; transition: opacity .15s; display: flex; align-items: center; justify-content: center; border-radius: 6px; flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+
+  .bc-body { flex: 1; min-width: 0;
+    .bc-label {
+      font-size: .82rem; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      color: var(--color-text);
+    }
+    .bc-label-done { text-decoration: line-through; color: var(--color-text-subtle); }
+    .bc-sub { font-size: .7rem; color: var(--color-text-subtle); margin-top: .1rem; }
+  }
+
+  .bc-right {
+    display: flex; align-items: center; gap: .25rem; flex-shrink: 0;
+  }
+
+  .bc-go-btn {
+    border: none; background: none; cursor: pointer;
+    font-size: .72rem; font-weight: 700; padding: .2rem .4rem;
+    border-radius: var(--radius-sm); transition: background .15s;
     &:hover { background: var(--color-surface-2); }
-    &:active { transform: scale(.9); }
-    &:disabled { opacity: .4; cursor: wait; }
   }
-  .bc-action-del:hover { background: rgba(239,68,68,.12); }
-  .bc-action-btn.notif-active { opacity: 1; background: rgba(234,179,8,.12); }
-  /* Desktop: show on hover */
-  &:hover .bc-action-btn { opacity: 1; }
-  /* Mobile/touch: always show action buttons */
+
+  /* ── Overflow menu (3 dots) ─────────────────────────────── */
+  .bc-overflow { position: relative; }
+
+  .bc-overflow-trigger {
+    width: 28px; height: 28px; border: none; background: none;
+    cursor: pointer; font-size: 1rem; font-weight: 700;
+    color: var(--color-text-subtle); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity .15s;
+    &:hover { background: var(--color-surface-2); }
+  }
+
+  &:hover .bc-overflow-trigger { opacity: 1; }
+
   @media (hover: none), (max-width: 480px) {
-    .bc-action-btn { opacity: .7; }
+    .bc-overflow-trigger { opacity: .6; }
   }
-  @media (max-width: 480px) { padding: .5rem .625rem; }
+
+  .bc-overflow-menu {
+    position: absolute; right: 0; top: 100%; z-index: 50;
+    min-width: 170px; padding: .25rem;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    animation: menuIn .15s ease;
+
+    button {
+      display: flex; align-items: center; gap: .5rem; width: 100%;
+      padding: .45rem .65rem; border: none; background: none;
+      cursor: pointer; font-size: .78rem; color: var(--color-text);
+      border-radius: 4px; transition: background .1s; text-align: left;
+      &:hover { background: var(--color-surface-2); }
+    }
+    .overflow-del:hover { background: rgba(239,68,68,.1); color: #dc2626; }
+  }
+
+  @keyframes menuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 480px) { padding: .45rem .5rem; }
 }
 
 /* ── Inline recipe picker (diet view) ───────────────────────────────────── */
@@ -218,14 +276,6 @@
   .irp-empty { font-size:.75rem; color:var(--color-text-muted); text-align:center; padding:.5rem 0; }
 }
 
-/* Meal block extras */
-.meal-recipes-preview { margin-top: .35rem; display: flex; flex-wrap: wrap; gap: .25rem; }
-.recipe-chip { font-size: .63rem; font-weight: 600; padding: .1rem .4rem; border-radius: 99px;
-  background: rgba(245,158,11,.15); color: #92400e; border: 1px solid rgba(245,158,11,.3); }
-.meal-balance-bar { margin-top: .35rem; height: 4px; background: var(--color-border); border-radius: 99px; overflow: visible; position: relative;
-  .mbb-fill { height: 100%; border-radius: 99px; transition: width .4s; }
-  .mbb-over { position: absolute; right: 0; top: 0; height: 100%; border-radius: 99px; background: #ef4444; }
-}
 
 /* Now line */
 .now-line { display: flex; align-items: center; margin: .25rem 0;
@@ -616,25 +666,6 @@
     font-size: .75rem; color: var(--color-text-muted);
     .wm-action { color: #0284c7; font-weight: 600; }
   }
-}
-
-/* ── Redirect buttons for exercise/water blocks ────────────────────── */
-.bc-redirect-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: .25rem;
-  padding: .25rem .55rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: #dcfce7;
-  color: #166534;
-  font-size: .7rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all .15s;
-  white-space: nowrap;
-
-  &:hover { filter: brightness(.95); transform: scale(1.05); }
 }
 
 /* ── Workout sheet picker in add-event modal ───────────────────────── */

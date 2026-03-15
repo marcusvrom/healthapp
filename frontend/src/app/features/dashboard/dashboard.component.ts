@@ -289,6 +289,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ── Workout detail panel for exercise blocks ────────────────────────────────
   expandedWorkoutBlock = signal<string | null>(null);
+  overflowOpenId = signal<string | null>(null);
 
   // ── Edit block state ──────────────────────────────────────────────────────
   editEventModal = signal(false);
@@ -445,7 +446,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void { if (this.clockInterval) clearInterval(this.clockInterval); }
 
   @HostListener('document:keydown.escape')
-  onEsc() { this.closeMealPanel(); }
+  onEsc() { this.closeMealPanel(); this.overflowOpenId.set(null); }
+
+  @HostListener('document:click')
+  onDocClick() { this.overflowOpenId.set(null); }
 
   // ── Data loading ─────────────────────────────────────────────────────────────
   private loadScheduledMeals(date: string): void {
@@ -805,6 +809,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isSunSafeHour(): boolean {
     const h = new Date().getHours();
     return h < 10 || h >= 16;
+  }
+
+  toggleOverflowMenu(blockId: string | null): void {
+    this.overflowOpenId.set(this.overflowOpenId() === blockId ? null : blockId);
   }
 
   toggleWorkoutDetail(blockId: string): void {
