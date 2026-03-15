@@ -588,6 +588,36 @@
 }
 @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
 
+/* ── Water mini card (right panel) ──────────────────────────────────── */
+.water-mini-card {
+  background: var(--color-surface); border: 1.5px solid #7dd3fc;
+  border-radius: var(--radius-md); padding: 1rem 1.25rem;
+  cursor: pointer; transition: all .15s; margin-bottom: 1rem;
+  &:hover { border-color: #0284c7; box-shadow: 0 2px 12px rgba(14,165,233,.1); }
+
+  .wm-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem;
+    .wm-title { font-size: .875rem; font-weight: 700; }
+    .wm-pct { font-size: .75rem; font-weight: 700; color: #0284c7;
+      background: rgba(14,165,233,.12); padding: .15rem .5rem; border-radius: 99px; }
+  }
+
+  .wm-bar-track {
+    height: 8px; background: var(--color-surface-2); border-radius: 99px; overflow: hidden; margin-bottom: .5rem;
+    .wm-bar-fill {
+      height: 100%; border-radius: 99px; max-width: 100%;
+      background: linear-gradient(90deg, #38bdf8, #0284c7);
+      transition: width .6s cubic-bezier(.22,1,.36,1);
+    }
+  }
+
+  .wm-amounts {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: .75rem; color: var(--color-text-muted);
+    .wm-action { color: #0284c7; font-weight: 600; }
+  }
+}
+
 /* ── Redirect buttons for exercise/water blocks ────────────────────── */
 .bc-redirect-btn {
   display: inline-flex;

@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, Input } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { WaterService, WaterLog } from '../../core/services/water.service';
@@ -14,11 +14,12 @@ const QUICK_AMOUNTS = [150, 250, 350, 500] as const;
   templateUrl: './water-tracker.component.html',
 })
 export class WaterTrackerComponent implements OnInit {
-  private waterSvc  = inject(WaterService);
-  private profileSvc= inject(ProfileService);
+  private waterSvc   = inject(WaterService);
+  private profileSvc = inject(ProfileService);
 
-  /** When true, hides logs (used when embedded as a dashboard widget) */
-  @Input() showLogs = signal(true);
+  /** Controls modal visibility from parent */
+  @Input() open = signal(false);
+  @Output() closed = new EventEmitter<void>();
 
   readonly quickAmounts = QUICK_AMOUNTS;
 
@@ -26,7 +27,10 @@ export class WaterTrackerComponent implements OnInit {
   readonly logs       = this.waterSvc.todayLogs;
 
   readonly goal = computed(() => this.waterSvc.todayGoal());
-  readonly pct  = computed(() => Math.min(100, (this.todayTotal() / this.goal()) * 100));
+  readonly pct  = computed(() => {
+    const g = this.goal();
+    return g ? Math.min(100, (this.todayTotal() / g) * 100) : 0;
+  });
 
   showForm   = signal(false);
   adding     = signal(false);
@@ -35,11 +39,21 @@ export class WaterTrackerComponent implements OnInit {
 
   ngOnInit(): void {
     this.waterSvc.loadToday().subscribe({ error: () => {} });
-    // Pull water goal from metabolic result
     this.profileSvc.loadMetabolic().subscribe({
       next: m => { if (m?.waterMlTotal) this.waterSvc.setGoal(m.waterMlTotal); },
       error: () => {},
     });
+  }
+
+  close(): void {
+    this.open.set(false);
+    this.closed.emit();
+  }
+
+  onOverlayClick(e: MouseEvent): void {
+    if ((e.target as HTMLElement).classList.contains('water-overlay')) {
+      this.close();
+    }
   }
 
   quickAdd(ml: number): void {

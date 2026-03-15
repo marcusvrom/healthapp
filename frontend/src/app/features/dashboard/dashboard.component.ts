@@ -116,8 +116,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   @ViewChild(DailyMissionsWidgetComponent) missionsWidget?: DailyMissionsWidgetComponent;
 
-  readonly todayStr      = new Date().toISOString().slice(0, 10);
-  readonly showWaterLogs = signal(false);
+  readonly todayStr       = new Date().toISOString().slice(0, 10);
+  readonly waterModalOpen = signal(false);
 
   // ── Check-in banner ─────────────────────────────────────────────────────────
   private lastCheckInDate = signal<string | null>(null);
@@ -1119,9 +1119,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Water blocks: redirect to water tracker
+    // Water blocks: open water modal
     if (b.type === 'water') {
-      this.router.navigate(['/water']);
+      this.waterModalOpen.set(true);
       return;
     }
 

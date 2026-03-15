@@ -1,78 +1,84 @@
-<div class="water-card">
-  <div class="card-header">
-    <span class="title">💧 Hidratação</span>
-    <button class="toggle-btn" (click)="showForm.set(!showForm())">
-      {{ showForm() ? 'Fechar ▲' : 'Registrar ▼' }}
-    </button>
-  </div>
+@if (open()) {
+  <div class="water-overlay" (click)="onOverlayClick($event)">
+    <div class="water-modal">
+      <!-- Header -->
+      <div class="modal-header">
+        <span class="modal-title">💧 Hidratacao</span>
+        <button class="close-btn" (click)="close()">✕</button>
+      </div>
 
-  <!-- Progress bar -->
-  <div class="progress-section">
-    <div class="amounts">
-      <span class="current">{{ todayTotal() }}</span>
-      <span class="slash">/</span>
-      <span class="goal">{{ goal() }}</span>
-      <span class="unit">ml</span>
-      <span class="pct-chip">{{ pct() | number:'1.0-0' }}%</span>
-    </div>
-    <div class="bar-track">
-      <div class="bar-fill" [style.width.%]="pct()"></div>
-    </div>
-    <div class="bar-label">
-      <span>Consumido: {{ todayTotal() }} ml</span>
-      <span>Meta: {{ goal() }} ml</span>
-    </div>
-  </div>
-
-  <!-- Quick add buttons (always visible) -->
-  <div class="quick-add">
-    @for (amt of quickAmounts; track amt) {
-      <button class="qa-btn" (click)="quickAdd(amt)" [disabled]="adding()">
-        +{{ amt }}ml
-      </button>
-    }
-  </div>
-
-  <!-- Custom add form (collapsible) -->
-  @if (showForm()) {
-    <div class="custom-add animate-fade">
-      <div class="form-row">
-        <div>
-          <label>Quantidade (ml)</label>
-          <input type="number" [(ngModel)]="customMl" min="50" max="3000" placeholder="ex: 300" />
+      <!-- Progress -->
+      <div class="progress-section">
+        <div class="amounts">
+          <span class="current">{{ todayTotal() }}</span>
+          <span class="separator">/</span>
+          <span class="goal-val">{{ goal() }}</span>
+          <span class="unit">ml</span>
         </div>
-        <div>
-          <label>Horário</label>
-          <input type="datetime-local" [(ngModel)]="customTime" />
-        </div>
-      </div>
-      <div class="submit-row">
-        <button class="add-btn" (click)="addCustom()" [disabled]="adding() || !customMl">
-          {{ adding() ? 'Registrando...' : '✓ Registrar' }}
-        </button>
-      </div>
-    </div>
-  }
-
-  <!-- Today's log -->
-  @if (showLogs()) {
-    <div class="log-section animate-fade">
-      <div class="log-title">
-        <span>Registros de hoje</span>
-        <span>{{ logs().length }} entrada{{ logs().length !== 1 ? 's' : '' }}</span>
-      </div>
-      <div class="log-list">
-        @if (logs().length === 0) {
-          <div class="no-logs">Nenhum registro ainda.</div>
-        }
-        @for (log of logs(); track log.id) {
-          <div class="log-item">
-            <span class="log-qty">{{ log.quantityMl }} ml</span>
-            <span class="log-time">{{ log.loggedAt | date:'HH:mm' }}</span>
-            <button class="del-btn" (click)="removeLog(log.id)" title="Remover">✕</button>
+        <div class="pct-row">
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="pct()"></div>
           </div>
-        }
+          <span class="pct-chip">{{ pct() | number:'1.0-0' }}%</span>
+        </div>
+      </div>
+
+      <!-- Quick add -->
+      <div class="quick-section">
+        <div class="section-label">Adicao rapida</div>
+        <div class="quick-grid">
+          @for (amt of quickAmounts; track amt) {
+            <button class="qa-btn" (click)="quickAdd(amt)" [disabled]="adding()">
+              <span class="qa-icon">💧</span>
+              <span class="qa-val">{{ amt }}ml</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Custom add toggle -->
+      <button class="custom-toggle" (click)="showForm.set(!showForm())">
+        {{ showForm() ? '▲ Fechar registro personalizado' : '＋ Registrar quantidade personalizada' }}
+      </button>
+
+      @if (showForm()) {
+        <div class="custom-form">
+          <div class="form-grid">
+            <div class="field">
+              <label>Quantidade (ml)</label>
+              <input type="number" [(ngModel)]="customMl" min="50" max="3000" placeholder="ex: 300" />
+            </div>
+            <div class="field">
+              <label>Horario</label>
+              <input type="datetime-local" [(ngModel)]="customTime" />
+            </div>
+          </div>
+          <button class="submit-btn" (click)="addCustom()" [disabled]="adding() || !customMl">
+            {{ adding() ? 'Registrando...' : '✓ Registrar' }}
+          </button>
+        </div>
+      }
+
+      <!-- Logs -->
+      <div class="logs-section">
+        <div class="section-label">
+          <span>Registros de hoje</span>
+          <span class="log-count">{{ logs().length }}</span>
+        </div>
+        <div class="log-list">
+          @if (logs().length === 0) {
+            <div class="no-logs">Nenhum registro ainda. Use os botoes acima para comecar!</div>
+          }
+          @for (log of logs(); track log.id) {
+            <div class="log-item">
+              <span class="log-icon">💧</span>
+              <span class="log-qty">{{ log.quantityMl }} ml</span>
+              <span class="log-time">{{ log.loggedAt | date:'HH:mm' }}</span>
+              <button class="del-btn" (click)="removeLog(log.id)" title="Remover">✕</button>
+            </div>
+          }
+        </div>
       </div>
     </div>
-  }
-</div>
+  </div>
+}

@@ -438,9 +438,9 @@
                       } @else if (b.type === 'water' && !isBlockCompleted(b)) {
                         <span class="bc-pill" style="background:#e0f2fe;color:#0369a1">+{{ blockXp(b) }} XP</span>
                         <button class="bc-redirect-btn"
-                          (click)="toggleBlockComplete(b, $event); $event.stopPropagation()"
-                          title="Ir para Agua" style="background:#e0f2fe;color:#0369a1">
-                          💧 Ir
+                          (click)="waterModalOpen.set(true); toggleBlockComplete(b, $event); $event.stopPropagation()"
+                          title="Registrar agua" style="background:#e0f2fe;color:#0369a1">
+                          💧 Registrar
                         </button>
                       } @else if (b.type === 'sun_exposure' && !isBlockCompleted(b)) {
                         <span class="bc-pill" style="background:#fef9c3;color:#854d0e">+{{ blockXp(b) }} XP</span>
@@ -571,7 +571,21 @@
       </div>
     }
 
-    <app-water-tracker [showLogs]="showWaterLogs" />
+    <!-- ── Water mini card ────────────────────────────────────────── -->
+    <div class="water-mini-card" (click)="waterModalOpen.set(true)">
+      <div class="wm-header">
+        <span class="wm-title">💧 Hidratacao</span>
+        <span class="wm-pct">{{ waterSvc.todayGoal() ? ((waterSvc.todayTotal() / waterSvc.todayGoal()) * 100 | number:'1.0-0') : 0 }}%</span>
+      </div>
+      <div class="wm-bar-track">
+        <div class="wm-bar-fill" [style.width.%]="waterSvc.todayGoal() ? (waterSvc.todayTotal() / waterSvc.todayGoal()) * 100 : 0"></div>
+      </div>
+      <div class="wm-amounts">
+        <span>{{ waterSvc.todayTotal() }} / {{ waterSvc.todayGoal() }} ml</span>
+        <span class="wm-action">Registrar →</span>
+      </div>
+    </div>
+    <app-water-tracker [open]="waterModalOpen" (closed)="waterModalOpen.set(false)" />
 
     <!-- ── Copilot Orientação Inteligente ──────────────────────────── -->
     <div class="copilot-card">
