@@ -308,6 +308,14 @@ export class OnboardingComponent {
       .filter(([, v]) => v)
       .map(([key]) => key);
 
+    // Build exercise list for auto-creating a workout sheet
+    const exercisesPayload = this.exercise.selected.length > 0
+      ? this.exercise.selected.map(ex => ({
+          name: ex.name,
+          category: ex.category,
+        }))
+      : undefined;
+
     const payload = {
       wakeUpTime:         this.routineBase.wakeUpTime,
       sleepTime:          this.routineBase.sleepTime,
@@ -315,6 +323,9 @@ export class OnboardingComponent {
       meals:              selectedMeals,
       waterReminders:     this.routineBase.waterReminders,
       waterIntervalMin:   this.routineBase.waterReminders ? this.routineBase.waterIntervalMin : undefined,
+      exercises:          exercisesPayload,
+      exerciseDaysOfWeek: this.exercise.daysOfWeek.length > 0 ? this.exercise.daysOfWeek : undefined,
+      exerciseDurationMin: this.exercise.durationMinutes,
     };
 
     this.apiSvc.post('/onboarding/complete', payload).subscribe({

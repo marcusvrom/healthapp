@@ -3,6 +3,8 @@ import { RoutineBlock, BlockType, MealType } from "../entities/RoutineBlock";
 import { ScheduledMeal } from "../entities/ScheduledMeal";
 import { HealthProfile } from "../entities/HealthProfile";
 import { Exercise } from "../entities/Exercise";
+import { WorkoutSheet } from "../entities/WorkoutSheet";
+import { WorkoutSheetExercise } from "../entities/WorkoutSheetExercise";
 import { CalculationService } from "./CalculationService";
 import { ExerciseCalcInput } from "../types/calculation.types";
 
@@ -50,6 +52,13 @@ const MEAL_TYPE_MAP: Record<string, MealType> = {
   supper:          MealType.SUPPER,
 };
 
+export interface OnboardingExerciseDto {
+  name:     string;
+  category: string;
+  sets?:    number;
+  reps?:    string;
+}
+
 export interface CompleteOnboardingDto {
   wakeUpTime:         string;   // HH:MM
   sleepTime:          string;   // HH:MM
@@ -57,6 +66,9 @@ export interface CompleteOnboardingDto {
   meals:              string[]; // e.g. ["breakfast", "lunch", "dinner"]
   waterReminders?:    boolean;  // whether to create recurring water blocks
   waterIntervalMin?:  number;   // interval between reminders in minutes (default 45)
+  exercises?:         OnboardingExerciseDto[];  // selected exercises to auto-create a workout sheet
+  exerciseDaysOfWeek?: number[];                // days for the workout sheet (default [1,3,5])
+  exerciseDurationMin?: number;                 // estimated duration in minutes (default 60)
 }
 
 export class OnboardingService {
@@ -272,8 +284,62 @@ export class OnboardingService {
       }
     }
 
+    // ── 6. Auto-create workout sheet from onboarding exercises ──────────
+    let workoutSheet: WorkoutSheet | null = null;
+    const sheetExercises: Partial<WorkoutSheetExercise>[] = [];
+
+    if (dto.exercises && dto.exercises.length > 0) {
+      const sheetDays = dto.exerciseDaysOfWeek ?? exerciseDays;
+      const sheetDuration = dto.exerciseDurationMin ?? trainDuration;
+
+      workoutSheet = new WorkoutSheet();
+      workoutSheet.userId = userId;
+      workoutSheet.name = "Meu Treino";
+      workoutSheet.description = "Ficha criada automaticamente durante o onboarding";
+      workoutSheet.category = dto.exercises[0]?.category ?? "strength";
+      workoutSheet.daysOfWeek = sheetDays;
+      workoutSheet.estimatedMinutes = sheetDuration;
+      workoutSheet.isActive = true;
+      workoutSheet.fromTemplate = "onboarding";
+
+      for (let i = 0; i < dto.exercises.length; i++) {
+        const ex = dto.exercises[i]!;
+        sheetExercises.push({
+          name: ex.name,
+          sets: ex.sets ?? 3,
+          reps: ex.reps ?? "8-12",
+          restSeconds: 60,
+          sortOrder: i,
+        });
+      }
+    }
+
     // ── Save all in a transaction ─────────────────────────────────────────
     await AppDataSource.transaction(async manager => {
+      // Save workout sheet first so we can link it to the exercise block
+      if (workoutSheet) {
+        const savedSheet = await manager.getRepository(WorkoutSheet).save(workoutSheet);
+
+        // Save sheet exercises
+        if (sheetExercises.length > 0) {
+          const exerciseEntities = sheetExercises.map(e => {
+            const entity = manager.getRepository(WorkoutSheetExercise).create(e);
+            entity.sheetId = savedSheet.id;
+            return entity;
+          });
+          await manager.getRepository(WorkoutSheetExercise).save(exerciseEntities);
+        }
+
+        // Link the exercise block to the workout sheet via metadata
+        const exerciseBlock = blocks.find(b => b.type === BlockType.EXERCISE);
+        if (exerciseBlock) {
+          exerciseBlock.metadata = {
+            workoutSheetId: savedSheet.id,
+            exercises: sheetExercises.map(e => ({ name: e.name, sets: e.sets, reps: e.reps })),
+          };
+        }
+      }
+
       if (blocks.length > 0) {
         await manager.getRepository(RoutineBlock).save(
           blocks.map(b => manager.getRepository(RoutineBlock).create(b))
