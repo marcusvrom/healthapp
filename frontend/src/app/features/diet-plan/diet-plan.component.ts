@@ -3,10 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { DecimalPipe, DatePipe } from '@angular/common';
 import { DietPlanService } from '../../core/services/diet-plan.service';
 import { ProfileService } from '../../core/services/profile.service';
+import { FoodService } from '../../core/services/food.service';
 import { ClinicalProtocolService } from '../../core/services/clinical-protocol.service';
 import { RecipeService } from '../../core/services/recipe.service';
 import { ScheduledMealService } from '../../core/services/scheduled-meal.service';
-import { ScheduledMeal, UserLevel, ClinicalProtocolWithLog, PrimaryGoal, Recipe, LinkedRecipe } from '../../core/models';
+import { ScheduledMeal, UserLevel, ClinicalProtocolWithLog, PrimaryGoal, Recipe, LinkedRecipe, DailySummary } from '../../core/models';
 
 const GOAL_LABELS: Record<PrimaryGoal, string> = {
   emagrecimento: 'Emagrecimento',
@@ -51,6 +52,7 @@ function toMinutes(time: string): number {
 export class DietPlanComponent implements OnInit {
   private mealSvc      = inject(DietPlanService);
   private profileSvc   = inject(ProfileService);
+  private foodSvc      = inject(FoodService);
   private protocolSvc  = inject(ClinicalProtocolService);
   private recipeSvc    = inject(RecipeService);
   private schedMealSvc = inject(ScheduledMealService);
@@ -78,6 +80,7 @@ export class DietPlanComponent implements OnInit {
 
   readonly metabolic  = this.profileSvc.metabolic;
   readonly profile    = this.profileSvc.profile;
+  summary = signal<DailySummary | null>(null);
 
   readonly goalLabel = computed(() => {
     const g = this.profile()?.primaryGoal;
@@ -92,7 +95,16 @@ export class DietPlanComponent implements OnInit {
   readonly targetCal     = computed(() => this.metabolic()?.dailyCaloricTarget ?? 0);
   readonly targetProtein = computed(() => this.metabolic()?.macros?.proteinG ?? 0);
   readonly targetCarbs   = computed(() => this.metabolic()?.macros?.carbsG ?? 0);
+  readonly targetFat     = computed(() => this.metabolic()?.macros?.fatG ?? 0);
   readonly consumedMeals = computed(() => this.meals().filter(m => m.isConsumed).length);
+
+  // ── Macro widget computed signals ──────────────────────────────────────
+  readonly consumedKcal     = computed(() => this.summary()?.totalCalories ?? 0);
+  readonly caloriesPct      = computed(() => { const m = this.metabolic(); return m ? Math.min(110, (this.consumedKcal() / m.dailyCaloricTarget) * 100) : 0; });
+  readonly remainingKcal    = computed(() => { const m = this.metabolic(); return m ? Math.round(m.dailyCaloricTarget - this.consumedKcal()) : 0; });
+  readonly remainingProtein = computed(() => { const m = this.metabolic(); return m ? Math.round(m.macros.proteinG - (this.summary()?.totalProtein ?? 0)) : 0; });
+  readonly remainingCarbs   = computed(() => { const m = this.metabolic(); return m ? Math.round(m.macros.carbsG   - (this.summary()?.totalCarbs   ?? 0)) : 0; });
+  readonly remainingFat     = computed(() => { const m = this.metabolic(); return m ? Math.round(m.macros.fatG     - (this.summary()?.totalFat     ?? 0)) : 0; });
 
   timeline = computed((): TimelineItem[] => {
     const items: TimelineItem[] = [
@@ -116,6 +128,7 @@ export class DietPlanComponent implements OnInit {
     this.profileSvc.loadProfile().subscribe({ error: () => {} });
     this.profileSvc.loadMetabolic().subscribe({ error: () => {} });
     this.load();
+    this.loadSummary();
     this.loadMyRecipes();
   }
 
@@ -150,7 +163,19 @@ export class DietPlanComponent implements OnInit {
   onDateChange(e: Event): void {
     this.selectedDate.set((e.target as HTMLInputElement).value);
     this.load();
+    this.loadSummary();
   }
+
+  private loadSummary(): void {
+    this.foodSvc.getSummary(this.selectedDate()).subscribe({ next: s => this.summary.set(s), error: () => {} });
+  }
+
+  pct(consumed: number | undefined, target: number): number {
+    if (!consumed || !target) return 0;
+    return Math.min(100, (consumed / target) * 100);
+  }
+
+  absVal(n: number): number { return Math.abs(n); }
 
   itemKey(item: TimelineItem): string {
     return item.kind + '-' + item.data.id;
@@ -217,6 +242,7 @@ export class DietPlanComponent implements OnInit {
       next: result => {
         this.meals.update(list => list.map(m => m.id === meal.id ? result.meal : m));
         this.checking.set(null);
+        this.loadSummary();
         if (result.xpGained > 0) this.showXpPop(result.xpGained, event);
       },
       error: () => this.checking.set(null),

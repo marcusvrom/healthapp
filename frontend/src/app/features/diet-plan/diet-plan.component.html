@@ -37,23 +37,60 @@
     </div>
   }
 
-  @if (meals().length > 0 || metabolic()) {
-    <div class="macros-row">
-      <div class="macro-card">
-        <div class="mv">{{ targetCal() | number:'1.0-0' }}</div>
-        <div class="ml">Calorias</div><div class="mc">meta do dia</div>
+  @if (metabolic()) {
+    <div class="macro-widget">
+      <div class="widget-title">🎯 Macronutrientes do Dia</div>
+
+      <div class="calorie-row">
+        <span class="cal-value" [style.color]="consumedKcal() > metabolic()!.dailyCaloricTarget ? 'var(--color-danger)' : 'var(--color-primary)'">{{ consumedKcal() | number:'1.0-0' }}</span>
+        <span class="cal-label">kcal</span>
+        <span class="cal-target">/ {{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }}</span>
+        @if (consumedKcal() > metabolic()!.dailyCaloricTarget) {
+          <span class="cal-over">+{{ consumedKcal() - metabolic()!.dailyCaloricTarget | number:'1.0-0' }} excedido</span>
+        }
       </div>
-      <div class="macro-card">
-        <div class="mv">{{ targetProtein() | number:'1.0-0' }}g</div>
-        <div class="ml">Proteina</div><div class="mc">meta do dia</div>
+
+      <div class="macro-bar-row" style="margin-bottom:.75rem">
+        <div class="bar-track" style="height:8px">
+          <div class="bar-fill" [style.width.%]="caloriesPct()" [style.background]="caloriesPct() > 105 ? 'var(--color-danger)' : 'var(--color-primary)'"></div>
+        </div>
       </div>
-      <div class="macro-card">
-        <div class="mv">{{ targetCarbs() | number:'1.0-0' }}g</div>
-        <div class="ml">Carboidratos</div><div class="mc">meta do dia</div>
+
+      <div class="macro-bars">
+        <div class="macro-bar-row">
+          <div class="mb-header"><span class="name">🥩 Proteina</span><span class="value">{{ summary()?.totalProtein | number:'1.0-0' }}g / {{ metabolic()!.macros.proteinG | number:'1.0-0' }}g</span></div>
+          <div class="bar-track"><div class="bar-fill" [style.width.%]="pct(summary()?.totalProtein, metabolic()!.macros.proteinG)" style="background:#10b981"></div></div>
+        </div>
+        <div class="macro-bar-row">
+          <div class="mb-header"><span class="name">🌾 Carboidratos</span><span class="value">{{ summary()?.totalCarbs | number:'1.0-0' }}g / {{ metabolic()!.macros.carbsG | number:'1.0-0' }}g</span></div>
+          <div class="bar-track"><div class="bar-fill" [style.width.%]="pct(summary()?.totalCarbs, metabolic()!.macros.carbsG)" style="background:#f59e0b"></div></div>
+        </div>
+        <div class="macro-bar-row">
+          <div class="mb-header"><span class="name">🥑 Gorduras</span><span class="value">{{ summary()?.totalFat | number:'1.0-0' }}g / {{ metabolic()!.macros.fatG | number:'1.0-0' }}g</span></div>
+          <div class="bar-track"><div class="bar-fill" [style.width.%]="pct(summary()?.totalFat, metabolic()!.macros.fatG)" style="background:#6366f1"></div></div>
+        </div>
       </div>
-      <div class="macro-card">
-        <div class="mv">{{ consumedMeals() }}/{{ meals().length }}</div>
-        <div class="ml">Refeicoes</div><div class="mc">concluidas</div>
+
+      <div class="remaining-section">
+        <div class="rem-title">⏳ O que ainda falta hoje</div>
+        <div class="rem-pills">
+          <span class="rem-pill" [class.positive]="remainingKcal() > 0" [class.negative]="remainingKcal() < 0" [class.neutral]="remainingKcal() === 0">
+            🔥 {{ remainingKcal() > 0 ? 'Faltam ' + (remainingKcal() | number:'1.0-0') + ' kcal' : remainingKcal() < 0 ? 'Excedeu ' + (absVal(remainingKcal()) | number:'1.0-0') + ' kcal' : '✓ Meta kcal!' }}
+          </span>
+          <span class="rem-pill" [class.positive]="remainingProtein() > 0" [class.negative]="remainingProtein() < 0" [class.neutral]="remainingProtein() === 0">
+            🥩 {{ remainingProtein() > 0 ? 'Faltam ' + (remainingProtein() | number:'1.0-0') + 'g prot' : remainingProtein() < 0 ? '+' + (absVal(remainingProtein()) | number:'1.0-0') + 'g prot' : '✓ Prot!' }}
+          </span>
+          <span class="rem-pill" [class.positive]="remainingCarbs() > 0" [class.negative]="remainingCarbs() < 0" [class.neutral]="remainingCarbs() === 0">
+            🌾 {{ remainingCarbs() > 0 ? 'Faltam ' + (remainingCarbs() | number:'1.0-0') + 'g carb' : remainingCarbs() < 0 ? '+' + (absVal(remainingCarbs()) | number:'1.0-0') + 'g carb' : '✓ Carb!' }}
+          </span>
+          <span class="rem-pill" [class.positive]="remainingFat() > 0" [class.negative]="remainingFat() < 0" [class.neutral]="remainingFat() === 0">
+            🥑 {{ remainingFat() > 0 ? 'Faltam ' + (remainingFat() | number:'1.0-0') + 'g gord' : remainingFat() < 0 ? '+' + (absVal(remainingFat()) | number:'1.0-0') + 'g gord' : '✓ Gord!' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="meals-counter">
+        {{ consumedMeals() }}/{{ meals().length }} refeicoes concluidas
       </div>
     </div>
   }
