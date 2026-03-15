@@ -376,7 +376,7 @@
                   [class.block-completed]="isBlockCompleted(b)"
                   [class.meal-clickable]="b.type === 'meal'"
                   [style.border-left-color]="blockBorderColor(b)"
-                  (click)="b.type === 'meal' ? openMealPanel(b) : null">
+                  (click)="b.type === 'meal' ? navigateToDiet() : null">
 
                   <div class="bc-row">
                     <div class="bc-icon" [style.background]="blockMeta(b.type).bg" [style.color]="isBlockCompleted(b) ? '#16a34a' : blockMeta(b.type).color">{{ protocolIcon(b) }}</div>
@@ -418,10 +418,16 @@
                         <span class="bc-pill" style="background:#ede9fe;color:#6b21a8">+5 XP</span>
                         <button class="bc-check" [class.checked-purple]="isDone(b)" (click)="toggleProtocol(b, $event); $event.stopPropagation()" [disabled]="toggling() === b.id">{{ isDone(b) ? '✓' : '○' }}</button>
                       } @else if (b.type === 'meal') {
-                        <span class="bc-pill" [style.background]="mealConsumed(b) ? '#d1fae5' : '#fef3c7'" [style.color]="mealConsumed(b) ? '#065f46' : '#92400e'">
-                          {{ mealConsumed(b) ? '✓' : '+10 XP' }}
-                        </span>
-                        <span style="font-size:.75rem;color:var(--color-text-subtle)" title="Clique para gerenciar receitas">🍳</span>
+                        @if (!mealConsumed(b)) {
+                          <span class="bc-pill" style="background:#fef3c7;color:#92400e">+10 XP</span>
+                          <button class="bc-redirect-btn" style="background:#fef3c7;color:#92400e"
+                            (click)="navigateToDiet(); $event.stopPropagation()"
+                            title="Ir para Dieta">
+                            🍽️ Ir
+                          </button>
+                        } @else {
+                          <span class="bc-pill" style="background:#d1fae5;color:#065f46">✓</span>
+                        }
                       } @else if (b.type === 'exercise' && !isBlockCompleted(b)) {
                         <span class="bc-pill" style="background:#dcfce7;color:#166534">+{{ blockXp(b) }} XP</span>
                         <button class="bc-redirect-btn"

@@ -798,6 +798,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  navigateToDiet(): void {
+    this.router.navigate(['/diet']);
+  }
+
   isSunSafeHour(): boolean {
     const h = new Date().getHours();
     return h < 10 || h >= 16;
