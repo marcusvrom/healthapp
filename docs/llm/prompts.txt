@@ -1,0 +1,23 @@
+[MAPEAR MÓDULO]
+Analise o módulo <nome> em <caminho>. Entregue: resumo, fluxos, dependências, riscos, recomendações. Diferencie fato/inferência.
+
+[REVISAR SEGURANÇA]
+Faça review de segurança do módulo <nome> com foco em auth/authz, validação de entrada, IDOR/BOLA, upload, logs e segredos. Traga evidências.
+
+[GERAR TESTES]
+Proponha testes unitários/integrados para <módulo> cobrindo casos de segurança e autorização.
+
+[DOCUMENTAR COMPONENTE]
+Produza documentação em progressive disclosure para <componente>, com visão executiva e análise técnica.
+
+[GERAR MERMAID]
+Gere diagrama Mermaid válido para <fluxo>, destacando trust boundaries e dados sensíveis.
+
+[IMPACTO LGPD]
+Analise o impacto LGPD do fluxo <nome> com categorias de dados, finalidade, minimização, retenção e pontos para validação jurídica.
+
+[REVISAR DADOS SENSÍVEIS]
+Mapeie pontos de coleta, armazenamento, processamento e exposição de dados sensíveis em <módulo>.
+
+[REFACTOR SEGURO (SEM APLICAR)]
+Proponha refatoração segura para <área> sem alterar código, incluindo riscos, plano por etapas e critérios de aceite.
