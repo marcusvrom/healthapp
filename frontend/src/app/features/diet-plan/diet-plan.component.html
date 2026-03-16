@@ -101,7 +101,7 @@
     </div>
   } @else if (timeline().length === 0) {
     <div class="empty-state">
-      <span class="emoji">&#127860;</span>
+      <span class="emoji">🍴</span>
       <p>Nenhum item para este dia.<br>
         Clique em <strong>Gerar Plano de Exemplo</strong> para criar seu plano alimentar.<br>
         Adicione protocolos em <strong>Protocolos</strong> para ve-los aqui.</p>
@@ -135,7 +135,7 @@
               </div>
               <button class="check-btn" [class.done]="item.data.isConsumed"
                 (click)="toggleMeal(item.data, $event)" [disabled]="checking() === item.data.id">
-                {{ item.data.isConsumed ? '&#10003;' : '&#9675;' }}
+                {{ item.data.isConsumed ? '✅' : '⚪' }}
               </button>
             </div>
 
@@ -163,7 +163,7 @@
                     <span class="lr-servings">x{{ lr.servings }}</span>
                     <span class="lr-macro">{{ linkedRecipeKcal(lr) | number:'1.0-0' }} kcal</span>
                     @if (!item.data.isConsumed) {
-                      <button class="lr-remove" (click)="unlinkRecipe(item.data, lr.recipeId)" title="Remover receita">&#10005;</button>
+                      <button class="lr-remove" (click)="unlinkRecipe(item.data, lr.recipeId)" title="Remover receita">✕</button>
                     }
                   </div>
                 }
@@ -178,7 +178,7 @@
 
             @if (item.data.isConsumed && item.data.consumedAt) {
               <div class="done-note" style="color:#16a34a">
-                &#10003; Consumida as {{ item.data.consumedAt | date:'HH:mm' }}
+                ✅ Consumida as {{ item.data.consumedAt | date:'HH:mm' }}
                 @if (item.data.xpAwarded) { · +{{ XP_MEAL }} XP! }
               </div>
             }
@@ -198,12 +198,12 @@
               </div>
               <button class="check-btn" [class.proto-done]="!!item.data.log"
                 (click)="toggleProtocol(item.data, $event)" [disabled]="checking() === 'proto-' + item.data.id">
-                {{ item.data.log ? '&#10003;' : '&#9675;' }}
+                {{ item.data.log ? '✅' : '⚪' }}
               </button>
             </div>
             @if (item.data.log) {
               <div class="done-note" style="color:#7c3aed">
-                &#10003; Tomado as {{ item.data.log.takenAt | date:'HH:mm' }}
+                ✅ Tomado as {{ item.data.log.takenAt | date:'HH:mm' }}
                 @if (item.data.log.xpAwarded) { · +{{ XP_PROTO }} XP! }
               </div>
             }
@@ -221,7 +221,7 @@
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-head">
         <h3>Vincular receita a "{{ pickerMeal()!.name }}"</h3>
-        <button class="close-btn" (click)="closeRecipePicker()">&#10005;</button>
+        <button class="close-btn" (click)="closeRecipePicker()">✕</button>
       </div>
 
       <div class="modal-body">

@@ -110,7 +110,7 @@
 
                 @if (r.ingredients?.length) {
                   <div class="ingredients-preview">
-                    <span class="ing-icon">&#127860;</span>
+                    <span class="ing-icon">🍴</span>
                     <span class="ing-text">{{ ingredientsSummary(r.ingredients!) }}</span>
                   </div>
                 }
@@ -123,7 +123,7 @@
                   <span class="stars">{{ stars(r.avgRating) }}</span>
                   <span class="r-count">{{ r.avgRating | number:'1.1-1' }} ({{ r.reviewCount }})</span>
                   <span class="like-count">
-                    @if (r.myReview?.isLiked) { <span style="color:#ef4444">&#10084;</span> }
+                    @if (r.myReview?.isLiked) { <span style="color:#ef4444">❤️</span> }
                     {{ r.likeCount }}
                   </span>
                 </div>
@@ -134,7 +134,7 @@
                   {{ r.hasUpdate ? 'Atualizar' : 'Importar' }}
                 </button>
                 <button class="cf-btn" [class.liked]="r.myReview?.isLiked" (click)="toggleLike(r)">
-                  {{ r.myReview?.isLiked ? '&#10084;' : '&#9825;' }}
+                  {{ r.myReview?.isLiked ? '❤️' : '♡' }}
                 </button>
                 <button class="cf-btn" (click)="openRating(r)">Avaliar</button>
                 <button class="cf-btn" (click)="openDetail(r)">Ver</button>
@@ -144,7 +144,7 @@
         </div>
       } @else {
         <div class="empty-state">
-          <span class="es-icon">&#127760;</span>
+          <span class="es-icon">🌐</span>
           <div class="es-title">Nenhuma receita encontrada</div>
           <p>Tente uma busca diferente ou seja o primeiro a compartilhar uma receita!</p>
         </div>
@@ -176,7 +176,7 @@
 
                 @if (r.ingredients?.length) {
                   <div class="ingredients-preview">
-                    <span class="ing-icon">&#127860;</span>
+                    <span class="ing-icon">🍴</span>
                     <span class="ing-text">{{ ingredientsSummary(r.ingredients!) }}</span>
                   </div>
                 }
@@ -194,7 +194,7 @@
         </div>
       } @else {
         <div class="empty-state">
-          <span class="es-icon">&#128221;</span>
+          <span class="es-icon">📝</span>
           <div class="es-title">Nenhuma receita ainda</div>
           <p>Clique em <strong>+ Nova Receita</strong> para criar ou importe da comunidade.</p>
         </div>
@@ -209,7 +209,7 @@
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-head">
         <h3>{{ editingId() ? 'Editar Receita' : 'Nova Receita' }}</h3>
-        <button class="close-btn" (click)="closeModals()">&#10005;</button>
+        <button class="close-btn" (click)="closeModals()">✕</button>
       </div>
 
       <div class="modal-body">
@@ -280,7 +280,7 @@
                     <option [value]="u">{{ u }}</option>
                   }
                 </select>
-                <button class="rm-btn" (click)="removeIngredient($index)" title="Remover">&#10005;</button>
+                <button class="rm-btn" (click)="removeIngredient($index)" title="Remover">✕</button>
               </div>
             }
           } @else {
@@ -312,7 +312,7 @@
     <div class="modal" (click)="$event.stopPropagation()" style="max-width:500px">
       <div class="modal-head">
         <h3>{{ isResync() ? 'Atualizar Receita' : 'Importar Receita' }}</h3>
-        <button class="close-btn" (click)="closeModals()">&#10005;</button>
+        <button class="close-btn" (click)="closeModals()">✕</button>
       </div>
 
       <div class="modal-body">
@@ -361,7 +361,7 @@
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-head">
         <h3>{{ detailTarget()!.title }}</h3>
-        <button class="close-btn" (click)="closeModals()">&#10005;</button>
+        <button class="close-btn" (click)="closeModals()">✕</button>
       </div>
 
       <div class="modal-body">
@@ -428,7 +428,7 @@
     <div class="modal" (click)="$event.stopPropagation()" style="max-width:420px">
       <div class="modal-head">
         <h3>Avaliar: {{ ratingTarget()!.title }}</h3>
-        <button class="close-btn" (click)="closeModals()">&#10005;</button>
+        <button class="close-btn" (click)="closeModals()">✕</button>
       </div>
 
       <div class="modal-body">
@@ -436,7 +436,7 @@
           <label>Sua nota</label>
           <div class="star-picker">
             @for (s of [1,2,3,4,5]; track s) {
-              <button (click)="ratingVal.set(s)" [style.filter]="s <= ratingVal() ? '' : 'grayscale(1)'">&#11088;</button>
+              <button (click)="ratingVal.set(s)" [style.filter]="s <= ratingVal() ? '' : 'grayscale(1)'">⭐</button>
             }
           </div>
           <div style="font-size:.82rem;color:var(--color-text-muted);margin-top:.5rem">
