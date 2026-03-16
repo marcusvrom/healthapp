@@ -27,7 +27,7 @@
     padding: 1.5rem; display: flex; align-items: center; gap: .75rem;
     border-bottom: 1px solid var(--color-border);
 
-    .emoji { font-size: 1.5rem; }
+    .brand-logo { width: 32px; height: 32px; object-fit: contain; object-position: center; display: block; flex-shrink: 0; }
     .name  { font-size: 1rem; font-weight: 800; color: var(--color-primary); flex: 1; }
     .beta  { font-size: .65rem; background: var(--color-primary-light); color: var(--color-primary-dark);
       padding: .1rem .4rem; border-radius: 99px; font-weight: 700; }
@@ -92,7 +92,7 @@
       display: flex; align-items: center; gap: .5rem; width: 100%; margin-top: .625rem;
       padding: .5rem .875rem; border-radius: var(--radius-sm); border: none; background: none;
       color: var(--color-text-muted); font-size: .82rem; cursor: pointer; transition: .15s;
-      &:hover { background: #fee2e2; color: var(--color-danger); }
+      &:hover { background: var(--color-danger-soft-bg); color: var(--color-danger-soft-text); }
     }
   }
 }
@@ -135,7 +135,7 @@
 .notif-badge {
   position: absolute; top: -4px; right: -4px;
   min-width: 16px; height: 16px; padding: 0 4px;
-  border-radius: 99px; background: #ef4444; color: #fff;
+  border-radius: 99px; background: var(--color-danger); color: var(--color-white);
   font-size: .6rem; font-weight: 800; display: flex;
   align-items: center; justify-content: center;
   line-height: 1; border: 2px solid var(--color-surface);
@@ -153,7 +153,7 @@
     position: sticky; top: 0; z-index: 50;
 
     .mtb-brand { display: flex; align-items: center; gap: .5rem;
-      .mtb-emoji { font-size: 1.2rem; }
+      .mtb-logo { width: 26px; height: 26px; object-fit: contain; object-position: center; display: block; flex-shrink: 0; }
       .mtb-name { font-size: .9rem; font-weight: 800; color: var(--color-primary); }
     }
     .mtb-actions { display: flex; align-items: center; gap: .5rem; }
@@ -231,9 +231,9 @@
     .nd-toggle { display: flex; align-items: center; gap: .5rem; font-size: .75rem; color: var(--color-text-muted);
       .toggle-switch { width: 36px; height: 20px; border-radius: 10px; position: relative; cursor: pointer; border: none;
         transition: background .2s;
-        &.on { background: #22c55e; }
+        &.on { background: var(--color-success); }
         &.off { background: var(--color-border); }
-        .toggle-knob { position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: left .2s;
+        .toggle-knob { position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--color-white); box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: left .2s;
           &.on { left: 18px; }
           &.off { left: 2px; }
         }

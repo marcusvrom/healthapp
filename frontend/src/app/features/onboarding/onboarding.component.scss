@@ -1,4 +1,4 @@
-:host { display: block; min-height: 100vh; background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 60%, #d1fae5 100%); }
+:host { display: block; min-height: 100vh; background: var(--color-bg); }
 
 .onboarding {
   min-height: 100vh;
@@ -15,7 +15,9 @@
   align-items: center;
   justify-content: space-between;
 
-  .logo { font-size: 1.1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: .5rem; }
+  .logo { font-size: 1.1rem; font-weight: 700; color: var(--color-primary); display: flex; align-items: center; gap: .5rem;
+    .brand-logo { width: 30px; height: 30px; object-fit: contain; object-position: center; display: block; flex-shrink: 0; }
+  }
 
   .steps {
     display: flex;

@@ -4,3 +4,6 @@ dist/
 uploads/
 *.js.map
 .DS_Store
+
+# Brand asset added manually
+frontend/src/assets/brand/airafit-logo-2000.png
