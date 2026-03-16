@@ -22,7 +22,7 @@ export class ThemeService {
   private loadSavedTheme(): boolean {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return saved === 'dark';
-    // Respect system preference if no saved choice
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    // Default app experience is dark mode
+    return true;
   }
 }
