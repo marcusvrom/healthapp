@@ -1,0 +1,123 @@
+<div class="page">
+  <h1>🏆 Ranking</h1>
+  <p class="subtitle">Semana atual — reseta toda segunda-feira</p>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    @for (tab of TABS; track tab.id) {
+      <button class="tab-btn" [class.active]="activeTab() === tab.id"
+              (click)="switchTab(tab.id)">
+        {{ tab.icon }} {{ tab.label }}
+      </button>
+    }
+  </div>
+
+  <!-- Friends tab: search + pending -->
+  @if (activeTab() === 'friends') {
+    <!-- Pending requests -->
+    @if (pending().length > 0) {
+      <div class="pending-card">
+        <div class="pending-title">📬 Solicitações pendentes</div>
+        @for (req of pending(); track req.friendshipId) {
+          <div class="pending-item">
+            <span class="name">{{ req.name }}</span>
+            <button class="btn accept-btn"  (click)="acceptRequest(req.friendshipId)">Aceitar</button>
+            <button class="btn decline-btn" (click)="declineRequest(req.friendshipId)">Recusar</button>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Search panel -->
+    <div class="friend-panel">
+      <div class="search-row">
+        <input type="text" placeholder="Buscar usuário pelo nome…"
+               [(ngModel)]="searchQuery" (keyup.enter)="runSearch()" />
+        <button (click)="runSearch()">Buscar</button>
+      </div>
+      @if (searchResults().length > 0) {
+        <div class="search-results">
+          @for (u of searchResults(); track u.userId) {
+            <div class="result-item">
+              @if (avatar(u.avatarUrl); as src) {
+                <img [src]="src" class="avatar" [alt]="u.name" />
+              } @else {
+                <div class="avatar">{{ u.name.charAt(0).toUpperCase() }}</div>
+              }
+              <div style="flex:1">
+                <div class="name">{{ u.name }}</div>
+                @if (u.city) { <div class="city">📍 {{ u.city }}</div> }
+              </div>
+              <button class="add-btn" (click)="addFriend(u.userId)">+ Adicionar</button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Ranking content -->
+  @if (loading()) {
+    <div class="loading-text">Carregando ranking…</div>
+  } @else if (rankingList().length === 0) {
+    <div class="empty-state">
+      <div class="icon">{{ emptyIcon() }}</div>
+      <p>{{ emptyMsg() }}</p>
+    </div>
+  } @else {
+    <!-- Podium: top 3 -->
+    @if (podium().length > 0) {
+      <div class="podium">
+        @for (slot of podiumOrder(); track slot.userId) {
+          <div class="podium-slot" [class]="'rank-' + slot.rank">
+            <div class="podium-avatar" [class]="'rank-' + slot.rank">
+              @if (slot.rank === 1) { <span class="crown">👑</span> }
+              @if (avatar(slot.avatarUrl); as src) {
+                <img [src]="src" class="avatar-img" [alt]="slot.name" />
+              } @else {
+                <div class="avatar-placeholder"
+                     [style.background]="levelColor(slot.level)">
+                  {{ slot.name.charAt(0).toUpperCase() }}
+                </div>
+              }
+            </div>
+            <div class="podium-info">
+              <div class="podium-name">{{ slot.name }}</div>
+              <div class="podium-xp">{{ slot.weeklyXp | number }} XP</div>
+              <span class="level-badge" [style.background]="levelColor(slot.level)">
+                Nv {{ slot.level }}
+              </span>
+            </div>
+            <div class="podium-bar">{{ slot.rank }}</div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- List: rank 4+ -->
+    @if (rest().length > 0) {
+      <div class="rank-list">
+        @for (entry of rest(); track entry.userId) {
+          <div class="rank-row" [class.is-me]="entry.userId === currentUserId()">
+            <div class="rank-num">#{{ entry.rank }}</div>
+            @if (avatar(entry.avatarUrl); as src) {
+              <img [src]="src" class="avatar" [alt]="entry.name" />
+            } @else {
+              <div class="avatar" [style.background]="levelColor(entry.level)">
+                {{ entry.name.charAt(0).toUpperCase() }}
+              </div>
+            }
+            <div class="info">
+              <div class="name">{{ entry.name }}{{ entry.userId === currentUserId() ? ' (você)' : '' }}</div>
+              <div class="level">Nv {{ entry.level }} • {{ entry.levelTitle }}</div>
+            </div>
+            <div class="xp-col">
+              <div class="xp">{{ entry.weeklyXp | number }}</div>
+              <div class="xp-label">XP esta semana</div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+</div>

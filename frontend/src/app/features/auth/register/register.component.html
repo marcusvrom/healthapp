@@ -1,0 +1,54 @@
+<div class="auth-page">
+  <div class="card animate-scale">
+    <div class="logo">
+      <span class="emoji">🌿</span>
+      <strong>AiraFit</strong>
+    </div>
+
+    <h2>Crie sua conta</h2>
+    <p class="sub">Comece sua jornada de saúde hoje mesmo.</p>
+
+    @if (error()) {
+      <div class="alert alert-error mb-4">⚠️ {{ error() }}</div>
+    }
+
+    <form class="fields" (ngSubmit)="submit()">
+      <div class="form-group">
+        <label>Nome completo</label>
+        <input type="text" [(ngModel)]="name" name="name" required placeholder="João Silva" />
+      </div>
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" [(ngModel)]="email" name="email" required placeholder="joao@email.com" />
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" [(ngModel)]="password" name="password" required placeholder="min. 8 caracteres" />
+        </div>
+        <div class="form-group">
+          <label>Confirmar</label>
+          <input type="password" [(ngModel)]="confirm" name="confirm" required placeholder="repita a senha" />
+        </div>
+      </div>
+
+      @if (password && confirm && password !== confirm) {
+        <div class="alert alert-error">As senhas não coincidem.</div>
+      }
+
+      <button type="submit" class="btn btn-primary submit-btn"
+        [disabled]="loading() || (!!password && !!confirm && password !== confirm)">
+        @if (loading()) {
+          <span class="spinner"></span> Criando conta...
+        } @else {
+          Criar conta grátis 🚀
+        }
+      </button>
+    </form>
+
+    <div class="login-link">
+      Já tem conta? <a routerLink="/auth/login">Entrar</a>
+    </div>
+    <p class="terms">Ao se cadastrar, você concorda com nossos Termos de Uso.</p>
+  </div>
+</div>

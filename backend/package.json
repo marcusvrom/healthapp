@@ -1,7 +1,7 @@
 {
-  "name": "healthapp-backend",
+  "name": "airafit-backend",
   "version": "1.0.0",
-  "description": "HealthApp backend – nutrition, metabolic analysis and routine management",
+  "description": "AiraFit backend – nutrition, metabolic analysis and routine management",
   "main": "dist/app.js",
   "scripts": {
     "dev": "npx tsx watch src/app.ts",

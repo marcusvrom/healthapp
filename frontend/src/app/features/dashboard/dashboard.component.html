@@ -1,0 +1,872 @@
+<div class="dashboard">
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <div class="dash-header">
+    <div class="greeting">
+      <h2>{{ greeting() }}, {{ firstName() }}! 🌿</h2>
+      <p class="text-muted">{{ todayFormatted() }}</p>
+    </div>
+    <div class="date-nav">
+      <button class="nav-btn" (click)="changeDate(-1)">‹</button>
+      <span class="date-label">{{ selectedDate() === todayStr ? 'Hoje' : selectedDate() }}</span>
+      <button class="nav-btn" (click)="changeDate(1)">›</button>
+      @if (selectedDate() !== todayStr) {
+        <button class="today-btn" (click)="goToday()">Hoje</button>
+      }
+    </div>
+  </div>
+
+  <!-- ── Check-in overdue banner ─────────────────────────────────────── -->
+  @if (showCheckInBanner()) {
+    <div class="checkin-banner">
+      <span class="cb-emoji">📸</span>
+      <div class="cb-text">
+        <h3>Chegou o dia do seu Check-in Semanal!</h3>
+        <p>Registre seu peso e adesão para que o Copiloto possa analisar sua evolução.</p>
+      </div>
+      <div class="cb-actions">
+        <a class="cb-btn" routerLink="/check-in">Fazer Check-in</a>
+        <button class="cb-dismiss" (click)="dismissCheckInBanner()" title="Dispensar">✕</button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Canvas bar ──────────────────────────────────────────────────── -->
+  <div class="canvas-bar">
+    <div class="cb-info">
+      @if (blocks().length === 0 && !loading()) {
+        <h3>🗺️ Canvas em branco</h3>
+        <p>Adicione eventos para montar sua agenda. O copiloto irá te orientar.</p>
+      } @else {
+        <h3>🗺️ Canvas do dia · {{ blocks().length }} blocos</h3>
+        <p>{{ doneProtocols() }}/{{ totalProtocols() }} protocolos · {{ waterBlocks() }} lembretes de água</p>
+      }
+    </div>
+    <div class="cb-actions">
+      @if (scheduledMeals().length > 0) {
+        <button class="btn btn-secondary btn-sm" (click)="applySchedules()" [disabled]="applyingSchedules()" title="Auto-vincular receitas repetidas deste dia da semana">{{ applyingSchedules() ? '⏳...' : '🔁 Repetições' }}</button>
+        <button class="btn btn-secondary btn-sm" (click)="openCloneModal()">📋 Clonar Dieta</button>
+      }
+      <button class="btn btn-secondary btn-sm" (click)="openWaterReminderModal()">💧 Lembretes de Agua</button>
+      <button class="add-event-btn" (click)="openAddEventModal()">+ Adicionar Evento</button>
+    </div>
+  </div>
+
+  <!-- ── Event creation modal ──────────────────────────────────────────── -->
+  @if (addEventModal()) {
+    <div class="event-overlay" (click)="closeAddEventModal()">
+      <div class="event-modal" (click)="$event.stopPropagation()">
+        <div class="em-header">
+          <h3><span>+</span> Novo Evento</h3>
+          <button class="em-close" (click)="closeAddEventModal()" type="button" title="Fechar">X</button>
+        </div>
+
+        <div class="em-body">
+          <!-- Copilot suggestion -->
+          <div class="em-copilot">
+            <div class="emc-header">
+              <span class="emc-avatar">🤖</span>
+              <span class="emc-title">Copiloto</span>
+            </div>
+            <div class="emc-message">{{ copilotEventTip() }}</div>
+            @if (copilotEventSuggestions().length > 0) {
+              <div class="emc-suggestions">
+                @for (s of copilotEventSuggestions(); track s.label) {
+                  <div class="emc-suggestion" (click)="applyCopilotSuggestion(s)">
+                    <span class="emc-s-icon">{{ s.icon }}</span>
+                    <span class="emc-s-text">{{ s.label }}</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="em-section-label">Que tipo de evento voce quer criar?</div>
+          <div class="em-type-grid">
+            @for (t of eventTypeOptions; track t.type) {
+              <button class="em-type-btn" [class.selected]="newEvent.type === t.type" (click)="newEvent.type = t.type" type="button">
+                <span class="et-icon">{{ t.icon }}</span>
+                <span class="et-label">{{ t.label }}</span>
+              </button>
+            }
+          </div>
+
+          <div class="em-divider"></div>
+
+          <!-- Workout sheet picker (only for exercise type) -->
+          @if (newEvent.type === 'exercise' && workoutSheets().length > 0) {
+            <div class="em-workout-picker">
+              <div class="em-section-label">Vincular ficha de treino</div>
+              <select [(ngModel)]="newEvent.workoutSheetId" (ngModelChange)="onWorkoutSheetSelected()">
+                <option value="">Sem ficha (exercicio livre)</option>
+                @for (s of workoutSheets(); track s.id) {
+                  <option [value]="s.id">{{ s.name }} ({{ (s.exercises ?? []).length }} exercicios · {{ s.estimatedMinutes }}min)</option>
+                }
+              </select>
+            </div>
+          }
+
+          <div class="em-section-label">Detalhes</div>
+          <div class="em-fields">
+            <label>
+              Titulo / Descricao
+              <input type="text" [(ngModel)]="newEvent.label" [placeholder]="copilotLabelPlaceholder()" />
+            </label>
+            <div class="em-time-row">
+              <label>Inicio <input type="time" [(ngModel)]="newEvent.startTime" /></label>
+              <label>Fim    <input type="time" [(ngModel)]="newEvent.endTime" /></label>
+            </div>
+            <label>
+              Data alvo
+              <input type="date" [(ngModel)]="newEvent.targetDate" />
+            </label>
+          </div>
+
+          <div class="em-divider"></div>
+
+          <div class="em-recurrence">
+            <div class="em-section-label">Repetir toda semana?</div>
+            <div class="em-days-row">
+              @for (d of allDays; track d) {
+                <button type="button" [class.selected]="newEvent.daysOfWeek.includes(d)" (click)="toggleNewEventDay(d)">{{ dayShort(d) }}</button>
+              }
+            </div>
+            <div class="em-recurrence-hint">
+              @if (newEvent.daysOfWeek.length === 0) {
+                Evento unico — salvo apenas para {{ selectedDate() }}.
+              } @else {
+                Evento recorrente toda semana nos dias selecionados.
+              }
+            </div>
+          </div>
+
+          <div class="em-actions">
+            <button class="btn btn-secondary" (click)="closeAddEventModal()" type="button">Cancelar</button>
+            <button class="btn btn-primary" (click)="saveNewEvent()" type="button" [disabled]="savingEvent()">
+              {{ savingEvent() ? 'Salvando...' : 'Criar Evento' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ── Edit event modal ──────────────────────────────────────────── -->
+  @if (editEventModal()) {
+    <div class="event-overlay" (click)="closeEditModal()">
+      <div class="event-modal" (click)="$event.stopPropagation()">
+        <div class="em-header">
+          <h3><span>&#9998;</span> Editar Evento</h3>
+          <button class="em-close" (click)="closeEditModal()" type="button" title="Fechar">X</button>
+        </div>
+
+        <div class="em-body">
+          <div class="em-section-label">Tipo de evento</div>
+          <div class="em-type-grid">
+            @for (t of eventTypeOptions; track t.type) {
+              <button class="em-type-btn" [class.selected]="editEvent.type === t.type" (click)="editEvent.type = t.type" type="button">
+                <span class="et-icon">{{ t.icon }}</span>
+                <span class="et-label">{{ t.label }}</span>
+              </button>
+            }
+          </div>
+
+          <div class="em-divider"></div>
+          <div class="em-section-label">Detalhes</div>
+          <div class="em-fields">
+            <label>
+              Titulo / Descricao
+              <input type="text" [(ngModel)]="editEvent.label" placeholder="Ex: Treino de forca, Almoco..." />
+            </label>
+            <div class="em-time-row">
+              <label>Inicio <input type="time" [(ngModel)]="editEvent.startTime" /></label>
+              <label>Fim    <input type="time" [(ngModel)]="editEvent.endTime" /></label>
+            </div>
+            <label>
+              Data alvo
+              <input type="date" [(ngModel)]="editEvent.targetDate" />
+            </label>
+          </div>
+
+          <div class="em-divider"></div>
+          <div class="em-recurrence">
+            <div class="em-section-label">Repetir toda semana?</div>
+            <div class="em-days-row">
+              @for (d of allDays; track d) {
+                <button type="button" [class.selected]="editEvent.daysOfWeek.includes(d)" (click)="toggleEditEventDay(d)">{{ dayShort(d) }}</button>
+              }
+            </div>
+            <div class="em-recurrence-hint">
+              @if (editEvent.daysOfWeek.length === 0) {
+                Evento unico — salvo apenas para {{ editEvent.targetDate || selectedDate() }}.
+              } @else {
+                Evento recorrente toda semana nos dias selecionados.
+              }
+            </div>
+          </div>
+
+          <div class="em-actions">
+            <button class="btn btn-secondary" (click)="closeEditModal()" type="button">Cancelar</button>
+            <button class="btn btn-primary" (click)="saveEditEvent()" type="button" [disabled]="savingEdit()">
+              {{ savingEdit() ? 'Salvando...' : 'Salvar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ── Timeline / Diet view ────────────────────────────────────────── -->
+  <div class="timeline-panel">
+    <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>{{ dietView() ? '🍽️ Refeições do Dia' : '📅 Agenda do Dia' }}</span>
+    </div>
+
+    <!-- View toggle -->
+    @if (!loading() && (timeGroups().length > 0 || scheduledMeals().length > 0)) {
+      <div class="view-toggle">
+        <button [class.active]="!dietView()" (click)="dietView.set(false)">📅 Agenda completa</button>
+        <button [class.active]="dietView()" (click)="dietView.set(true)">🍽️ Visão Dieta</button>
+      </div>
+    }
+
+    @if (loading()) {
+      <div style="text-align:center;padding:3rem;color:var(--color-text-muted)"><div class="spinner" style="margin:0 auto 1rem"></div>Carregando...</div>
+
+    } @else if (dietView()) {
+      <!-- ── Diet grouped view ──────────────────────────────────────── -->
+      @if (scheduledMeals().length === 0) {
+        <div style="text-align:center;padding:3rem;color:var(--color-text-muted);font-size:.875rem">
+          Nenhuma refeição planejada.<br>Clique em <strong>+ Adicionar Evento</strong> para criar.
+        </div>
+      } @else {
+        <div class="diet-view">
+          @for (meal of scheduledMeals(); track meal.id) {
+            <div class="diet-meal-group" [class.consumed]="meal.isConsumed" [class.has-recipes]="(meal.linkedRecipes?.length ?? 0) > 0">
+              <div class="dmg-header" (click)="toggleDietGroup(meal.id)">
+                <div class="dmg-icon" style="background:#fef3c7;color:#b45309">🍽️</div>
+                <div class="dmg-info">
+                  <div class="dmg-name">{{ meal.name }}</div>
+                  <div class="dmg-sub">
+                    {{ meal.scheduledTime }}
+                    @if (meal.caloricTarget) { · alvo {{ meal.caloricTarget | number:'1.0-0' }} kcal }
+                    @if (meal.isConsumed) { · <span style="color:#16a34a;font-weight:700">✓ consumida</span> }
+                  </div>
+                </div>
+                <div class="dmg-progress">
+                  @if ((meal.linkedRecipes?.length ?? 0) > 0) {
+                    <div class="dmg-pct" [style.color]="mealKcalFromLinked(meal) > (meal.caloricTarget ?? 0) ? '#dc2626' : '#16a34a'">
+                      {{ mealKcalFromLinked(meal) | number:'1.0-0' }} kcal
+                    </div>
+                    <div class="dmg-kcal">/ {{ meal.caloricTarget | number:'1.0-0' }} alvo</div>
+                  }
+                </div>
+                <span class="dmg-chevron" [class.open]="isDietGroupOpen(meal.id)">▼</span>
+              </div>
+
+              <!-- Progress bar -->
+              @if ((meal.linkedRecipes?.length ?? 0) > 0 && meal.caloricTarget) {
+                <div class="dmg-bar">
+                  <div class="dmg-bar-fill"
+                    [style.width.%]="mealBalancePctById(meal)"
+                    [style.background]="mealKcalFromLinked(meal) > meal.caloricTarget! ? '#ef4444' : '#22c55e'">
+                  </div>
+                </div>
+              }
+
+              <!-- Expanded recipes list -->
+              @if (isDietGroupOpen(meal.id)) {
+                <div class="dmg-recipes">
+                  @if ((meal.linkedRecipes?.length ?? 0) === 0) {
+                    <div class="dmg-no-recipes">Nenhuma receita vinculada ainda.</div>
+                  } @else {
+                    @for (r of meal.linkedRecipes!; track r.recipeId) {
+                      <div class="dmg-recipe-row">
+                        <span class="drr-title">{{ r.title }}</span>
+                        <span class="drr-kcal">{{ r.kcalPerServing * r.servings | number:'1.0-0' }} kcal</span>
+                        <div class="drr-srv">
+                          <button (click)="changeServingsInline(meal, r, -0.5); $event.stopPropagation()" [disabled]="r.servings <= 0.5">−</button>
+                          <span>×{{ r.servings }}</span>
+                          <button (click)="changeServingsInline(meal, r, 0.5); $event.stopPropagation()">+</button>
+                        </div>
+                        <button class="drr-remove" (click)="removeRecipeFromMeal(meal, r.recipeId); $event.stopPropagation()" title="Remover">✕</button>
+                      </div>
+                    }
+                  }
+                  <!-- Inline recipe picker -->
+                  @if (inlinePickerMealId() === meal.id) {
+                    <div class="inline-recipe-picker" (click)="$event.stopPropagation()">
+                      <div class="irp-input-row">
+                        <input type="text" placeholder="Buscar receita por nome..." [(ngModel)]="inlineSearch" (input)="onInlineSearch()" autofocus />
+                        <button class="btn btn-secondary" (click)="closeInlinePicker()">✕</button>
+                      </div>
+                      @if (inlinePickerResults().length > 0) {
+                        <div class="irp-results">
+                          @for (r of inlinePickerResults(); track r.id) {
+                            <div class="irp-item">
+                              <div class="irp-info">
+                                <div class="irp-title">{{ r.title }}</div>
+                                <div class="irp-kcal">{{ r.kcal | number:'1.0-0' }} kcal · P:{{ r.proteinG | number:'1.0-0' }}g C:{{ r.carbsG | number:'1.0-0' }}g G:{{ r.fatG | number:'1.0-0' }}g</div>
+                              </div>
+                              <button class="irp-add" (click)="addRecipeInline(meal, r)">+ Add</button>
+                            </div>
+                          }
+                        </div>
+                      } @else if (inlineSearch.length > 1) {
+                        <div class="irp-empty">Nenhuma receita encontrada.</div>
+                      } @else {
+                        <div class="irp-results">
+                          @for (r of availableRecipes().slice(0, 6); track r.id) {
+                            <div class="irp-item">
+                              <div class="irp-info">
+                                <div class="irp-title">{{ r.title }}</div>
+                                <div class="irp-kcal">{{ r.kcal | number:'1.0-0' }} kcal · P:{{ r.proteinG | number:'1.0-0' }}g C:{{ r.carbsG | number:'1.0-0' }}g G:{{ r.fatG | number:'1.0-0' }}g</div>
+                              </div>
+                              <button class="irp-add" (click)="addRecipeInline(meal, r)">+ Add</button>
+                            </div>
+                          }
+                          @if (availableRecipes().length === 0) {
+                            <div class="irp-empty">Carregando receitas...</div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+
+                  <div class="dmg-actions">
+                    <button class="btn btn-secondary" (click)="openInlinePicker(meal); $event.stopPropagation()">
+                      {{ inlinePickerMealId() === meal.id ? '🔍 Buscando...' : '+ Receita' }}
+                    </button>
+                    @if (!meal.isConsumed) {
+                      <button class="btn" (click)="toggleConsumedById(meal); $event.stopPropagation()" [disabled]="togglingMeal()">
+                        {{ togglingMeal() ? '...' : '✓ Consumida' }}
+                      </button>
+                    } @else {
+                      <button class="btn btn-secondary" (click)="toggleConsumedById(meal); $event.stopPropagation()" [disabled]="togglingMeal()">
+                        ↩ Desfazer
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+    } @else if (timeGroups().length === 0) {
+      <div style="text-align:center;padding:3rem;color:var(--color-text-muted);font-size:.875rem">Nenhum bloco ainda.<br>Clique em <strong>+ Adicionar Evento</strong> para começar a montar sua agenda.</div>
+    } @else {
+      <div class="timeline-feed">
+        @for (grp of timeGroups(); track grp.time; let i = $index) {
+          @if (showNowLine() && grp.minuteOfDay > nowMinutes() && (i === 0 || timeGroups()[i-1].minuteOfDay <= nowMinutes())) {
+            <div class="now-line"><span class="now-time">{{ nowLabel() }}</span><span class="now-dot"></span><span class="now-bar"></span></div>
+          }
+          <div class="tg" [class.past]="grp.isPast">
+            <div class="tg-time">{{ grp.time }}</div>
+            <div class="tg-rail">
+              <div class="tg-dot"
+                [style.background]="grp.isCurrent ? 'var(--color-danger)' : dotColor(grp.blocks[0].type)"
+                [style.box-shadow]="grp.isCurrent ? '0 0 0 4px rgba(239,68,68,.2)' : 'none'">
+              </div>
+            </div>
+            <div class="tg-cards">
+              @for (b of grp.blocks; track b.id) {
+                <div class="block-card"
+                  [class.done]="isDone(b)"
+                  [class.block-completed]="isBlockCompleted(b)"
+                  [class.meal-clickable]="b.type === 'meal'"
+                  [style.border-left-color]="blockBorderColor(b)"
+                  (click)="b.type === 'meal' ? navigateToDiet() : null">
+
+                  <div class="bc-row">
+                    <!-- Primary action (left side) -->
+                    @if (b.type === 'medication') {
+                      <button class="bc-check" [class.checked-purple]="isDone(b)" (click)="toggleProtocol(b, $event); $event.stopPropagation()" [disabled]="toggling() === b.id">{{ isDone(b) ? '✓' : '○' }}</button>
+                    } @else if (b.type === 'meal') {
+                      @if (mealConsumed(b)) {
+                        <div class="bc-done-icon">✓</div>
+                      } @else {
+                        <div class="bc-icon" [style.background]="blockMeta(b.type).bg" [style.color]="blockMeta(b.type).color">{{ protocolIcon(b) }}</div>
+                      }
+                    } @else if (isCompletable(b)) {
+                      <button class="bc-check"
+                        [class.checked]="isBlockCompleted(b)"
+                        (click)="b.type === 'water' ? (waterModalOpen.set(true)) : null; toggleBlockComplete(b, $event); $event.stopPropagation()"
+                        [disabled]="completingBlock() === b.id || (b.type === 'sun_exposure' && !isSunSafeHour())"
+                        [title]="b.type === 'sun_exposure' && !isSunSafeHour() ? 'Disponivel antes das 10h ou apos 16h' : ''">
+                        {{ completingBlock() === b.id ? '…' : isBlockCompleted(b) ? '✓' : '○' }}
+                      </button>
+                    } @else {
+                      <div class="bc-icon" [style.background]="blockMeta(b.type).bg" [style.color]="blockMeta(b.type).color">{{ protocolIcon(b) }}</div>
+                    }
+
+                    <!-- Content -->
+                    <div class="bc-body">
+                      <div class="bc-label" [class.bc-label-done]="isBlockCompleted(b) || isDone(b) || mealConsumed(b)">{{ b.label }}</div>
+                      <div class="bc-sub">
+                        {{ b.startTime }}–{{ b.endTime }}
+                        @if (b.caloricTarget) { · {{ b.caloricTarget | number:'1.0-0' }} kcal }
+                        @if (b.waterMl)       { · {{ b.waterMl | number:'1.0-0' }} ml }
+                      </div>
+                    </div>
+
+                    <!-- Contextual right action -->
+                    <div class="bc-right">
+                      @if (b.type === 'meal' && !mealConsumed(b)) {
+                        <button class="bc-go-btn" style="color:#b45309"
+                          (click)="navigateToDiet(); $event.stopPropagation()">
+                          Ir →
+                        </button>
+                      } @else if (b.type === 'exercise' && !isBlockCompleted(b)) {
+                        <button class="bc-go-btn" style="color:#166534"
+                          (click)="toggleBlockComplete(b, $event); $event.stopPropagation()">
+                          Ir →
+                        </button>
+                      } @else if (!isBlockCompleted(b) && !isDone(b) && !mealConsumed(b) && !isCompletable(b)) {
+                        <!-- Non-completable: show nothing -->
+                      }
+
+                      <!-- Overflow menu (edit/delete/notif) -->
+                      @if (!b.id.startsWith('synth-')) {
+                        <div class="bc-overflow">
+                          <button class="bc-overflow-trigger" (click)="toggleOverflowMenu(b.id); $event.stopPropagation()" title="Mais opcoes">⋮</button>
+                          @if (overflowOpenId() === b.id) {
+                            <div class="bc-overflow-menu" (click)="$event.stopPropagation()">
+                              <button (click)="toggleBlockNotif(b); toggleOverflowMenu(null)">
+                                {{ blockNotifEnabled().has(b.id) ? '🔔 Lembrete ativo' : '🔕 Ativar lembrete' }}
+                              </button>
+                              <button (click)="openEditModal(b, $event); toggleOverflowMenu(null)">✏️ Editar</button>
+                              <button class="overflow-del" (click)="deleteBlock(b, $event); toggleOverflowMenu(null)" [disabled]="deletingBlock() === b.id">
+                                {{ deletingBlock() === b.id ? '…' : '🗑️ Excluir' }}
+                              </button>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Linked workout exercises -->
+                  @if (hasLinkedWorkout(b)) {
+                    <button class="workout-toggle" (click)="toggleWorkoutDetail(b.id); $event.stopPropagation()">
+                      🏋️ {{ blockExercises(b).length }} exercicios
+                      <span class="toggle-arrow">{{ expandedWorkoutBlock() === b.id ? '▲' : '▼' }}</span>
+                    </button>
+                    @if (expandedWorkoutBlock() === b.id) {
+                      <div class="workout-exercises-panel">
+                        @for (ex of blockExercises(b); track ex.name; let i = $index) {
+                          <div class="we-row">
+                            <span class="we-num">{{ i + 1 }}</span>
+                            <div class="we-info">
+                              <span class="we-name">{{ ex.name }}</span>
+                              <span class="we-detail">{{ ex.sets }}x{{ ex.reps }} · {{ ex.restSeconds >= 60 ? (ex.restSeconds / 60 | number:'1.0-0') + 'min' : ex.restSeconds + 's' }} descanso</span>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+        @if (showNowLine() && allBlocksPast()) {
+          <div class="now-line"><span class="now-time">{{ nowLabel() }}</span><span class="now-dot"></span><span class="now-bar"></span></div>
+        }
+      </div>
+    }
+  </div> <!-- end timeline-panel -->
+
+  <!-- ── Right panel ─────────────────────────────────────────────────── -->
+  <div class="right-panel">
+    <div class="macro-card">
+      <div class="card-title">🎯 Macronutrientes do Dia</div>
+      @if (metabolic()) {
+        <div class="calorie-row">
+          <span class="cal-value" [style.color]="consumedKcal() > metabolic()!.dailyCaloricTarget ? 'var(--color-danger)' : 'var(--color-primary)'">{{ consumedKcal() | number:'1.0-0' }}</span>
+          <span class="cal-label">kcal</span>
+          <span class="cal-target">/ {{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }}</span>
+          @if (consumedKcal() > metabolic()!.dailyCaloricTarget) {
+            <span class="cal-over">+{{ consumedKcal() - metabolic()!.dailyCaloricTarget | number:'1.0-0' }} excedido</span>
+          }
+        </div>
+        <div class="macro-bar-row" style="margin-bottom:.75rem">
+          <div class="bar-track" style="height:8px">
+            <div class="bar-fill" [style.width.%]="caloriesPct()" [style.background]="caloriesPct() > 105 ? 'var(--color-danger)' : 'var(--color-primary)'"></div>
+          </div>
+        </div>
+        <div class="macro-bars">
+          <div class="macro-bar-row">
+            <div class="mb-header"><span class="name">🥩 Proteína</span><span class="value">{{ summary()?.totalProtein | number:'1.0-0' }}g / {{ metabolic()!.macros.proteinG | number:'1.0-0' }}g</span></div>
+            <div class="bar-track"><div class="bar-fill" [style.width.%]="pct(summary()?.totalProtein, metabolic()!.macros.proteinG)" style="background:#10b981"></div></div>
+          </div>
+          <div class="macro-bar-row">
+            <div class="mb-header"><span class="name">🌾 Carboidratos</span><span class="value">{{ summary()?.totalCarbs | number:'1.0-0' }}g / {{ metabolic()!.macros.carbsG | number:'1.0-0' }}g</span></div>
+            <div class="bar-track"><div class="bar-fill" [style.width.%]="pct(summary()?.totalCarbs, metabolic()!.macros.carbsG)" style="background:#f59e0b"></div></div>
+          </div>
+          <div class="macro-bar-row">
+            <div class="mb-header"><span class="name">🥑 Gorduras</span><span class="value">{{ summary()?.totalFat | number:'1.0-0' }}g / {{ metabolic()!.macros.fatG | number:'1.0-0' }}g</span></div>
+            <div class="bar-track"><div class="bar-fill" [style.width.%]="pct(summary()?.totalFat, metabolic()!.macros.fatG)" style="background:#6366f1"></div></div>
+          </div>
+        </div>
+
+        <!-- ── Remaining macros ───────────────────────────────────── -->
+        <div class="remaining-section">
+          <div class="rem-title">⏳ O que ainda falta hoje</div>
+          <div class="rem-pills">
+            <span class="rem-pill" [class.positive]="remainingKcal() > 0" [class.negative]="remainingKcal() < 0" [class.neutral]="remainingKcal() === 0">
+              🔥 {{ remainingKcal() > 0 ? 'Faltam ' + (remainingKcal() | number:'1.0-0') + ' kcal' : remainingKcal() < 0 ? 'Excedeu ' + (absVal(remainingKcal()) | number:'1.0-0') + ' kcal' : '✓ Meta kcal!' }}
+            </span>
+            <span class="rem-pill" [class.positive]="remainingProtein() > 0" [class.negative]="remainingProtein() < 0" [class.neutral]="remainingProtein() === 0">
+              🥩 {{ remainingProtein() > 0 ? 'Faltam ' + (remainingProtein() | number:'1.0-0') + 'g prot' : remainingProtein() < 0 ? '+' + (absVal(remainingProtein()) | number:'1.0-0') + 'g prot' : '✓ Prot!' }}
+            </span>
+            <span class="rem-pill" [class.positive]="remainingCarbs() > 0" [class.negative]="remainingCarbs() < 0" [class.neutral]="remainingCarbs() === 0">
+              🌾 {{ remainingCarbs() > 0 ? 'Faltam ' + (remainingCarbs() | number:'1.0-0') + 'g carb' : remainingCarbs() < 0 ? '+' + (absVal(remainingCarbs()) | number:'1.0-0') + 'g carb' : '✓ Carb!' }}
+            </span>
+            <span class="rem-pill" [class.positive]="remainingFat() > 0" [class.negative]="remainingFat() < 0" [class.neutral]="remainingFat() === 0">
+              🥑 {{ remainingFat() > 0 ? 'Faltam ' + (remainingFat() | number:'1.0-0') + 'g gord' : remainingFat() < 0 ? '+' + (absVal(remainingFat()) | number:'1.0-0') + 'g gord' : '✓ Gord!' }}
+            </span>
+          </div>
+        </div>
+      } @else {
+        <p class="text-muted" style="padding:1rem;font-size:.875rem;text-align:center">Complete seu perfil para ver os macros.</p>
+      }
+    </div>
+
+    @if (metabolic()) {
+      <div class="stats-row">
+        <div class="stat-mini"><div class="val" style="color:var(--color-primary)">{{ metabolic()!.bmr | number:'1.0-0' }}</div><div class="lbl">TMB (kcal/dia)</div></div>
+        <div class="stat-mini"><div class="val" style="color:#6366f1">{{ metabolic()!.tee | number:'1.0-0' }}</div><div class="lbl">GET (kcal/dia)</div></div>
+        <div class="stat-mini"><div class="val" style="color:#f59e0b">{{ metabolic()!.exerciseCalories | number:'1.0-0' }}</div><div class="lbl">Kcal exercício</div></div>
+        <div class="stat-mini"><div class="val" style="color:#0ea5e9">{{ metabolic()!.hypertrophyScore }}/10</div><div class="lbl">Score hipertrofia</div></div>
+      </div>
+    }
+
+    <!-- ── Water mini card ────────────────────────────────────────── -->
+    <div class="water-mini-card" (click)="waterModalOpen.set(true)">
+      <div class="wm-header">
+        <span class="wm-title">💧 Hidratacao</span>
+        <span class="wm-pct">{{ waterSvc.todayGoal() ? ((waterSvc.todayTotal() / waterSvc.todayGoal()) * 100 | number:'1.0-0') : 0 }}%</span>
+      </div>
+      <div class="wm-bar-track">
+        <div class="wm-bar-fill" [style.width.%]="waterSvc.todayGoal() ? (waterSvc.todayTotal() / waterSvc.todayGoal()) * 100 : 0"></div>
+      </div>
+      <div class="wm-amounts">
+        <span>{{ waterSvc.todayTotal() }} / {{ waterSvc.todayGoal() }} ml</span>
+        <span class="wm-action">Registrar →</span>
+      </div>
+    </div>
+    <app-water-tracker [open]="waterModalOpen" (closed)="waterModalOpen.set(false)" />
+
+    <!-- ── Copilot Orientação Inteligente ──────────────────────────── -->
+    <div class="copilot-card">
+      <div class="cop-header">
+        <div class="cop-title">🧭 Orientação Inteligente</div>
+        @if (copilotFeedback()) {
+          <span class="cop-score" [class.score-high]="copilotFeedback()!.completeness >= 80" [class.score-mid]="copilotFeedback()!.completeness >= 50 && copilotFeedback()!.completeness < 80" [class.score-low]="copilotFeedback()!.completeness < 50">
+            {{ copilotFeedback()!.completeness }}%
+          </span>
+        }
+      </div>
+      @if (copilotLoading()) {
+        <div class="cop-loading"><span class="spinner" style="width:16px;height:16px"></span> Analisando seu dia...</div>
+      } @else if (copilotFeedback()) {
+        <div class="cop-items">
+          @for (item of copilotFeedback()!.feedback; track item.title) {
+            <div class="cop-item" [class.ok]="item.type === 'checklist' && item.done" [class.warn]="item.type === 'warning' || (item.type === 'checklist' && !item.done)" [class.error]="item.type === 'tip'">
+              <span class="cop-icon">{{ item.type === 'checklist' && item.done ? '✅' : item.type === 'warning' ? '⚠️' : item.type === 'tip' ? '💡' : '⬜' }}</span>
+              <span class="cop-msg"><strong>{{ item.title }}</strong><br>{{ item.message }}</span>
+            </div>
+          }
+        </div>
+        <button class="cop-refresh" (click)="loadCopilotFeedback()">↻ Atualizar análise</button>
+      } @else {
+        <div class="cop-items">
+          <div class="cop-item warn">
+            <span class="cop-icon">ℹ️</span>
+            <span class="cop-msg">Adicione eventos ao seu Canvas para receber orientações.</span>
+          </div>
+        </div>
+        <button class="cop-refresh" (click)="loadCopilotFeedback()">↻ Analisar meu dia</button>
+      }
+    </div>
+
+    <!-- Daily missions widget -->
+    <app-daily-missions-widget />
+
+    <div class="card" style="display:flex;flex-direction:column;gap:.5rem">
+      <div style="font-size:.82rem;font-weight:700;margin-bottom:.125rem">⚡ Ações rápidas</div>
+      <a routerLink="/nutrition"   class="btn btn-secondary w-full">🍽️ Registrar refeição</a>
+      <a routerLink="/protocols"   class="btn btn-secondary w-full">💊 Protocolos clínicos</a>
+      <a routerLink="/recipes"     class="btn btn-secondary w-full">📖 Receitas da comunidade</a>
+      <a routerLink="/leaderboard" class="btn btn-secondary w-full">🏆 Ver ranking semanal</a>
+      <a routerLink="/progress"    class="btn btn-secondary w-full">📊 Ver progresso</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── Meal panel overlay ─────────────────────────────────────────────── -->
+@if (mealPanel()) {
+  <div class="panel-overlay" (click)="closeMealPanel()">
+    <div class="meal-panel" (click)="$event.stopPropagation()">
+
+      <!-- Header -->
+      <div class="mp-header">
+        <div class="mp-title">
+          <h3>🍽️ {{ mealPanel()!.name }}</h3>
+          <div class="mp-time">{{ mealPanel()!.scheduledTime }} · Alvo: {{ mealPanel()!.caloricTarget | number:'1.0-0' }} kcal</div>
+        </div>
+        <button class="mp-close" (click)="closeMealPanel()">✕</button>
+      </div>
+
+      <!-- Balance bar -->
+      <div class="mp-balance">
+        <div class="balance-row">
+          <span class="bal-label">Consumo vs Meta</span>
+          <span class="bal-nums">
+            <span class="bal-consumed">{{ panelConsumedKcal() | number:'1.0-0' }}</span>
+            <span class="bal-sep">/</span>
+            <span class="bal-target">{{ mealPanel()!.caloricTarget | number:'1.0-0' }} kcal</span>
+          </span>
+          @if (panelBalance() !== 0) {
+            <span class="bal-delta" [class.ok]="panelBalance() < 0" [class.bad]="panelBalance() > 0">
+              {{ panelBalance() > 0 ? '+' : '' }}{{ panelBalance() | number:'1.0-0' }} kcal
+            </span>
+          }
+        </div>
+        <div class="balance-track">
+          @if (panelConsumedKcal() <= (mealPanel()!.caloricTarget ?? 0)) {
+            <div class="bt-green" [style.width.%]="panelBalancePct()"></div>
+          } @else {
+            <div class="bt-red" style="width:100%"></div>
+          }
+        </div>
+        <!-- Macro pills -->
+        <div class="macro-pills">
+          <span class="mp-pill">🥩 {{ panelConsumedProtein() | number:'1.0-0' }}g prot</span>
+          <span class="mp-pill">🌾 {{ panelConsumedCarbs() | number:'1.0-0' }}g carb</span>
+          <span class="mp-pill">🥑 {{ panelConsumedFat() | number:'1.0-0' }}g gord</span>
+        </div>
+      </div>
+
+      <!-- Scrollable body -->
+      <div class="mp-body">
+
+        <!-- Linked recipes -->
+        @if (panelRecipes().length > 0) {
+          <div>
+            <div style="font-size:.78rem;font-weight:700;color:var(--color-text-muted);margin-bottom:.5rem">Receitas vinculadas</div>
+            <div class="linked-recipes">
+              @for (r of panelRecipes(); track r.recipeId) {
+                <div class="linked-item">
+                  <div class="li-info">
+                    <div class="li-title">{{ r.title }}</div>
+                    <div class="li-macros">{{ r.totalKcal | number:'1.0-0' }} kcal · P:{{ r.totalProtein | number:'1.0-0' }}g C:{{ r.totalCarbs | number:'1.0-0' }}g G:{{ r.totalFat | number:'1.0-0' }}g</div>
+                  </div>
+                  <div class="li-servings">
+                    <button (click)="changeServings(r, -0.5)" [disabled]="r.servings <= 0.5">−</button>
+                    <span class="srv-count">{{ r.servings }}</span>
+                    <button (click)="changeServings(r, 0.5)">+</button>
+                  </div>
+                  <button class="li-remove" (click)="removeRecipe(r.recipeId)" title="Remover">✕</button>
+                </div>
+              }
+            </div>
+          </div>
+        } @else {
+          <div style="text-align:center;padding:.75rem;color:var(--color-text-muted);font-size:.82rem">
+            Nenhuma receita vinculada ainda.<br>Pesquise abaixo para adicionar.
+          </div>
+        }
+
+        <!-- Recipe search -->
+        <div class="recipe-search">
+          <label>Adicionar receita</label>
+          <div class="rs-input">
+            <input type="text" placeholder="Buscar por nome..." [(ngModel)]="recipeSearch" />
+          </div>
+
+          @if (panelSearchResults().length > 0) {
+            <div class="rs-results">
+              @for (r of panelSearchResults(); track r.id) {
+                <div class="rs-item">
+                  <div class="rsi-info">
+                    <div class="rsi-title">{{ r.title }}</div>
+                    <div class="rsi-kcal">{{ r.kcal | number:'1.0-0' }} kcal/porção · P:{{ r.proteinG | number:'1.0-0' }}g C:{{ r.carbsG | number:'1.0-0' }}g G:{{ r.fatG | number:'1.0-0' }}g</div>
+                  </div>
+                  <button class="rsi-add" (click)="addRecipe(r)">+ Add</button>
+                </div>
+              }
+            </div>
+          } @else if (recipeSearch.length > 1) {
+            <div class="rs-empty">Nenhuma receita encontrada.</div>
+          } @else if (availableRecipes().length > 0) {
+            <!-- Show top recipes when no search yet -->
+            <div class="rs-results">
+              @for (r of availableRecipes().slice(0, 8); track r.id) {
+                <div class="rs-item">
+                  <div class="rsi-info">
+                    <div class="rsi-title">{{ r.title }}</div>
+                    <div class="rsi-kcal">{{ r.kcal | number:'1.0-0' }} kcal/porção · P:{{ r.proteinG | number:'1.0-0' }}g C:{{ r.carbsG | number:'1.0-0' }}g G:{{ r.fatG | number:'1.0-0' }}g</div>
+                  </div>
+                  <button class="rsi-add" (click)="addRecipe(r)">+ Add</button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Repeat schedule section -->
+        @if (panelRecipes().length > 0) {
+          <div class="repeat-section">
+            <div class="rp-title">🔁 Repetição semanal — selecione os dias para cada receita</div>
+            @for (r of panelRecipes(); track r.recipeId) {
+              <div class="rp-recipe-row">
+                <span class="rpr-name">{{ r.title }}</span>
+                <div class="rpr-days">
+                  @for (day of allDays; track day) {
+                    <button
+                      [class.selected]="isDaySelected(r.recipeId, day)"
+                      (click)="toggleRepeatDay(r, day)">
+                      {{ dayLabel(day) }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+            <div style="font-size:.7rem;color:var(--color-text-muted);margin-top:.25rem">
+              Clique em um dia para ativar/desativar a repetição automática desta receita naquela refeição.
+            </div>
+          </div>
+        }
+
+      </div>
+
+      <!-- Footer: consumed toggle -->
+      <div class="mp-footer">
+        <button class="btn consume-btn" [class.consumed]="mealPanel()!.isConsumed"
+          [disabled]="togglingMeal()"
+          (click)="toggleConsumed()">
+          {{ togglingMeal() ? '...' : mealPanel()!.isConsumed ? '✓ Refeição Consumida' : 'Marcar como Consumida' }}
+        </button>
+        @if (!mealPanel()!.isConsumed && panelRecipes().length > 0) {
+          <span style="font-size:.72rem;color:var(--color-text-muted)">+10 XP</span>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- XP pop -->
+@if (xpPopVisible()) {
+  <div class="xp-pop" [style.left]="xpPopX + 'px'" [style.top]="xpPopY + 'px'">+{{ lastXp() }} XP ⚡</div>
+}
+
+<!-- Anti-cheat toast (cap reached / out of window) -->
+@if (xpBlockToast()) {
+  <div class="xp-block-toast">🚫 {{ xpBlockToast() }}</div>
+}
+
+<!-- ── Photo share prompt ─────────────────────────────────────────── -->
+@if (photoPromptBlock()) {
+  <div class="photo-overlay" (click)="skipPhoto()">
+    <div class="photo-modal" (click)="$event.stopPropagation()">
+      <h3>📸 Compartilhar conquista?</h3>
+      <p class="subtitle">Adicione uma foto opcional e ganhe <strong>+10 XP</strong> bônus!</p>
+
+      @if (photoDraftDataUrl()) {
+        <img [src]="photoDraftDataUrl()!" class="photo-preview" alt="preview">
+      }
+
+      <label class="photo-pick-btn">
+        {{ photoDraftDataUrl() ? '🔄 Trocar foto' : '📷 Escolher foto' }}
+        <input type="file" accept="image/*" style="display:none"
+          (change)="onPhotoFileChange($event)">
+      </label>
+
+      <input type="text" class="caption-input"
+        placeholder="Legenda (opcional)..."
+        [(ngModel)]="photoDraftCaption"
+        maxlength="280">
+
+      <label class="share-toggle">
+        <input type="checkbox" [(ngModel)]="photoSharePublic">
+        Visível no feed público
+      </label>
+
+      <div class="photo-actions">
+        <button class="btn-skip" (click)="skipPhoto()">Pular</button>
+        <button class="btn-share"
+          (click)="submitWithPhoto()"
+          [disabled]="!photoDraftDataUrl() || sharingPhoto()">
+          {{ sharingPhoto() ? '...' : '✨ Compartilhar +10 XP' }}
+        </button>
+      </div>
+      <p class="xp-hint">Foto é opcional — clique em "Pular" para concluir sem compartilhar</p>
+    </div>
+  </div>
+}
+
+<!-- ── Clone Dieta modal ───────────────────────────────────────────── -->
+<!-- ── Water reminder modal ────────────────────────────────────────── -->
+@if (waterReminderModal()) {
+  <div class="clone-overlay" (click)="closeWaterReminderModal()">
+    <div class="clone-modal" (click)="$event.stopPropagation()" style="max-width:420px">
+      <h3>💧 Gerar Lembretes de Agua</h3>
+      <p style="font-size:.82rem;color:var(--color-text-muted);margin-bottom:1rem;line-height:1.5">
+        Configure a frequencia e o horario para gerar lembretes automaticos de agua ao longo do dia.
+      </p>
+
+      <div class="clone-fields">
+        <label>Frequencia (minutos)
+          <input type="number" [(ngModel)]="waterFrequency" min="10" max="240" step="5" />
+        </label>
+        <label>Horario de inicio
+          <input type="time" [(ngModel)]="waterStartTime" />
+        </label>
+        <label>Horario de termino
+          <input type="time" [(ngModel)]="waterEndTime" />
+        </label>
+      </div>
+
+      <div style="font-size:.75rem;color:var(--color-text-muted);margin-bottom:1rem;background:var(--color-surface-2);padding:.75rem;border-radius:var(--radius-sm)">
+        <strong>Previa:</strong> {{ waterPreviewCount() }} lembretes de agua
+        a cada {{ waterFrequency }} minutos, das {{ waterStartTime }} as {{ waterEndTime }}.
+      </div>
+
+      <div class="clone-actions">
+        <button class="btn btn-secondary" style="flex:1" (click)="closeWaterReminderModal()">Cancelar</button>
+        <button class="btn" style="flex:1" (click)="generateWaterReminders()" [disabled]="generatingWater() || waterFrequency < 10">
+          {{ generatingWater() ? 'Gerando...' : 'Gerar Lembretes' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (cloneModal()) {
+  <div class="clone-overlay" (click)="closeCloneModal()">
+    <div class="clone-modal" (click)="$event.stopPropagation()">
+      <h3>📋 Clonar Dieta</h3>
+      <div class="clone-fields">
+        <label>Data de origem (copiar de)
+          <input type="date" [(ngModel)]="cloneFrom" />
+        </label>
+        <label>Data de destino (copiar para)
+          <input type="date" [(ngModel)]="cloneTo" />
+        </label>
+      </div>
+      <p style="font-size:.75rem;color:var(--color-text-muted);margin-bottom:1rem">
+        Copia todas as refeições e receitas vinculadas da data de origem para a data de destino.
+        Refeições já existentes no destino serão substituídas.
+      </p>
+      <div class="clone-actions">
+        <button class="btn btn-secondary" style="flex:1" (click)="closeCloneModal()">Cancelar</button>
+        <button class="btn" style="flex:1" (click)="cloneDiet()" [disabled]="cloning() || !cloneFrom || !cloneTo">
+          {{ cloning() ? '⏳ Clonando...' : '📋 Clonar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,74 @@
+<div class="page">
+  <div class="page-header">
+    <h2>🏆 Desafios da Semana</h2>
+    <p>Complete blocos de rotina para avançar nos desafios. XP bônus ao completar!</p>
+  </div>
+
+  @if (weekLabel()) {
+    <span class="week-badge">📅 {{ weekLabel() }}</span>
+  }
+
+  @if (loading()) {
+    <div class="empty-state"><span class="emoji">⏳</span><p>Carregando desafios...</p></div>
+  } @else if (error()) {
+    <div class="empty-state">
+      <span class="emoji">⚠️</span>
+      <p>Não foi possível carregar os desafios.<br>Verifique sua conexão e tente novamente.</p>
+      <button class="retry-btn" (click)="load()">Tentar novamente</button>
+    </div>
+  } @else if (challenges().length === 0) {
+    <div class="empty-state"><span class="emoji">🏆</span><p>Nenhum desafio ativo esta semana.</p></div>
+  } @else {
+    <div class="challenges-grid">
+      @for (c of challenges(); track c.id) {
+        <div class="challenge-card"
+          [class.completed]="c.completed"
+          [class.joined]="c.joined">
+
+          <div class="card-top">
+            <span class="emoji">{{ c.emoji }}</span>
+            <div class="info">
+              <div class="title">{{ c.title }}</div>
+              <div class="desc">{{ c.description }}</div>
+            </div>
+          </div>
+
+          <div class="tags">
+            <span class="tag">{{ categoryLabel(c.category) }}</span>
+            <span class="tag xp">+{{ c.xpReward }} XP</span>
+            <span class="tag">{{ c.targetCount }} blocos</span>
+          </div>
+
+          @if (c.joined) {
+            <div class="progress-wrap">
+              <div class="progress-label">
+                <span>Progresso</span>
+                <span>{{ c.progress }} / {{ c.targetCount }}</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill"
+                  [class.done]="c.completed"
+                  [style.width]="progressPct(c) + '%'">
+                </div>
+              </div>
+            </div>
+          }
+
+          <div class="card-actions">
+            @if (c.completed) {
+              <button class="btn done">✅ Concluído! +{{ c.xpReward }} XP</button>
+            } @else if (c.joined) {
+              <button class="btn joined">✓ Participando — {{ c.progress }}/{{ c.targetCount }}</button>
+            } @else {
+              <button class="btn join"
+                [disabled]="joining().has(c.id)"
+                (click)="join(c)">
+                {{ joining().has(c.id) ? '...' : '🚀 Participar' }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

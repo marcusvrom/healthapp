@@ -1,0 +1,67 @@
+<div class="auth-page">
+  <!-- Hero panel -->
+  <div class="hero">
+    <div>
+      <div class="hero-icon">🌿</div>
+      <h1>AiraFit</h1>
+      <p>Sua jornada para uma vida mais saudável começa aqui.</p>
+    </div>
+    <div class="features">
+      @for (f of heroFeatures; track f.icon) {
+        <div class="feature">
+          <span class="icon">{{ f.icon }}</span>
+          <span>{{ f.text }}</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Form panel -->
+  <div class="form-side">
+    <div class="form-card animate-fade">
+      <div class="logo">
+        <span class="emoji">🌿</span>
+        <strong>AiraFit</strong>
+      </div>
+
+      <h2>Bem-vindo de volta</h2>
+      <p class="sub">Entre com suas credenciais para continuar.</p>
+
+      @if (error()) {
+        <div class="alert alert-error mb-4">⚠️ {{ error() }}</div>
+      }
+
+      <form class="fields" (ngSubmit)="submit()" #f="ngForm">
+        <div class="form-group">
+          <label for="email">E-mail</label>
+          <input
+            id="email" type="email" name="email"
+            [(ngModel)]="email" required placeholder="seu@email.com"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Senha</label>
+          <input
+            id="password" type="password" name="password"
+            [(ngModel)]="password" required placeholder="••••••••"
+          />
+        </div>
+
+        <button type="submit" class="btn btn-primary submit-btn" [disabled]="loading()">
+          @if (loading()) {
+            <span class="spinner"></span> Entrando...
+          } @else {
+            Entrar
+          }
+        </button>
+      </form>
+
+      <div class="divider">ou</div>
+
+      <div class="register-link">
+        Não tem conta? <a routerLink="/auth/register">Criar conta grátis</a>
+      </div>
+    </div>
+  </div>
+</div>

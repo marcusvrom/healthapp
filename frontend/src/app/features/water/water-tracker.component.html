@@ -1,0 +1,84 @@
+@if (open()) {
+  <div class="water-overlay" (click)="onOverlayClick($event)">
+    <div class="water-modal">
+      <!-- Header -->
+      <div class="modal-header">
+        <span class="modal-title">💧 Hidratacao</span>
+        <button class="close-btn" (click)="close()">✕</button>
+      </div>
+
+      <!-- Progress -->
+      <div class="progress-section">
+        <div class="amounts">
+          <span class="current">{{ todayTotal() }}</span>
+          <span class="separator">/</span>
+          <span class="goal-val">{{ goal() }}</span>
+          <span class="unit">ml</span>
+        </div>
+        <div class="pct-row">
+          <div class="bar-track">
+            <div class="bar-fill" [style.width.%]="pct()"></div>
+          </div>
+          <span class="pct-chip">{{ pct() | number:'1.0-0' }}%</span>
+        </div>
+      </div>
+
+      <!-- Quick add -->
+      <div class="quick-section">
+        <div class="section-label">Adicao rapida</div>
+        <div class="quick-grid">
+          @for (amt of quickAmounts; track amt) {
+            <button class="qa-btn" (click)="quickAdd(amt)" [disabled]="adding()">
+              <span class="qa-icon">💧</span>
+              <span class="qa-val">{{ amt }}ml</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Custom add toggle -->
+      <button class="custom-toggle" (click)="showForm.set(!showForm())">
+        {{ showForm() ? '▲ Fechar registro personalizado' : '＋ Registrar quantidade personalizada' }}
+      </button>
+
+      @if (showForm()) {
+        <div class="custom-form">
+          <div class="form-grid">
+            <div class="field">
+              <label>Quantidade (ml)</label>
+              <input type="number" [(ngModel)]="customMl" min="50" max="3000" placeholder="ex: 300" />
+            </div>
+            <div class="field">
+              <label>Horario</label>
+              <input type="datetime-local" [(ngModel)]="customTime" />
+            </div>
+          </div>
+          <button class="submit-btn" (click)="addCustom()" [disabled]="adding() || !customMl">
+            {{ adding() ? 'Registrando...' : '✓ Registrar' }}
+          </button>
+        </div>
+      }
+
+      <!-- Logs -->
+      <div class="logs-section">
+        <div class="section-label">
+          <span>Registros de hoje</span>
+          <span class="log-count">{{ logs().length }}</span>
+        </div>
+        <div class="log-list">
+          @if (logs().length === 0) {
+            <div class="no-logs">Nenhum registro ainda. Use os botoes acima para comecar!</div>
+          }
+          @for (log of logs(); track log.id) {
+            <div class="log-item">
+              <span class="log-icon">💧</span>
+              <span class="log-qty">{{ log.quantityMl }} ml</span>
+              <span class="log-time">{{ log.loggedAt | date:'HH:mm' }}</span>
+              <button class="del-btn" (click)="removeLog(log.id)" title="Remover">✕</button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}

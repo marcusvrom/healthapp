@@ -1,0 +1,155 @@
+<div class="page">
+  <h1>👥 Comunidade</h1>
+  <p class="subtitle">Conecte-se com outros usuários</p>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    @for (tab of TABS; track tab.id) {
+      <button
+        class="tab-btn"
+        [class.active]="activeTab() === tab.id"
+        (click)="switchTab(tab.id)">
+        {{ tab.icon }} {{ tab.label }}
+        @if (tab.id === 'solicitacoes' && pendingCount() > 0) {
+          <span class="badge">{{ pendingCount() }}</span>
+        }
+      </button>
+    }
+  </div>
+
+  <!-- ── ABA: Explorar ──────────────────────────────────────────────── -->
+  @if (activeTab() === 'explorar') {
+    <div class="search-row">
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        placeholder="Buscar por nome..."
+        (keyup.enter)="runSearch()"
+        [disabled]="searching()" />
+      <button (click)="runSearch()" [disabled]="searching() || searchQuery.trim().length < 2">
+        {{ searching() ? '...' : '🔍 Buscar' }}
+      </button>
+    </div>
+
+    @if (searching()) {
+      <div class="loading-text">Buscando usuários…</div>
+    } @else if (hasSearched() && searchResults().length === 0) {
+      <div class="empty-state">
+        <div class="icon">🔍</div>
+        <div class="msg">Nenhum usuário encontrado para "{{ lastQuery() }}"</div>
+      </div>
+    } @else if (searchResults().length > 0) {
+      <div class="user-list">
+        @for (u of searchResults(); track u.id) {
+          <div class="user-card" (click)="viewProfile(u.id)">
+            @if (avatarSrc(u.avatarUrl); as src) {
+              <img [src]="src" class="avatar" [alt]="u.name" />
+            } @else {
+              <div class="avatar" [style.background]="levelColor(u.level)">
+                {{ u.name.charAt(0).toUpperCase() }}
+              </div>
+            }
+            <div class="info">
+              <div class="name">{{ u.name }}</div>
+              <div class="meta">
+                Nv {{ u.level }} · {{ u.levelTitle }}
+                @if (u.city) { · {{ u.city }}{{ u.state ? ', ' + u.state : '' }} }
+              </div>
+            </div>
+            <div class="actions" (click)="$event.stopPropagation()">
+              @switch (u.friendship.status) {
+                @case ('NONE') {
+                  <button class="btn-add" (click)="sendRequest(u)">➕ Adicionar</button>
+                }
+                @case ('PENDING') {
+                  @if (u.friendship.iAmRequester) {
+                    <span class="btn-sent">⏳ Aguardando</span>
+                  } @else {
+                    <button class="btn-add" (click)="viewProfile(u.id)">✉️ Responder</button>
+                  }
+                }
+                @case ('ACCEPTED') {
+                  <span class="btn-friends">👥 Amigos</span>
+                }
+              }
+              <button class="btn-profile" (click)="viewProfile(u.id)">Ver perfil</button>
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty-state">
+        <div class="icon">🌍</div>
+        <div class="msg">Digite um nome para buscar outros usuários</div>
+      </div>
+    }
+  }
+
+  <!-- ── ABA: Solicitações ──────────────────────────────────────────── -->
+  @if (activeTab() === 'solicitacoes') {
+    @if (loadingPending()) {
+      <div class="loading-text">Carregando solicitações…</div>
+    } @else if (pending().length === 0) {
+      <div class="empty-state">
+        <div class="icon">📬</div>
+        <div class="msg">Nenhuma solicitação pendente</div>
+      </div>
+    } @else {
+      <div class="pending-list">
+        @for (req of pending(); track req.friendshipId) {
+          <div class="pending-card">
+            @if (avatarSrc(req.avatarUrl); as src) {
+              <img [src]="src" class="avatar" [alt]="req.name" style="object-fit:cover;" />
+            } @else {
+              <div class="avatar">{{ req.name.charAt(0).toUpperCase() }}</div>
+            }
+            <div class="info">
+              <div class="name">{{ req.name }}</div>
+              <div class="sub">Quer ser seu amigo 🤝</div>
+            </div>
+            <div class="pending-actions">
+              <button class="btn-accept"  (click)="accept(req)">✓ Aceitar</button>
+              <button class="btn-decline" (click)="decline(req)">✕ Recusar</button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- ── ABA: Meus Amigos ───────────────────────────────────────────── -->
+  @if (activeTab() === 'amigos') {
+    @if (loadingFriends()) {
+      <div class="loading-text">Carregando amigos…</div>
+    } @else if (friends().length === 0) {
+      <div class="empty-state">
+        <div class="icon">👥</div>
+        <div class="msg">Você ainda não tem amigos. Explore e conecte-se!</div>
+      </div>
+    } @else {
+      <div class="friend-list">
+        @for (f of friends(); track f.userId) {
+          <div class="friend-card" (click)="viewProfile(f.userId)">
+            @if (avatarSrc(f.avatarUrl); as src) {
+              <img [src]="src" class="avatar" [alt]="f.name" />
+            } @else {
+              <div class="avatar" [style.background]="levelColor(f.level)">
+                {{ f.name.charAt(0).toUpperCase() }}
+              </div>
+            }
+            <div class="info">
+              <div class="name">{{ f.name }}</div>
+              <div class="meta">
+                {{ f.levelTitle }}
+                @if (f.city) { · {{ f.city }}{{ f.state ? ', ' + f.state : '' }} }
+              </div>
+            </div>
+            <span class="level-pill" [style.background]="levelColor(f.level)">
+              Nv {{ f.level }}
+            </span>
+          </div>
+        }
+      </div>
+    }
+  }
+</div>

@@ -11,8 +11,8 @@ export const env = {
   db: {
     host: process.env.DB_HOST ?? "localhost",
     port: Number(process.env.DB_PORT ?? 5432),
-    user: process.env.DB_USER ?? "healthapp",
-    password: process.env.DB_PASSWORD ?? "healthapp_secret",
-    name: process.env.DB_NAME ?? "healthapp_db",
+    user: process.env.DB_USER ?? "airafit",
+    password: process.env.DB_PASSWORD ?? "airafit_secret",
+    name: process.env.DB_NAME ?? "airafit_db",
   },
 } as const;

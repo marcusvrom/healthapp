@@ -19,6 +19,7 @@ export enum BlockType {
   FREE         = "free",
   CUSTOM       = "custom",
   MEDICATION   = "medication",
+  STUDY        = "study",
 }
 
 export enum MealType {
@@ -33,7 +34,8 @@ export enum MealType {
 }
 
 /**
- * Represents a single time-block in a user's generated daily routine.
+ * Represents a single time-block in a user's daily routine.
+ * Blocks can be one-off (for a specific date) or recurring (weekly pattern).
  * Each block has a start/end time (HH:MM), a type and optional metadata.
  */
 @Entity("routine_blocks")
@@ -44,12 +46,27 @@ export class RoutineBlock {
   @Column({ name: "user_id", type: "uuid" })
   userId!: string;
 
-  /** ISO date string (YYYY-MM-DD) this block applies to */
-  @Column({ name: "routine_date", type: "date" })
+  /** ISO date string (YYYY-MM-DD) this block applies to (null for recurring-only blocks) */
+  @Column({ name: "routine_date", type: "date", nullable: true })
   routineDate!: string;
 
   @Column({ type: "enum", enum: BlockType })
   type!: BlockType;
+
+  /**
+   * Whether this block repeats weekly.
+   * When true, `daysOfWeek` defines which days it appears on.
+   * When false, it only appears on the specific `routineDate`.
+   */
+  @Column({ name: "is_recurring", type: "boolean", default: false })
+  isRecurring!: boolean;
+
+  /**
+   * Days of the week this block recurs on (0 = Sunday … 6 = Saturday).
+   * Only meaningful when `isRecurring` is true.
+   */
+  @Column({ name: "days_of_week", type: "jsonb", default: "[]" })
+  daysOfWeek!: number[];
 
   /** Start time as HH:MM */
   @Column({ name: "start_time", type: "text" })

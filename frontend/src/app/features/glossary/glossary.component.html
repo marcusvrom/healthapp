@@ -1,0 +1,62 @@
+<div class="page animate-fade">
+  <div class="page-header">
+    <h2>❓ Glossário de Saúde</h2>
+    <p>Dicionário de termos técnicos utilizados no aplicativo — {{ total }} termos disponíveis.</p>
+  </div>
+
+  <div class="controls">
+    <div class="search-wrap">
+      <i class="search-icon">🔍</i>
+      <input type="text" placeholder="Buscar termo..." [(ngModel)]="query" />
+    </div>
+
+    <div class="filter-chips">
+      <button class="chip-btn" [class.active]="activeCategory() === null"
+        style="border-color:var(--color-primary)"
+        [style.background]="activeCategory() === null ? 'var(--color-primary)' : ''"
+        (click)="setCategory(null)">
+        Todos
+      </button>
+      @for (entry of categoryEntries; track entry.key) {
+        <button class="chip-btn" [class.active]="activeCategory() === entry.key"
+          [style.background]="activeCategory() === entry.key ? entry.cfg.color : ''"
+          [style.border-color]="entry.cfg.color"
+          [style.color]="activeCategory() === entry.key ? '#fff' : entry.cfg.color"
+          (click)="setCategory(entry.key)">
+          {{ entry.cfg.icon }} {{ entry.cfg.label }}
+        </button>
+      }
+    </div>
+  </div>
+
+  <div class="count">
+    {{ filtered().length }} resultado{{ filtered().length !== 1 ? 's' : '' }}
+    @if (query.length > 0) { para "<strong>{{ query }}</strong>" }
+  </div>
+
+  @if (filtered().length > 0) {
+    <div class="terms-list stagger">
+      @for (t of filtered(); track t.term) {
+        <div class="term-card animate-fade">
+          <div class="term-header">
+            <span class="cat-badge"
+              [style.background]="catCfg(t.category).bg"
+              [style.color]="catCfg(t.category).color">
+              {{ catCfg(t.category).icon }} {{ catCfg(t.category).label }}
+            </span>
+            <div class="title-block">
+              <div class="term-name">{{ t.term }}</div>
+              @if (t.acronym) { <div class="acronym">{{ t.acronym }}</div> }
+            </div>
+          </div>
+          <div class="definition">{{ t.definition }}</div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="empty">
+      <span class="emoji">🔎</span>
+      <p>Nenhum termo encontrado para "<strong>{{ query }}</strong>".<br>Tente outra busca.</p>
+    </div>
+  }
+</div>

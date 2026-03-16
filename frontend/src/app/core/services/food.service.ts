@@ -1,23 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { Food, Meal, DailySummary } from '../models';
+import { Meal, DailySummary } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class FoodService {
   private api = inject(ApiService);
-
-  search(q: string, limit = 20): Observable<Food[]> {
-    return this.api.get<Food[]>('/foods/search', { q, limit: String(limit) });
-  }
-
-  byBarcode(barcode: string): Observable<Food> {
-    return this.api.get<Food>(`/foods/barcode/${barcode}`);
-  }
-
-  createCustom(dto: Partial<Food>): Observable<Food> {
-    return this.api.post<Food>('/foods', dto);
-  }
 
   // ── Meals ──────────────────────────────────────────────────────────────
   getMeals(date: string): Observable<Meal[]> {

@@ -1,9 +1,9 @@
 import {
-  Component, inject, signal, computed, OnInit, OnDestroy, HostListener,
+  Component, inject, signal, computed, OnInit, OnDestroy, HostListener, ViewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe, DatePipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { debounceTime, distinctUntilChanged, Subject, switchMap, of } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { DailyMissionsWidgetComponent } from '../../shared/components/daily-missions-widget.component';
@@ -17,12 +17,15 @@ import { ClinicalProtocolService }   from '../../core/services/clinical-protocol
 import { RecipeService }             from '../../core/services/recipe.service';
 import { ScheduledMealService }      from '../../core/services/scheduled-meal.service';
 import { RecipeScheduleService }     from '../../core/services/recipe-schedule.service';
+import { NotificationService }       from '../../core/services/notification.service';
 import { CheckInService }            from '../../core/services/check-in.service';
+import { CopilotService }            from '../../core/services/copilot.service';
+import { WorkoutService }            from '../../core/services/workout.service';
 
 import {
   RoutineBlock, BlockType, DailySummary, ClinicalProtocolWithLog,
   ScheduledMeal, LinkedRecipe, Recipe, RecipeFeedItem, RecipeSchedule,
-  BlockCompleteResult,
+  BlockCompleteResult, FeedbackResponse, CreateBlockDto, WorkoutSheet,
 } from '../../core/models';
 import { WaterTrackerComponent } from '../water/water-tracker.component';
 
@@ -32,6 +35,10 @@ function timeToMinutes(t: string): number {
   return (h ?? 0) * 60 + (m ?? 0);
 }
 function pad2(n: number): string { return String(n).padStart(2, '0'); }
+function addMinutes(time: string, mins: number): string {
+  const total = timeToMinutes(time) + mins;
+  return `${pad2(Math.floor(total / 60) % 24)}:${pad2(total % 60)}`;
+}
 
 // ── Block metadata ───────────────────────────────────────────────────────────
 const BLOCK_META: Record<BlockType, { icon: string; color: string; bg: string; label: string }> = {
@@ -44,6 +51,7 @@ const BLOCK_META: Record<BlockType, { icon: string; color: string; bg: string; l
   free:         { icon: '⬜', color: '#9ca3af', bg: '#f9fafb', label: 'Livre' },
   custom:       { icon: '📌', color: '#8b5cf6', bg: '#ede9fe', label: 'Custom' },
   medication:   { icon: '💊', color: '#7c3aed', bg: '#f5f3ff', label: 'Protocolo' },
+  study:        { icon: '📚', color: '#0891b2', bg: '#e0f7fa', label: 'Estudo' },
 };
 
 const PROTOCOL_ICON: Record<string, string> = {
@@ -67,7 +75,7 @@ const BLOCK_XP: Partial<Record<BlockType, number>> = {
 
 /** Block types that support user completion (excludes meal and medication — handled separately) */
 const COMPLETABLE_TYPES = new Set<BlockType>([
-  'exercise', 'water', 'sun_exposure', 'sleep', 'work', 'free', 'custom',
+  'exercise', 'water', 'sun_exposure', 'sleep', 'work', 'free', 'custom', 'study',
 ]);
 
 interface TimeGroup {
@@ -87,1010 +95,8 @@ interface LinkedRecipeView extends LinkedRecipe {
   selector: 'app-dashboard',
   standalone: true,
   imports: [DecimalPipe, DatePipe, RouterLink, WaterTrackerComponent, FormsModule, DailyMissionsWidgetComponent],
-  styles: [`
-    /* ── Layout ─────────────────────────────────────────────────────────────── */
-    .dashboard { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; padding: 1.5rem; background: var(--color-bg) !important;
-      @media (max-width: 960px) { grid-template-columns: 1fr; } }
-    .dash-header { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
-      .greeting { h2 { font-size: 1.5rem; } p { font-size: .875rem; } }
-      .date-nav { display: flex; align-items: center; gap: .625rem;
-        .date-label { font-weight: 600; font-size: .9rem; min-width: 110px; text-align: center; color: var(--color-text); }
-        .nav-btn { width: 32px; height: 32px; border-radius: 50%; background: var(--color-surface); border: 1.5px solid var(--color-border); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: .15s; &:hover { background: var(--color-border); } }
-        .today-btn { font-size: .75rem; padding: .25rem .625rem; border-radius: 99px; background: var(--color-primary-light); color: var(--color-primary-dark); border: none; cursor: pointer; font-weight: 600; transition: .15s; &:hover { background: var(--color-primary); color: #fff; } }
-      }
-    }
-    .generate-bar { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: linear-gradient(135deg, #059669, #10b981); color: #fff; border-radius: var(--radius-md); padding: .875rem 1.5rem;
-      .gb-text { h3 { font-size: .95rem; color: #fff; } p { font-size: .78rem; color: rgba(255,255,255,.8); } }
-      button { background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.4); color: #fff; padding: .4rem 1rem; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600; font-size: .8rem; white-space: nowrap; &:hover { background: rgba(255,255,255,.35); } &:disabled { opacity: .6; cursor: wait; } }
-    }
-
-    /* ── Timeline ────────────────────────────────────────────────────────────── */
-    .timeline-panel { min-width: 0; .panel-title { font-size: .95rem; font-weight: 700; margin-bottom: 1rem; } }
-    .timeline-feed { display: flex; flex-direction: column; position: relative; padding-bottom: 1rem;
-      &::before { content: ''; position: absolute; left: 46px; top: 0; bottom: 0; width: 2px; background: var(--color-border); border-radius: 99px; }
-    }
-    .tg { display: flex; &.past { opacity: .6; } }
-    .tg-time { width: 44px; padding-top: 1rem; font-size: .68rem; font-weight: 700; color: var(--color-text-subtle); text-align: right; flex-shrink: 0; line-height: 1; }
-    .tg-rail { width: 4px; margin: 0 10px; display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
-    .tg-dot  { width: 12px; height: 12px; border-radius: 50%; margin-top: .95rem; background: var(--color-border); border: 2px solid var(--color-surface); flex-shrink: 0; }
-    .tg-cards { flex: 1; min-width: 0; padding: .5rem 0; display: flex; flex-direction: column; gap: .45rem; }
-
-    .block-card { border-radius: var(--radius-sm); border: 1px solid var(--color-border); border-left-width: 3px; padding: .575rem .875rem; background: var(--color-surface); transition: box-shadow .15s, transform .1s;
-      &:hover { box-shadow: var(--shadow-sm); transform: translateX(2px); }
-      &.done { opacity: .65; }
-      &.block-completed { background: rgba(34,197,94,.05); border-left-color: #22c55e !important; }
-      &.meal-clickable { cursor: pointer; }
-      .bc-row { display: flex; align-items: center; gap: .625rem; }
-      .bc-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .9rem; flex-shrink: 0; }
-      .bc-body { flex: 1; min-width: 0;
-        .bc-label { font-size: .8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--color-text); }
-        .bc-sub   { font-size: .68rem; color: var(--color-text-subtle); margin-top: .1rem; }
-      }
-      .bc-right { display: flex; align-items: center; gap: .375rem; flex-shrink: 0; }
-      .bc-pill  { font-size: .66rem; font-weight: 700; padding: .1rem .4rem; border-radius: 99px; }
-      .bc-check { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--color-border); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .8rem; transition: .15s; flex-shrink: 0;
-        &.checked { background: #22c55e; border-color: #22c55e; color: #fff; }
-        &.checked-purple { background: #7c3aed; border-color: #7c3aed; color: #fff; }
-        &:hover:not(.checked):not(.checked-purple) { border-color: #7c3aed; background: rgba(124,58,237,.08); }
-      }
-    }
-
-    /* ── Inline recipe picker (diet view) ───────────────────────────────────── */
-    .inline-recipe-picker { margin-top: .5rem; border-top: 1px solid var(--color-border); padding-top: .5rem;
-      .irp-input-row { display:flex; gap:.375rem; margin-bottom:.375rem;
-        input { flex:1; font-size:.78rem; padding:.3rem .6rem; }
-        button { font-size:.72rem; padding:.3rem .6rem; white-space:nowrap; }
-      }
-      .irp-results { display:flex; flex-direction:column; gap:.25rem; max-height:200px; overflow-y:auto; }
-      .irp-item { display:flex; align-items:center; gap:.5rem; padding:.375rem .5rem; border-radius:var(--radius-sm); border:1px solid var(--color-border); background:var(--color-surface);
-        &:hover { background:var(--color-surface-2); }
-        .irp-info { flex:1; min-width:0;
-          .irp-title { font-size:.78rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-          .irp-kcal  { font-size:.65rem; color:var(--color-text-muted); }
-        }
-        .irp-add { font-size:.7rem; font-weight:700; padding:.2rem .5rem; border-radius:99px; border:1.5px solid var(--color-primary-light); background:none; cursor:pointer; color:var(--color-primary); white-space:nowrap;
-          &:hover { background:var(--color-primary); color:#fff; }
-        }
-      }
-      .irp-empty { font-size:.75rem; color:var(--color-text-muted); text-align:center; padding:.5rem 0; }
-    }
-
-    /* Meal block extras */
-    .meal-recipes-preview { margin-top: .35rem; display: flex; flex-wrap: wrap; gap: .25rem; }
-    .recipe-chip { font-size: .63rem; font-weight: 600; padding: .1rem .4rem; border-radius: 99px;
-      background: rgba(245,158,11,.15); color: #92400e; border: 1px solid rgba(245,158,11,.3); }
-    .meal-balance-bar { margin-top: .35rem; height: 4px; background: var(--color-border); border-radius: 99px; overflow: visible; position: relative;
-      .mbb-fill { height: 100%; border-radius: 99px; transition: width .4s; }
-      .mbb-over { position: absolute; right: 0; top: 0; height: 100%; border-radius: 99px; background: #ef4444; }
-    }
-
-    /* Now line */
-    .now-line { display: flex; align-items: center; margin: .25rem 0;
-      .now-time { width: 44px; font-size: .68rem; font-weight: 800; color: var(--color-danger); text-align: right; flex-shrink: 0; }
-      .now-dot  { width: 12px; height: 12px; border-radius: 50%; background: var(--color-danger); margin: 0 10px; box-shadow: 0 0 0 4px rgba(239,68,68,.15); flex-shrink: 0; }
-      .now-bar  { flex: 1; height: 2px; background: var(--color-danger); border-radius: 99px; opacity: .5; }
-    }
-
-    /* ── Right panel ─────────────────────────────────────────────────────────── */
-    .right-panel { display: flex; flex-direction: column; gap: 1.25rem; }
-    .macro-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1.25rem;
-      .card-title { font-size: .875rem; font-weight: 700; margin-bottom: .875rem; }
-      .calorie-row { display: flex; align-items: baseline; gap: .375rem; margin-bottom: .875rem;
-        .cal-value { font-size: 1.875rem; font-weight: 800; color: var(--color-primary); }
-        .cal-label { font-size: .78rem; color: var(--color-text-muted); }
-        .cal-target { font-size: .78rem; color: var(--color-text-subtle); margin-left: auto; }
-        .cal-over  { font-size: .72rem; color: var(--color-danger); font-weight: 700; }
-      }
-      .macro-bars { display: flex; flex-direction: column; gap: .55rem; }
-      .macro-bar-row { .mb-header { display: flex; justify-content: space-between; font-size: .75rem; margin-bottom: .2rem; .name { font-weight: 600; } .value { color: var(--color-text-muted); } } .bar-track { height: 5px; background: var(--color-border); border-radius: 99px; overflow: hidden; .bar-fill { height: 100%; border-radius: 99px; transition: width .6s ease; } } }
-    }
-    .water-card { background: linear-gradient(135deg, #e0f2fe, #bae6fd); border: 1px solid #7dd3fc; border-radius: var(--radius-md); padding: 1.25rem;
-      .card-title { font-size: .875rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; margin-bottom: .625rem; color: #0c4a6e; }
-      .water-progress { display: flex; align-items: baseline; gap: .3rem; margin-bottom: .625rem; .cur { font-size: 1.625rem; font-weight: 800; color: #0369a1; } .sep { color: #7dd3fc; } .tot { font-size: .95rem; color: #0369a1; } .unit { font-size: .72rem; color: #0ea5e9; } }
-      .water-bar { height: 7px; background: rgba(255,255,255,.5); border-radius: 99px; overflow: hidden; .fill { height: 100%; background: #0284c7; border-radius: 99px; transition: width .6s; } }
-      .water-hint { font-size: .72rem; color: #0369a1; margin-top: .4rem; }
-    }
-    .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: .625rem; }
-    .stat-mini { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .875rem; text-align: center; .val { font-size: 1.3rem; font-weight: 800; } .lbl { font-size: .68rem; color: var(--color-text-muted); margin-top: .15rem; } }
-
-    /* ── Meal panel modal ────────────────────────────────────────────────────── */
-    .panel-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200;
-      display: flex; align-items: flex-end; justify-content: center;
-      @media (min-width: 640px) { align-items: center; }
-    }
-    .meal-panel {
-      background: var(--color-surface); border-radius: var(--radius-md) var(--radius-md) 0 0;
-      width: 100%; max-width: 560px; max-height: 92vh; display: flex; flex-direction: column;
-      overflow: hidden; box-shadow: var(--shadow-lg);
-      @media (min-width: 640px) { border-radius: var(--radius-md); max-height: 88vh; }
-
-      /* Header */
-      .mp-header {
-        padding: 1rem 1.25rem .75rem; border-bottom: 1px solid var(--color-border);
-        display: flex; align-items: flex-start; gap: .75rem;
-        .mp-title { flex: 1;
-          h3 { font-size: 1rem; font-weight: 700; }
-          .mp-time { font-size: .75rem; color: var(--color-text-muted); margin-top: .1rem; }
-        }
-        .mp-close { background: none; border: none; cursor: pointer; font-size: 1.25rem; color: var(--color-text-muted); padding: .2rem; line-height: 1; &:hover { color: var(--color-text); } }
-      }
-
-      /* Caloric balance bar */
-      .mp-balance {
-        padding: .875rem 1.25rem; border-bottom: 1px solid var(--color-border);
-
-        .balance-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .4rem;
-          .bal-label { font-size: .75rem; color: var(--color-text-muted); }
-          .bal-nums { font-size: .82rem; font-weight: 700;
-            .bal-consumed { color: var(--color-primary); }
-            .bal-sep { color: var(--color-text-subtle); margin: 0 .25rem; }
-            .bal-target { color: var(--color-text-muted); font-weight: 400; }
-          }
-          .bal-delta { font-size: .78rem; font-weight: 700; padding: .1rem .45rem; border-radius: 99px;
-            &.ok  { background: rgba(34,197,94,.14); color: #16a34a; }
-            &.bad { background: rgba(239,68,68,.14);  color: #dc2626; }
-          }
-        }
-        .balance-track { height: 8px; background: var(--color-border); border-radius: 99px; overflow: hidden; position: relative;
-          .bt-green { position: absolute; left: 0; top: 0; height: 100%; background: #22c55e; border-radius: 99px; transition: width .4s; }
-          .bt-red   { position: absolute; left: 0; top: 0; height: 100%; background: #ef4444; border-radius: 99px; transition: width .4s; }
-        }
-
-        /* Macro summary pills */
-        .macro-pills { display: flex; gap: .375rem; margin-top: .625rem; flex-wrap: wrap;
-          .mp-pill { font-size: .68rem; font-weight: 600; padding: .15rem .5rem; border-radius: 99px; border: 1px solid var(--color-border); color: var(--color-text-muted); }
-        }
-      }
-
-      /* Scrollable body */
-      .mp-body { flex: 1; overflow-y: auto; padding: .875rem 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
-
-      /* Linked recipe list */
-      .linked-recipes { display: flex; flex-direction: column; gap: .5rem; }
-      .linked-item {
-        display: flex; align-items: center; gap: .625rem;
-        background: var(--color-surface-2); border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm); padding: .625rem .75rem;
-
-        .li-info { flex: 1; min-width: 0;
-          .li-title { font-size: .82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-          .li-macros { font-size: .68rem; color: var(--color-text-muted); margin-top: .1rem; }
-        }
-        .li-servings { display: flex; align-items: center; gap: .3rem; flex-shrink: 0;
-          button { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--color-border); background: var(--color-surface); cursor: pointer; font-size: .9rem; line-height: 1; display: flex; align-items: center; justify-content: center;
-            &:hover { background: var(--color-border); }
-          }
-          .srv-count { font-size: .8rem; font-weight: 700; min-width: 22px; text-align: center; }
-        }
-        .li-remove { background: none; border: none; cursor: pointer; color: var(--color-text-subtle); font-size: .9rem; padding: .2rem; flex-shrink: 0;
-          &:hover { color: var(--color-danger); }
-        }
-      }
-
-      /* Recipe search */
-      .recipe-search { display: flex; flex-direction: column; gap: .5rem;
-        label { font-size: .78rem; font-weight: 700; color: var(--color-text-muted); }
-        .rs-input { display: flex; gap: .5rem;
-          input { flex: 1; }
-        }
-        .rs-results { display: flex; flex-direction: column; gap: .375rem; max-height: 220px; overflow-y: auto; }
-        .rs-item {
-          display: flex; align-items: center; gap: .625rem;
-          padding: .5rem .75rem; border-radius: var(--radius-sm);
-          border: 1px solid var(--color-border); background: var(--color-surface-2);
-          cursor: pointer; transition: .15s;
-          &:hover { border-color: var(--color-primary-light); background: var(--color-surface); }
-
-          .rsi-info { flex: 1; min-width: 0;
-            .rsi-title { font-size: .82rem; font-weight: 600; }
-            .rsi-kcal  { font-size: .68rem; color: var(--color-text-muted); }
-          }
-          .rsi-add { font-size: .75rem; font-weight: 700; padding: .25rem .625rem;
-            border-radius: 99px; border: 1.5px solid var(--color-primary-light);
-            background: none; cursor: pointer; color: var(--color-primary);
-            &:hover { background: var(--color-primary); color: #fff; }
-          }
-        }
-        .rs-empty { font-size: .8rem; color: var(--color-text-muted); text-align: center; padding: 1rem 0; }
-      }
-
-      /* Footer */
-      .mp-footer {
-        padding: .75rem 1.25rem; border-top: 1px solid var(--color-border);
-        display: flex; gap: .625rem; align-items: center;
-        .consume-btn { flex: 1; }
-        .consume-btn.consumed { background: #d1fae5; border-color: #6ee7b7; color: #065f46; font-weight: 700;
-          &:hover { background: #a7f3d0; }
-        }
-      }
-    }
-
-    /* ── Remaining macros section ────────────────────────────────────────────── */
-    .remaining-section {
-      margin-top: .875rem; padding-top: .875rem; border-top: 1px solid var(--color-border);
-      .rem-title { font-size: .72rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: .5rem; }
-      .rem-pills { display: flex; flex-wrap: wrap; gap: .375rem; }
-      .rem-pill { display: flex; align-items: center; gap: .3rem; font-size: .72rem; font-weight: 600; padding: .25rem .6rem; border-radius: 99px; border: 1.5px solid var(--color-border);
-        &.positive { background: rgba(34,197,94,.08); border-color: rgba(34,197,94,.3); color: #15803d; }
-        &.negative { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.3); color: #dc2626; }
-        &.neutral  { background: var(--color-surface-2); color: var(--color-text-muted); }
-      }
-    }
-
-    /* ── Meal grouping (diet view) ───────────────────────────────────────────── */
-    .view-toggle { display:flex; gap:.375rem; margin-bottom:1rem;
-      button { flex:1; padding:.375rem; font-size:.78rem; font-weight:600; border-radius:var(--radius-sm);
-        border:1.5px solid var(--color-border); background:var(--color-surface); color:var(--color-text-muted);
-        cursor:pointer; transition:.15s;
-        &.active { background:var(--color-primary); border-color:var(--color-primary); color:#fff; }
-        &:hover:not(.active) { background:var(--color-border); }
-      }
-    }
-    .diet-view { display:flex; flex-direction:column; gap:.75rem; }
-    .diet-meal-group {
-      background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-md);
-      border-left:3px solid var(--color-border); overflow:hidden; transition:.15s;
-      &.consumed { border-left-color: #22c55e; }
-      &.has-recipes:not(.consumed) { border-left-color: #f59e0b; }
-
-      .dmg-header { display:flex; align-items:center; gap:.625rem; padding:.625rem .875rem; cursor:pointer; transition:.15s;
-        &:hover { background: var(--color-surface-2); }
-        .dmg-icon { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:.9rem; flex-shrink:0; }
-        .dmg-info { flex:1; min-width:0;
-          .dmg-name { font-size:.82rem; font-weight:700; }
-          .dmg-sub  { font-size:.68rem; color:var(--color-text-muted); margin-top:.1rem; }
-        }
-        .dmg-progress { text-align:right; flex-shrink:0;
-          .dmg-pct { font-size:.72rem; font-weight:700; }
-          .dmg-kcal { font-size:.65rem; color:var(--color-text-muted); }
-        }
-        .dmg-chevron { font-size:.7rem; color:var(--color-text-subtle); transition:transform .2s; flex-shrink:0;
-          &.open { transform:rotate(180deg); }
-        }
-      }
-
-      .dmg-bar { height:3px; background:var(--color-border);
-        .dmg-bar-fill { height:100%; border-radius:0; transition:width .4s; }
-      }
-
-      .dmg-recipes { padding:.5rem .875rem .75rem; display:flex; flex-direction:column; gap:.375rem; border-top:1px solid var(--color-border); }
-      .dmg-recipe-row { display:flex; align-items:center; gap:.5rem; padding:.375rem .5rem; border-radius:var(--radius-sm); background:var(--color-surface-2);
-        .drr-title { flex:1; font-size:.78rem; font-weight:600; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .drr-kcal { font-size:.68rem; color:var(--color-text-muted); flex-shrink:0; }
-        .drr-srv { display:flex; align-items:center; gap:.25rem; flex-shrink:0;
-          button { width:20px; height:20px; border-radius:50%; border:1.5px solid var(--color-border); background:var(--color-surface); cursor:pointer; font-size:.8rem; line-height:1; display:flex; align-items:center; justify-content:center;
-            &:hover { background:var(--color-border); } }
-          span { font-size:.75rem; font-weight:700; min-width:18px; text-align:center; }
-        }
-        .drr-remove { background:none; border:none; cursor:pointer; color:var(--color-text-subtle); font-size:.8rem; &:hover { color:var(--color-danger); } }
-      }
-      .dmg-no-recipes { font-size:.75rem; color:var(--color-text-muted); padding:.5rem .5rem .25rem; border-top:1px solid var(--color-border); }
-      .dmg-actions { display:flex; gap:.375rem; margin-top:.375rem;
-        button { flex:1; font-size:.72rem; padding:.25rem .5rem; border-radius:var(--radius-sm); }
-      }
-    }
-
-    /* ── Clone modal ─────────────────────────────────────────────────────────── */
-    .clone-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:300; display:flex; align-items:center; justify-content:center; padding:1rem; }
-    .clone-modal { background:var(--color-surface); border-radius:var(--radius-md); padding:1.5rem; width:100%; max-width:380px; box-shadow:var(--shadow-lg);
-      h3 { font-size:1rem; font-weight:700; margin-bottom:1rem; }
-      .clone-fields { display:flex; flex-direction:column; gap:.75rem; margin-bottom:1.25rem;
-        label { font-size:.78rem; font-weight:600; color:var(--color-text-muted); display:flex; flex-direction:column; gap:.25rem;
-          input { font-size:.875rem; }
-        }
-      }
-      .clone-actions { display:flex; gap:.625rem; }
-    }
-
-    /* ── Repeat picker (inside meal panel) ───────────────────────────────────── */
-    .repeat-section { border-top:1px solid var(--color-border); padding-top:.75rem; margin-top:.25rem;
-      .rp-title { font-size:.75rem; font-weight:700; color:var(--color-text-muted); margin-bottom:.5rem; }
-      .rp-recipe-row { display:flex; align-items:center; gap:.5rem; margin-bottom:.625rem;
-        .rpr-name { flex:1; font-size:.78rem; font-weight:600; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .rpr-days { display:flex; gap:.2rem; flex-wrap:wrap;
-          button { width:28px; height:28px; border-radius:50%; font-size:.62rem; font-weight:700; border:1.5px solid var(--color-border); background:var(--color-surface); cursor:pointer; transition:.15s;
-            &.selected { background:var(--color-primary); border-color:var(--color-primary); color:#fff; }
-            &:hover:not(.selected) { background:var(--color-border); }
-          }
-        }
-        .rpr-save { font-size:.7rem; padding:.2rem .5rem; border-radius:99px; }
-      }
-    }
-
-    /* ── XP pop ──────────────────────────────────────────────────────────────── */
-    @keyframes xpPop { 0% { transform:scale(1);opacity:1; } 50% { transform:scale(1.5) translateY(-12px);opacity:1; } 100% { transform:scale(1) translateY(-28px);opacity:0; } }
-    .xp-pop { position:fixed;pointer-events:none;z-index:999;font-size:1.1rem;font-weight:800;color:#7c3aed;animation:xpPop .9s ease forwards; }
-
-    /* ── Photo share prompt ──────────────────────────────────────────────────── */
-    .photo-overlay {
-      position: fixed; inset: 0; z-index: 900;
-      background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center;
-      padding: 1rem;
-    }
-    .photo-modal {
-      background: var(--color-surface); border-radius: var(--radius-md);
-      padding: 1.5rem; width: 100%; max-width: 400px;
-      box-shadow: 0 8px 40px rgba(0,0,0,.25);
-
-      h3 { font-size: 1.05rem; font-weight: 800; margin-bottom: .25rem; }
-      .subtitle { font-size: .82rem; color: var(--color-text-muted); margin-bottom: 1.25rem; }
-
-      .photo-preview {
-        width: 100%; height: 180px; object-fit: cover;
-        border-radius: var(--radius-sm); margin-bottom: .75rem;
-      }
-      .photo-pick-btn {
-        display: block; width: 100%; padding: .6rem; border: 2px dashed var(--color-border);
-        border-radius: var(--radius-sm); background: var(--color-surface-2);
-        text-align: center; cursor: pointer; font-size: .82rem; color: var(--color-text-muted);
-        margin-bottom: .75rem; transition: .15s;
-        &:hover { border-color: var(--color-primary); color: var(--color-primary); }
-      }
-      .caption-input {
-        width: 100%; padding: .5rem .75rem; border: 1.5px solid var(--color-border);
-        border-radius: var(--radius-sm); font-size: .82rem; margin-bottom: 1rem;
-        background: var(--color-surface-2);
-        &:focus { outline: none; border-color: var(--color-primary); }
-      }
-      .share-toggle {
-        display: flex; align-items: center; gap: .5rem;
-        font-size: .82rem; color: var(--color-text-muted); margin-bottom: 1rem;
-        input { width: 16px; height: 16px; cursor: pointer; }
-      }
-      .photo-actions {
-        display: flex; gap: .625rem;
-        .btn-skip  { flex: 1; padding: .625rem; border-radius: var(--radius-sm);
-          border: 1.5px solid var(--color-border); background: none;
-          font-size: .875rem; cursor: pointer; color: var(--color-text-muted);
-          &:hover { background: var(--color-surface-2); } }
-        .btn-share { flex: 1; padding: .625rem; border-radius: var(--radius-sm);
-          border: none; background: var(--color-primary); color: #fff;
-          font-size: .875rem; font-weight: 700; cursor: pointer;
-          &:disabled { opacity: .5; cursor: not-allowed; } }
-      }
-      .xp-hint {
-        text-align: center; font-size: .75rem; color: #7c3aed; font-weight: 700;
-        margin-top: .75rem;
-      }
-    }
-
-    /* ── Anti-cheat toast ────────────────────────────────────────────────────── */
-    .xp-block-toast {
-      position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
-      z-index: 1000; background: #1e293b; color: #f1f5f9;
-      padding: .75rem 1.25rem; border-radius: var(--radius-md);
-      font-size: .82rem; max-width: 340px; text-align: center;
-      box-shadow: 0 4px 24px rgba(0,0,0,.3);
-      animation: toastIn .25s ease; pointer-events: none;
-      display: flex; align-items: center; gap: .5rem;
-    }
-    @keyframes toastIn { from { opacity:0; transform: translateX(-50%) translateY(12px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
-
-    /* ── Check-in banner ─────────────────────────────────────────────────────── */
-    .checkin-banner {
-      grid-column: 1 / -1;
-      display: flex; align-items: center; gap: 1rem;
-      background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);
-      color: #fff; border-radius: var(--radius-md); padding: .875rem 1.25rem;
-      animation: fadeIn .4s ease;
-
-      .cb-emoji { font-size: 1.75rem; flex-shrink: 0; }
-      .cb-text  { flex: 1;
-        h3 { font-size: .95rem; font-weight: 700; color: #fff; }
-        p  { font-size: .78rem; color: rgba(255,255,255,.8); margin-top: .1rem; }
-      }
-      .cb-actions { display: flex; gap: .5rem; align-items: center; flex-shrink: 0; }
-      .cb-btn {
-        background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.4);
-        color: #fff; padding: .4rem 1rem; border-radius: var(--radius-sm);
-        cursor: pointer; font-weight: 600; font-size: .8rem; text-decoration: none;
-        white-space: nowrap; transition: background .15s;
-        &:hover { background: rgba(255,255,255,.35); }
-      }
-      .cb-dismiss {
-        background: none; border: none; cursor: pointer; color: rgba(255,255,255,.6);
-        font-size: 1.1rem; line-height: 1; padding: .2rem;
-        &:hover { color: #fff; }
-      }
-    }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
-  `],
-  template: `
-    <div class="dashboard">
-      <!-- ── Header ──────────────────────────────────────────────────────── -->
-      <div class="dash-header">
-        <div class="greeting">
-          <h2>{{ greeting() }}, {{ firstName() }}! 🌿</h2>
-          <p class="text-muted">{{ todayFormatted() }}</p>
-        </div>
-        <div class="date-nav">
-          <button class="nav-btn" (click)="changeDate(-1)">‹</button>
-          <span class="date-label">{{ selectedDate() === todayStr ? 'Hoje' : selectedDate() }}</span>
-          <button class="nav-btn" (click)="changeDate(1)">›</button>
-          @if (selectedDate() !== todayStr) {
-            <button class="today-btn" (click)="goToday()">Hoje</button>
-          }
-        </div>
-      </div>
-
-      <!-- ── Check-in overdue banner ─────────────────────────────────────── -->
-      @if (showCheckInBanner()) {
-        <div class="checkin-banner">
-          <span class="cb-emoji">📸</span>
-          <div class="cb-text">
-            <h3>Chegou o dia do seu Check-in Semanal!</h3>
-            <p>Registre seu peso e adesão para que o Copiloto possa analisar sua evolução.</p>
-          </div>
-          <div class="cb-actions">
-            <a class="cb-btn" routerLink="/check-in">Fazer Check-in</a>
-            <button class="cb-dismiss" (click)="dismissCheckInBanner()" title="Dispensar">✕</button>
-          </div>
-        </div>
-      }
-
-      <!-- ── Generate bar ────────────────────────────────────────────────── -->
-      @if (blocks().length === 0 && !loading()) {
-        <div class="generate-bar">
-          <div class="gb-text"><h3>Nenhuma rotina para este dia</h3><p>Gere sua agenda personalizada com exercícios, refeições e protocolos clínicos.</p></div>
-          <button (click)="generateRoutine()" [disabled]="generating()">{{ generating() ? '⏳ Gerando...' : '✨ Gerar Rotina' }}</button>
-        </div>
-      } @else if (blocks().length > 0) {
-        <div class="generate-bar" style="padding:.625rem 1.5rem">
-          <div class="gb-text"><h3>Rotina do dia · {{ blocks().length }} blocos</h3><p>{{ doneProtocols() }}/{{ totalProtocols() }} protocolos · {{ waterBlocks() }} lembretes de água</p></div>
-          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-            <button (click)="generateRoutine()" [disabled]="generating()">{{ generating() ? '⏳...' : '🔄 Regenerar' }}</button>
-            @if (scheduledMeals().length > 0) {
-              <button (click)="applySchedules()" [disabled]="applyingSchedules()" title="Auto-vincular receitas repetidas deste dia da semana">{{ applyingSchedules() ? '⏳...' : '🔁 Aplicar Repetições' }}</button>
-              <button (click)="openCloneModal()" style="background:rgba(255,255,255,.15)">📋 Clonar Dieta</button>
-            }
-          </div>
-        </div>
-      }
-
-      <!-- ── Timeline / Diet view ────────────────────────────────────────── -->
-      <div class="timeline-panel">
-        <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
-          <span>{{ dietView() ? '🍽️ Refeições do Dia' : '📅 Agenda do Dia' }}</span>
-        </div>
-
-        <!-- View toggle -->
-        @if (!loading() && (timeGroups().length > 0 || scheduledMeals().length > 0)) {
-          <div class="view-toggle">
-            <button [class.active]="!dietView()" (click)="dietView.set(false)">📅 Agenda completa</button>
-            <button [class.active]="dietView()" (click)="dietView.set(true)">🍽️ Visão Dieta</button>
-          </div>
-        }
-
-        @if (loading()) {
-          <div style="text-align:center;padding:3rem;color:var(--color-text-muted)"><div class="spinner" style="margin:0 auto 1rem"></div>Carregando...</div>
-
-        } @else if (dietView()) {
-          <!-- ── Diet grouped view ──────────────────────────────────────── -->
-          @if (scheduledMeals().length === 0) {
-            <div style="text-align:center;padding:3rem;color:var(--color-text-muted);font-size:.875rem">
-              Nenhuma refeição planejada.<br>Clique em <strong>✨ Gerar Rotina</strong> para criar.
-            </div>
-          } @else {
-            <div class="diet-view">
-              @for (meal of scheduledMeals(); track meal.id) {
-                <div class="diet-meal-group" [class.consumed]="meal.isConsumed" [class.has-recipes]="(meal.linkedRecipes?.length ?? 0) > 0">
-                  <div class="dmg-header" (click)="toggleDietGroup(meal.id)">
-                    <div class="dmg-icon" style="background:#fef3c7;color:#b45309">🍽️</div>
-                    <div class="dmg-info">
-                      <div class="dmg-name">{{ meal.name }}</div>
-                      <div class="dmg-sub">
-                        {{ meal.scheduledTime }}
-                        @if (meal.caloricTarget) { · alvo {{ meal.caloricTarget | number:'1.0-0' }} kcal }
-                        @if (meal.isConsumed) { · <span style="color:#16a34a;font-weight:700">✓ consumida</span> }
-                      </div>
-                    </div>
-                    <div class="dmg-progress">
-                      @if ((meal.linkedRecipes?.length ?? 0) > 0) {
-                        <div class="dmg-pct" [style.color]="mealKcalFromLinked(meal) > (meal.caloricTarget ?? 0) ? '#dc2626' : '#16a34a'">
-                          {{ mealKcalFromLinked(meal) | number:'1.0-0' }} kcal
-                        </div>
-                        <div class="dmg-kcal">/ {{ meal.caloricTarget | number:'1.0-0' }} alvo</div>
-                      }
-                    </div>
-                    <span class="dmg-chevron" [class.open]="isDietGroupOpen(meal.id)">▼</span>
-                  </div>
-
-                  <!-- Progress bar -->
-                  @if ((meal.linkedRecipes?.length ?? 0) > 0 && meal.caloricTarget) {
-                    <div class="dmg-bar">
-                      <div class="dmg-bar-fill"
-                        [style.width.%]="mealBalancePctById(meal)"
-                        [style.background]="mealKcalFromLinked(meal) > meal.caloricTarget! ? '#ef4444' : '#22c55e'">
-                      </div>
-                    </div>
-                  }
-
-                  <!-- Expanded recipes list -->
-                  @if (isDietGroupOpen(meal.id)) {
-                    <div class="dmg-recipes">
-                      @if ((meal.linkedRecipes?.length ?? 0) === 0) {
-                        <div class="dmg-no-recipes">Nenhuma receita vinculada ainda.</div>
-                      } @else {
-                        @for (r of meal.linkedRecipes!; track r.recipeId) {
-                          <div class="dmg-recipe-row">
-                            <span class="drr-title">{{ r.title }}</span>
-                            <span class="drr-kcal">{{ r.kcalPerServing * r.servings | number:'1.0-0' }} kcal</span>
-                            <div class="drr-srv">
-                              <button (click)="changeServingsInline(meal, r, -0.5); $event.stopPropagation()" [disabled]="r.servings <= 0.5">−</button>
-                              <span>×{{ r.servings }}</span>
-                              <button (click)="changeServingsInline(meal, r, 0.5); $event.stopPropagation()">+</button>
-                            </div>
-                            <button class="drr-remove" (click)="removeRecipeFromMeal(meal, r.recipeId); $event.stopPropagation()" title="Remover">✕</button>
-                          </div>
-                        }
-                      }
-                      <!-- Inline recipe picker -->
-                      @if (inlinePickerMealId() === meal.id) {
-                        <div class="inline-recipe-picker" (click)="$event.stopPropagation()">
-                          <div class="irp-input-row">
-                            <input type="text" placeholder="Buscar receita por nome..." [(ngModel)]="inlineSearch" (input)="onInlineSearch()" autofocus />
-                            <button class="btn btn-secondary" (click)="closeInlinePicker()">✕</button>
-                          </div>
-                          @if (inlinePickerResults().length > 0) {
-                            <div class="irp-results">
-                              @for (r of inlinePickerResults(); track r.id) {
-                                <div class="irp-item">
-                                  <div class="irp-info">
-                                    <div class="irp-title">{{ r.title }}</div>
-                                    <div class="irp-kcal">{{ r.kcal | number:'1.0-0' }} kcal · P:{{ r.proteinG | number:'1.0-0' }}g C:{{ r.carbsG | number:'1.0-0' }}g G:{{ r.fatG | number:'1.0-0' }}g</div>
-                                  </div>
-                                  <button class="irp-add" (click)="addRecipeInline(meal, r)">+ Add</button>
-                                </div>
-                              }
-                            </div>
-                          } @else if (inlineSearch.length > 1) {
-                            <div class="irp-empty">Nenhuma receita encontrada.</div>
-                          } @else {
-                            <div class="irp-results">
-                              @for (r of availableRecipes().slice(0, 6); track r.id) {
-                                <div class="irp-item">
-                                  <div class="irp-info">
-                                    <div class="irp-title">{{ r.title }}</div>
-                                    <div class="irp-kcal">{{ r.kcal | number:'1.0-0' }} kcal · P:{{ r.proteinG | number:'1.0-0' }}g C:{{ r.carbsG | number:'1.0-0' }}g G:{{ r.fatG | number:'1.0-0' }}g</div>
-                                  </div>
-                                  <button class="irp-add" (click)="addRecipeInline(meal, r)">+ Add</button>
-                                </div>
-                              }
-                              @if (availableRecipes().length === 0) {
-                                <div class="irp-empty">Carregando receitas...</div>
-                              }
-                            </div>
-                          }
-                        </div>
-                      }
-
-                      <div class="dmg-actions">
-                        <button class="btn btn-secondary" (click)="openInlinePicker(meal); $event.stopPropagation()">
-                          {{ inlinePickerMealId() === meal.id ? '🔍 Buscando...' : '+ Receita' }}
-                        </button>
-                        @if (!meal.isConsumed) {
-                          <button class="btn" (click)="toggleConsumedById(meal); $event.stopPropagation()" [disabled]="togglingMeal()">
-                            {{ togglingMeal() ? '...' : '✓ Consumida' }}
-                          </button>
-                        } @else {
-                          <button class="btn btn-secondary" (click)="toggleConsumedById(meal); $event.stopPropagation()" [disabled]="togglingMeal()">
-                            ↩ Desfazer
-                          </button>
-                        }
-                      </div>
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-          }
-
-        } @else if (timeGroups().length === 0) {
-          <div style="text-align:center;padding:3rem;color:var(--color-text-muted);font-size:.875rem">Nenhum bloco.<br>Clique em <strong>✨ Gerar Rotina</strong> para começar.</div>
-        } @else {
-          <div class="timeline-feed">
-            @for (grp of timeGroups(); track grp.time; let i = $index) {
-              @if (showNowLine() && grp.minuteOfDay > nowMinutes() && (i === 0 || timeGroups()[i-1].minuteOfDay <= nowMinutes())) {
-                <div class="now-line"><span class="now-time">{{ nowLabel() }}</span><span class="now-dot"></span><span class="now-bar"></span></div>
-              }
-              <div class="tg" [class.past]="grp.isPast">
-                <div class="tg-time">{{ grp.time }}</div>
-                <div class="tg-rail">
-                  <div class="tg-dot"
-                    [style.background]="grp.isCurrent ? 'var(--color-danger)' : dotColor(grp.blocks[0].type)"
-                    [style.box-shadow]="grp.isCurrent ? '0 0 0 4px rgba(239,68,68,.2)' : 'none'">
-                  </div>
-                </div>
-                <div class="tg-cards">
-                  @for (b of grp.blocks; track b.id) {
-                    <div class="block-card"
-                      [class.done]="isDone(b)"
-                      [class.block-completed]="isBlockCompleted(b)"
-                      [class.meal-clickable]="b.type === 'meal'"
-                      [style.border-left-color]="blockBorderColor(b)"
-                      (click)="b.type === 'meal' ? openMealPanel(b) : null">
-
-                      <div class="bc-row">
-                        <div class="bc-icon" [style.background]="blockMeta(b.type).bg" [style.color]="isBlockCompleted(b) ? '#16a34a' : blockMeta(b.type).color">{{ protocolIcon(b) }}</div>
-                        <div class="bc-body">
-                          <div class="bc-label" [style.text-decoration]="isBlockCompleted(b) ? 'line-through' : 'none'">{{ b.label }}</div>
-                          <div class="bc-sub">{{ b.startTime }}–{{ b.endTime }}
-                            @if (b.caloricTarget) { &nbsp;·&nbsp;{{ b.caloricTarget | number:'1.0-0' }} kcal alvo }
-                            @if (b.waterMl)       { &nbsp;·&nbsp;{{ b.waterMl | number:'1.0-0' }} ml }
-                            @if (mealConsumed(b)) { &nbsp;· <span style="color:#16a34a;font-weight:700">✓ consumida</span> }
-                            @if (isBlockCompleted(b) && b.type !== 'meal' && b.type !== 'medication') {
-                              &nbsp;· <span style="color:#16a34a;font-weight:700">✓ concluído</span>
-                            }
-                          </div>
-
-                          <!-- Recipe chips preview -->
-                          @if (b.type === 'meal' && mealLinkedRecipes(b).length > 0) {
-                            <div class="meal-recipes-preview">
-                              @for (r of mealLinkedRecipes(b).slice(0, 3); track r.recipeId) {
-                                <span class="recipe-chip">{{ r.title }} ×{{ r.servings }}</span>
-                              }
-                              @if (mealLinkedRecipes(b).length > 3) {
-                                <span class="recipe-chip">+{{ mealLinkedRecipes(b).length - 3 }}</span>
-                              }
-                            </div>
-                            <!-- Mini balance bar -->
-                            <div class="meal-balance-bar" style="margin-top:.35rem">
-                              @if (mealConsumedKcal(b) <= (b.caloricTarget ?? 0)) {
-                                <div class="mbb-fill" [style.width.%]="mealBalancePct(b)" style="background:#22c55e"></div>
-                              } @else {
-                                <div class="mbb-fill" style="width:100%;background:#f59e0b"></div>
-                                <div class="mbb-over" [style.width.%]="mealOverflowPct(b)"></div>
-                              }
-                            </div>
-                          }
-                        </div>
-
-                        <div class="bc-right">
-                          @if (b.type === 'medication') {
-                            <span class="bc-pill" style="background:#ede9fe;color:#6b21a8">+5 XP</span>
-                            <button class="bc-check" [class.checked-purple]="isDone(b)" (click)="toggleProtocol(b, $event); $event.stopPropagation()" [disabled]="toggling() === b.id">{{ isDone(b) ? '✓' : '○' }}</button>
-                          } @else if (b.type === 'meal') {
-                            <span class="bc-pill" [style.background]="mealConsumed(b) ? '#d1fae5' : '#fef3c7'" [style.color]="mealConsumed(b) ? '#065f46' : '#92400e'">
-                              {{ mealConsumed(b) ? '✓' : '+10 XP' }}
-                            </span>
-                            <span style="font-size:.75rem;color:var(--color-text-subtle)" title="Clique para gerenciar receitas">🍳</span>
-                          } @else if (isCompletable(b)) {
-                            @if (!isBlockCompleted(b)) {
-                              <span class="bc-pill" style="background:#dcfce7;color:#166534">+{{ blockXp(b) }} XP</span>
-                            }
-                            <button class="bc-check"
-                              [class.checked]="isBlockCompleted(b)"
-                              (click)="toggleBlockComplete(b, $event); $event.stopPropagation()"
-                              [disabled]="completingBlock() === b.id"
-                              [title]="isBlockCompleted(b) ? 'Desmarcar' : 'Marcar como concluído'">
-                              {{ completingBlock() === b.id ? '…' : isBlockCompleted(b) ? '✓' : '○' }}
-                            </button>
-                          }
-                        </div>
-                      </div>
-                    </div>
-                  }
-                </div>
-              </div>
-            }
-            @if (showNowLine() && allBlocksPast()) {
-              <div class="now-line"><span class="now-time">{{ nowLabel() }}</span><span class="now-dot"></span><span class="now-bar"></span></div>
-            }
-          </div>
-        }
-      </div> <!-- end timeline-panel -->
-
-      <!-- ── Right panel ─────────────────────────────────────────────────── -->
-      <div class="right-panel">
-        <div class="macro-card">
-          <div class="card-title">🎯 Macronutrientes do Dia</div>
-          @if (metabolic()) {
-            <div class="calorie-row">
-              <span class="cal-value" [style.color]="consumedKcal() > metabolic()!.dailyCaloricTarget ? 'var(--color-danger)' : 'var(--color-primary)'">{{ consumedKcal() | number:'1.0-0' }}</span>
-              <span class="cal-label">kcal</span>
-              <span class="cal-target">/ {{ metabolic()!.dailyCaloricTarget | number:'1.0-0' }}</span>
-              @if (consumedKcal() > metabolic()!.dailyCaloricTarget) {
-                <span class="cal-over">+{{ consumedKcal() - metabolic()!.dailyCaloricTarget | number:'1.0-0' }} excedido</span>
-              }
-            </div>
-            <div class="macro-bar-row" style="margin-bottom:.75rem">
-              <div class="bar-track" style="height:8px">
-                <div class="bar-fill" [style.width.%]="caloriesPct()" [style.background]="caloriesPct() > 105 ? 'var(--color-danger)' : 'var(--color-primary)'"></div>
-              </div>
-            </div>
-            <div class="macro-bars">
-              <div class="macro-bar-row">
-                <div class="mb-header"><span class="name">🥩 Proteína</span><span class="value">{{ summary()?.totalProtein | number:'1.0-0' }}g / {{ metabolic()!.macros.proteinG | number:'1.0-0' }}g</span></div>
-                <div class="bar-track"><div class="bar-fill" [style.width.%]="pct(summary()?.totalProtein, metabolic()!.macros.proteinG)" style="background:#10b981"></div></div>
-              </div>
-              <div class="macro-bar-row">
-                <div class="mb-header"><span class="name">🌾 Carboidratos</span><span class="value">{{ summary()?.totalCarbs | number:'1.0-0' }}g / {{ metabolic()!.macros.carbsG | number:'1.0-0' }}g</span></div>
-                <div class="bar-track"><div class="bar-fill" [style.width.%]="pct(summary()?.totalCarbs, metabolic()!.macros.carbsG)" style="background:#f59e0b"></div></div>
-              </div>
-              <div class="macro-bar-row">
-                <div class="mb-header"><span class="name">🥑 Gorduras</span><span class="value">{{ summary()?.totalFat | number:'1.0-0' }}g / {{ metabolic()!.macros.fatG | number:'1.0-0' }}g</span></div>
-                <div class="bar-track"><div class="bar-fill" [style.width.%]="pct(summary()?.totalFat, metabolic()!.macros.fatG)" style="background:#6366f1"></div></div>
-              </div>
-            </div>
-
-            <!-- ── Remaining macros ───────────────────────────────────── -->
-            <div class="remaining-section">
-              <div class="rem-title">⏳ O que ainda falta hoje</div>
-              <div class="rem-pills">
-                <span class="rem-pill" [class.positive]="remainingKcal() > 0" [class.negative]="remainingKcal() < 0" [class.neutral]="remainingKcal() === 0">
-                  🔥 {{ remainingKcal() > 0 ? 'Faltam ' + (remainingKcal() | number:'1.0-0') + ' kcal' : remainingKcal() < 0 ? 'Excedeu ' + (absVal(remainingKcal()) | number:'1.0-0') + ' kcal' : '✓ Meta kcal!' }}
-                </span>
-                <span class="rem-pill" [class.positive]="remainingProtein() > 0" [class.negative]="remainingProtein() < 0" [class.neutral]="remainingProtein() === 0">
-                  🥩 {{ remainingProtein() > 0 ? 'Faltam ' + (remainingProtein() | number:'1.0-0') + 'g prot' : remainingProtein() < 0 ? '+' + (absVal(remainingProtein()) | number:'1.0-0') + 'g prot' : '✓ Prot!' }}
-                </span>
-                <span class="rem-pill" [class.positive]="remainingCarbs() > 0" [class.negative]="remainingCarbs() < 0" [class.neutral]="remainingCarbs() === 0">
-                  🌾 {{ remainingCarbs() > 0 ? 'Faltam ' + (remainingCarbs() | number:'1.0-0') + 'g carb' : remainingCarbs() < 0 ? '+' + (absVal(remainingCarbs()) | number:'1.0-0') + 'g carb' : '✓ Carb!' }}
-                </span>
-                <span class="rem-pill" [class.positive]="remainingFat() > 0" [class.negative]="remainingFat() < 0" [class.neutral]="remainingFat() === 0">
-                  🥑 {{ remainingFat() > 0 ? 'Faltam ' + (remainingFat() | number:'1.0-0') + 'g gord' : remainingFat() < 0 ? '+' + (absVal(remainingFat()) | number:'1.0-0') + 'g gord' : '✓ Gord!' }}
-                </span>
-              </div>
-            </div>
-          } @else {
-            <p class="text-muted" style="padding:1rem;font-size:.875rem;text-align:center">Complete seu perfil para ver os macros.</p>
-          }
-        </div>
-
-        @if (metabolic()) {
-          <div class="stats-row">
-            <div class="stat-mini"><div class="val" style="color:var(--color-primary)">{{ metabolic()!.bmr | number:'1.0-0' }}</div><div class="lbl">TMB (kcal/dia)</div></div>
-            <div class="stat-mini"><div class="val" style="color:#6366f1">{{ metabolic()!.tee | number:'1.0-0' }}</div><div class="lbl">GET (kcal/dia)</div></div>
-            <div class="stat-mini"><div class="val" style="color:#f59e0b">{{ metabolic()!.exerciseCalories | number:'1.0-0' }}</div><div class="lbl">Kcal exercício</div></div>
-            <div class="stat-mini"><div class="val" style="color:#0ea5e9">{{ metabolic()!.hypertrophyScore }}/10</div><div class="lbl">Score hipertrofia</div></div>
-          </div>
-        }
-
-        <app-water-tracker [showLogs]="showWaterLogs" />
-
-        <!-- Daily missions widget -->
-        <app-daily-missions-widget />
-
-        <div class="card" style="display:flex;flex-direction:column;gap:.5rem">
-          <div style="font-size:.82rem;font-weight:700;margin-bottom:.125rem">⚡ Ações rápidas</div>
-          <a routerLink="/nutrition"   class="btn btn-secondary w-full">🍽️ Registrar refeição</a>
-          <a routerLink="/protocols"   class="btn btn-secondary w-full">💊 Protocolos clínicos</a>
-          <a routerLink="/recipes"     class="btn btn-secondary w-full">📖 Receitas da comunidade</a>
-          <a routerLink="/leaderboard" class="btn btn-secondary w-full">🏆 Ver ranking semanal</a>
-          <a routerLink="/progress"    class="btn btn-secondary w-full">📊 Ver progresso</a>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Meal panel overlay ─────────────────────────────────────────────── -->
-    @if (mealPanel()) {
-      <div class="panel-overlay" (click)="closeMealPanel()">
-        <div class="meal-panel" (click)="$event.stopPropagation()">
-
-          <!-- Header -->
-          <div class="mp-header">
-            <div class="mp-title">
-              <h3>🍽️ {{ mealPanel()!.name }}</h3>
-              <div class="mp-time">{{ mealPanel()!.scheduledTime }} · Alvo: {{ mealPanel()!.caloricTarget | number:'1.0-0' }} kcal</div>
-            </div>
-            <button class="mp-close" (click)="closeMealPanel()">✕</button>
-          </div>
-
-          <!-- Balance bar -->
-          <div class="mp-balance">
-            <div class="balance-row">
-              <span class="bal-label">Consumo vs Meta</span>
-              <span class="bal-nums">
-                <span class="bal-consumed">{{ panelConsumedKcal() | number:'1.0-0' }}</span>
-                <span class="bal-sep">/</span>
-                <span class="bal-target">{{ mealPanel()!.caloricTarget | number:'1.0-0' }} kcal</span>
-              </span>
-              @if (panelBalance() !== 0) {
-                <span class="bal-delta" [class.ok]="panelBalance() < 0" [class.bad]="panelBalance() > 0">
-                  {{ panelBalance() > 0 ? '+' : '' }}{{ panelBalance() | number:'1.0-0' }} kcal
-                </span>
-              }
-            </div>
-            <div class="balance-track">
-              @if (panelConsumedKcal() <= (mealPanel()!.caloricTarget ?? 0)) {
-                <div class="bt-green" [style.width.%]="panelBalancePct()"></div>
-              } @else {
-                <div class="bt-red" style="width:100%"></div>
-              }
-            </div>
-            <!-- Macro pills -->
-            <div class="macro-pills">
-              <span class="mp-pill">🥩 {{ panelConsumedProtein() | number:'1.0-0' }}g prot</span>
-              <span class="mp-pill">🌾 {{ panelConsumedCarbs() | number:'1.0-0' }}g carb</span>
-              <span class="mp-pill">🥑 {{ panelConsumedFat() | number:'1.0-0' }}g gord</span>
-            </div>
-          </div>
-
-          <!-- Scrollable body -->
-          <div class="mp-body">
-
-            <!-- Linked recipes -->
-            @if (panelRecipes().length > 0) {
-              <div>
-                <div style="font-size:.78rem;font-weight:700;color:var(--color-text-muted);margin-bottom:.5rem">Receitas vinculadas</div>
-                <div class="linked-recipes">
-                  @for (r of panelRecipes(); track r.recipeId) {
-                    <div class="linked-item">
-                      <div class="li-info">
-                        <div class="li-title">{{ r.title }}</div>
-                        <div class="li-macros">{{ r.totalKcal | number:'1.0-0' }} kcal · P:{{ r.totalProtein | number:'1.0-0' }}g C:{{ r.totalCarbs | number:'1.0-0' }}g G:{{ r.totalFat | number:'1.0-0' }}g</div>
-                      </div>
-                      <div class="li-servings">
-                        <button (click)="changeServings(r, -0.5)" [disabled]="r.servings <= 0.5">−</button>
-                        <span class="srv-count">{{ r.servings }}</span>
-                        <button (click)="changeServings(r, 0.5)">+</button>
-                      </div>
-                      <button class="li-remove" (click)="removeRecipe(r.recipeId)" title="Remover">✕</button>
-                    </div>
-                  }
-                </div>
-              </div>
-            } @else {
-              <div style="text-align:center;padding:.75rem;color:var(--color-text-muted);font-size:.82rem">
-                Nenhuma receita vinculada ainda.<br>Pesquise abaixo para adicionar.
-              </div>
-            }
-
-            <!-- Recipe search -->
-            <div class="recipe-search">
-              <label>Adicionar receita</label>
-              <div class="rs-input">
-                <input type="text" placeholder="Buscar por nome..." [(ngModel)]="recipeSearch" />
-              </div>
-
-              @if (panelSearchResults().length > 0) {
-                <div class="rs-results">
-                  @for (r of panelSearchResults(); track r.id) {
-                    <div class="rs-item">
-                      <div class="rsi-info">
-                        <div class="rsi-title">{{ r.title }}</div>
-                        <div class="rsi-kcal">{{ r.kcal | number:'1.0-0' }} kcal/porção · P:{{ r.proteinG | number:'1.0-0' }}g C:{{ r.carbsG | number:'1.0-0' }}g G:{{ r.fatG | number:'1.0-0' }}g</div>
-                      </div>
-                      <button class="rsi-add" (click)="addRecipe(r)">+ Add</button>
-                    </div>
-                  }
-                </div>
-              } @else if (recipeSearch.length > 1) {
-                <div class="rs-empty">Nenhuma receita encontrada.</div>
-              } @else if (availableRecipes().length > 0) {
-                <!-- Show top recipes when no search yet -->
-                <div class="rs-results">
-                  @for (r of availableRecipes().slice(0, 8); track r.id) {
-                    <div class="rs-item">
-                      <div class="rsi-info">
-                        <div class="rsi-title">{{ r.title }}</div>
-                        <div class="rsi-kcal">{{ r.kcal | number:'1.0-0' }} kcal/porção · P:{{ r.proteinG | number:'1.0-0' }}g C:{{ r.carbsG | number:'1.0-0' }}g G:{{ r.fatG | number:'1.0-0' }}g</div>
-                      </div>
-                      <button class="rsi-add" (click)="addRecipe(r)">+ Add</button>
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-
-            <!-- Repeat schedule section -->
-            @if (panelRecipes().length > 0) {
-              <div class="repeat-section">
-                <div class="rp-title">🔁 Repetição semanal — selecione os dias para cada receita</div>
-                @for (r of panelRecipes(); track r.recipeId) {
-                  <div class="rp-recipe-row">
-                    <span class="rpr-name">{{ r.title }}</span>
-                    <div class="rpr-days">
-                      @for (day of allDays; track day) {
-                        <button
-                          [class.selected]="isDaySelected(r.recipeId, day)"
-                          (click)="toggleRepeatDay(r, day)">
-                          {{ dayLabel(day) }}
-                        </button>
-                      }
-                    </div>
-                  </div>
-                }
-                <div style="font-size:.7rem;color:var(--color-text-muted);margin-top:.25rem">
-                  Clique em um dia para ativar/desativar a repetição automática desta receita naquela refeição.
-                </div>
-              </div>
-            }
-
-          </div>
-
-          <!-- Footer: consumed toggle -->
-          <div class="mp-footer">
-            <button class="btn consume-btn" [class.consumed]="mealPanel()!.isConsumed"
-              [disabled]="togglingMeal()"
-              (click)="toggleConsumed()">
-              {{ togglingMeal() ? '...' : mealPanel()!.isConsumed ? '✓ Refeição Consumida' : 'Marcar como Consumida' }}
-            </button>
-            @if (!mealPanel()!.isConsumed && panelRecipes().length > 0) {
-              <span style="font-size:.72rem;color:var(--color-text-muted)">+10 XP</span>
-            }
-          </div>
-        </div>
-      </div>
-    }
-
-    <!-- XP pop -->
-    @if (xpPopVisible()) {
-      <div class="xp-pop" [style.left]="xpPopX + 'px'" [style.top]="xpPopY + 'px'">+{{ lastXp() }} XP ⚡</div>
-    }
-
-    <!-- Anti-cheat toast (cap reached / out of window) -->
-    @if (xpBlockToast()) {
-      <div class="xp-block-toast">🚫 {{ xpBlockToast() }}</div>
-    }
-
-    <!-- ── Photo share prompt ─────────────────────────────────────────── -->
-    @if (photoPromptBlock()) {
-      <div class="photo-overlay" (click)="skipPhoto()">
-        <div class="photo-modal" (click)="$event.stopPropagation()">
-          <h3>📸 Compartilhar conquista?</h3>
-          <p class="subtitle">Adicione uma foto opcional e ganhe <strong>+10 XP</strong> bônus!</p>
-
-          @if (photoDraftDataUrl()) {
-            <img [src]="photoDraftDataUrl()!" class="photo-preview" alt="preview">
-          }
-
-          <label class="photo-pick-btn">
-            {{ photoDraftDataUrl() ? '🔄 Trocar foto' : '📷 Escolher foto' }}
-            <input type="file" accept="image/*" style="display:none"
-              (change)="onPhotoFileChange($event)">
-          </label>
-
-          <input type="text" class="caption-input"
-            placeholder="Legenda (opcional)..."
-            [(ngModel)]="photoDraftCaption"
-            maxlength="280">
-
-          <label class="share-toggle">
-            <input type="checkbox" [(ngModel)]="photoSharePublic">
-            Visível no feed público
-          </label>
-
-          <div class="photo-actions">
-            <button class="btn-skip" (click)="skipPhoto()">Pular</button>
-            <button class="btn-share"
-              (click)="submitWithPhoto()"
-              [disabled]="!photoDraftDataUrl() || sharingPhoto()">
-              {{ sharingPhoto() ? '...' : '✨ Compartilhar +10 XP' }}
-            </button>
-          </div>
-          <p class="xp-hint">Foto é opcional — clique em "Pular" para concluir sem compartilhar</p>
-        </div>
-      </div>
-    }
-
-    <!-- ── Clone Dieta modal ───────────────────────────────────────────── -->
-    @if (cloneModal()) {
-      <div class="clone-overlay" (click)="closeCloneModal()">
-        <div class="clone-modal" (click)="$event.stopPropagation()">
-          <h3>📋 Clonar Dieta</h3>
-          <div class="clone-fields">
-            <label>Data de origem (copiar de)
-              <input type="date" [(ngModel)]="cloneFrom" />
-            </label>
-            <label>Data de destino (copiar para)
-              <input type="date" [(ngModel)]="cloneTo" />
-            </label>
-          </div>
-          <p style="font-size:.75rem;color:var(--color-text-muted);margin-bottom:1rem">
-            Copia todas as refeições e receitas vinculadas da data de origem para a data de destino.
-            Refeições já existentes no destino serão substituídas.
-          </p>
-          <div class="clone-actions">
-            <button class="btn btn-secondary" style="flex:1" (click)="closeCloneModal()">Cancelar</button>
-            <button class="btn" style="flex:1" (click)="cloneDiet()" [disabled]="cloning() || !cloneFrom || !cloneTo">
-              {{ cloning() ? '⏳ Clonando...' : '📋 Clonar' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    }
-  `,
+  styleUrls: ['./dashboard.component.scss'],
+  templateUrl: './dashboard.component.html',
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   private profileSvc      = inject(ProfileService);
@@ -1103,9 +109,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private scheduledSvc    = inject(ScheduledMealService);
   private recipeSchedSvc  = inject(RecipeScheduleService);
   private checkInSvc      = inject(CheckInService);
+  private copilotSvc      = inject(CopilotService);
+  private notifSvc        = inject(NotificationService);
+  private workoutSvc      = inject(WorkoutService);
+  private router          = inject(Router);
 
-  readonly todayStr      = new Date().toISOString().slice(0, 10);
-  readonly showWaterLogs = signal(false);
+  @ViewChild(DailyMissionsWidgetComponent) missionsWidget?: DailyMissionsWidgetComponent;
+
+  readonly todayStr       = new Date().toISOString().slice(0, 10);
+  readonly waterModalOpen = signal(false);
 
   // ── Check-in banner ─────────────────────────────────────────────────────────
   private lastCheckInDate = signal<string | null>(null);
@@ -1153,6 +165,144 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ── Apply schedules ─────────────────────────────────────────────────────────
   applyingSchedules = signal(false);
 
+  // ── Water reminders ────────────────────────────────────────────────────────
+  waterReminderModal = signal(false);
+  waterFrequency     = 60;  // minutes
+  waterStartTime     = '07:00';
+  waterEndTime       = '22:00';
+  generatingWater    = signal(false);
+
+  waterPreviewCount(): number {
+    const startMin = timeToMinutes(this.waterStartTime);
+    const endMin   = timeToMinutes(this.waterEndTime);
+    if (startMin >= endMin || this.waterFrequency < 10) return 0;
+    let count = 0;
+    for (let m = startMin; m < endMin; m += this.waterFrequency) count++;
+    return count;
+  }
+
+  // ── Copilot event suggestions ────────────────────────────────────────────────
+  private readonly COPILOT_TIPS: Record<BlockType, string> = {
+    meal:         'Registrar suas refeicoes ajuda o copiloto a monitorar seu consumo calorico. Dica: crie blocos para cafe, almoco, lanche e jantar!',
+    work:         'Blocos de trabalho ajudam a manter o equillbrio entre produtividade e descanso. Tente nao exceder 4 horas sem uma pausa.',
+    study:        'Estudo focado rende mais em blocos de 45-60 minutos. Considere adicionar pausas curtas entre eles.',
+    exercise:     'Exercicio regular e fundamental! O ideal e distribuir sessoes ao longo da semana. Voce ganha +25 XP por treino concluido.',
+    water:        'Hidratacao e essencial! Use o botao "Lembretes de Agua" para gerar lembretes automaticos ao longo do dia.',
+    sleep:        'Registre seu horario de sono para que o copiloto analise sua qualidade de descanso. Adultos precisam de 7-9 horas.',
+    sun_exposure: 'Exposicao solar moderada ajuda na producao de vitamina D. 15-20 minutos pela manha e o ideal.',
+    free:         'Tempo livre e importante para a saude mental. Nao subestime momentos de descanso na sua rotina.',
+    custom:       'Crie eventos personalizados para acompanhar qualquer atividade que faca parte da sua rotina.',
+    medication:   'Protocolos e medicamentos sao gerenciados na area de protocolos clinicos.',
+  };
+
+  copilotEventTip(): string {
+    const type = this.newEvent.type;
+    const blocks = this.blocks();
+    const meals = blocks.filter(b => b.type === 'meal');
+    const water = blocks.filter(b => b.type === 'water');
+    const exercise = blocks.filter(b => b.type === 'exercise');
+
+    // Context-aware tips
+    if (type === 'meal' && meals.length === 0) {
+      return 'Voce ainda nao tem nenhuma refeicao agendada hoje! Comece criando as refeicoes principais: cafe da manha, almoco e jantar.';
+    }
+    if (type === 'water' && water.length >= 5) {
+      return 'Voce ja tem ' + water.length + ' lembretes de agua hoje. Se precisar de mais, ajuste a frequencia no gerador automatico.';
+    }
+    if (type === 'exercise' && exercise.length >= 2) {
+      return 'Ja tem ' + exercise.length + ' blocos de exercicio hoje. Cuidado para nao exagerar — descanso tambem faz parte do treino!';
+    }
+    if (blocks.length === 0) {
+      return 'Sua agenda esta vazia! Comece montando sua rotina com os principais eventos do dia. Eu vou te orientar conforme voce adiciona.';
+    }
+
+    return this.COPILOT_TIPS[type] ?? 'Adicione este evento para organizar melhor sua rotina diaria.';
+  }
+
+  copilotEventSuggestions(): Array<{ icon: string; label: string; type: BlockType; name: string; start: string; end: string }> {
+    const blocks = this.blocks();
+    const suggestions: Array<{ icon: string; label: string; type: BlockType; name: string; start: string; end: string }> = [];
+
+    const hasMeal = (name: string) => blocks.some(b => b.type === 'meal' && b.label.toLowerCase().includes(name));
+    const hasExercise = blocks.some(b => b.type === 'exercise');
+    const hasWater = blocks.some(b => b.type === 'water');
+
+    if (!hasMeal('cafe') && !hasMeal('breakfast')) {
+      suggestions.push({ icon: '☕', label: 'Adicionar Cafe da manha (07:00)', type: 'meal', name: 'Cafe da Manha', start: '07:00', end: '07:30' });
+    }
+    if (!hasMeal('almoc') && !hasMeal('lunch')) {
+      suggestions.push({ icon: '🍛', label: 'Adicionar Almoco (12:00)', type: 'meal', name: 'Almoco', start: '12:00', end: '13:00' });
+    }
+    if (!hasMeal('jantar') && !hasMeal('dinner') && !hasMeal('janta')) {
+      suggestions.push({ icon: '🌙', label: 'Adicionar Jantar (19:00)', type: 'meal', name: 'Jantar', start: '19:00', end: '20:00' });
+    }
+    if (!hasExercise) {
+      suggestions.push({ icon: '💪', label: 'Adicionar Treino (06:00)', type: 'exercise', name: 'Treino', start: '06:00', end: '07:00' });
+    }
+    if (!hasWater) {
+      suggestions.push({ icon: '💧', label: 'Adicionar Lembrete de Agua', type: 'water', name: 'Lembrete de Agua', start: '08:00', end: '08:10' });
+    }
+
+    return suggestions.slice(0, 3);
+  }
+
+  copilotLabelPlaceholder(): string {
+    const placeholders: Record<BlockType, string> = {
+      meal: 'Ex: Cafe da Manha, Almoco, Lanche...',
+      work: 'Ex: Reuniao de equipe, Foco profundo...',
+      study: 'Ex: Leitura, Curso online...',
+      exercise: 'Ex: Treino de forca, Corrida, Yoga...',
+      water: 'Ex: Lembrete de Agua',
+      sleep: 'Ex: Sono noturno, Cochilo...',
+      sun_exposure: 'Ex: Banho de sol matinal',
+      free: 'Ex: Tempo livre, Descanso...',
+      custom: 'Ex: Meditacao, Hobbie...',
+      medication: 'Ex: Suplemento, Remedio...',
+    };
+    return placeholders[this.newEvent.type] ?? 'Descreva o evento...';
+  }
+
+  applyCopilotSuggestion(s: { type: BlockType; name: string; start: string; end: string }): void {
+    this.newEvent = { ...this.newEvent, type: s.type, label: s.name, startTime: s.start, endTime: s.end };
+  }
+
+  // ── Canvas: Add Event modal ──────────────────────────────────────────────────
+  addEventModal = signal(false);
+  savingEvent   = signal(false);
+
+  readonly eventTypeOptions: Array<{ type: BlockType; icon: string; label: string }> = [
+    { type: 'meal',         icon: '🍽️', label: 'Refeição' },
+    { type: 'work',         icon: '💼', label: 'Trabalho' },
+    { type: 'study',        icon: '📚', label: 'Estudo' },
+    { type: 'exercise',     icon: '💪', label: 'Exercício' },
+    { type: 'water',        icon: '💧', label: 'Água' },
+    { type: 'sleep',        icon: '😴', label: 'Sono' },
+  ];
+
+  newEvent: { type: BlockType; label: string; startTime: string; endTime: string; daysOfWeek: number[]; targetDate: string; workoutSheetId: string } = {
+    type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [], targetDate: '', workoutSheetId: '',
+  };
+
+  // ── Workout sheets for exercise blocks ──────────────────────────────────────
+  workoutSheets = signal<WorkoutSheet[]>([]);
+  private workoutSheetsLoaded = false;
+
+  // ── Workout detail panel for exercise blocks ────────────────────────────────
+  expandedWorkoutBlock = signal<string | null>(null);
+  overflowOpenId = signal<string | null>(null);
+
+  // ── Edit block state ──────────────────────────────────────────────────────
+  editEventModal = signal(false);
+  editEvent: { id: string; type: BlockType; label: string; startTime: string; endTime: string; daysOfWeek: number[]; targetDate: string } = {
+    id: '', type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [], targetDate: '',
+  };
+  savingEdit  = signal(false);
+  deletingBlock = signal<string | null>(null);
+
+  // ── Copilot feedback panel ───────────────────────────────────────────────────
+  copilotFeedback = signal<FeedbackResponse | null>(null);
+  copilotLoading  = signal(false);
+
   // ── Recipe schedules (weekly repeat) ────────────────────────────────────────
   recipeSchedules = signal<RecipeSchedule[]>([]);
 
@@ -1161,6 +311,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ── Block completion ────────────────────────────────────────────────────────
   completingBlock = signal<string | null>(null);
+
+  // ── Per-block notification toggle ──────────────────────────────────────────
+  /** Set of block IDs that have notifications enabled */
+  blockNotifEnabled = signal<Set<string>>(new Set());
 
   // ── Photo share prompt ───────────────────────────────────────────────────────
   photoPromptBlock  = signal<{ id: string; event: MouseEvent } | null>(null);
@@ -1197,6 +351,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const now = this.nowMinutes(); const isToday = this.selectedDate() === this.todayStr;
     const map = new Map<string, RoutineBlock[]>();
     for (const b of this.blocks()) { if (!map.has(b.startTime)) map.set(b.startTime, []); map.get(b.startTime)!.push(b); }
+
+    // Inject orphaned scheduledMeals (not linked to any block) as synthetic blocks
+    const linkedMealIds = new Set<string>();
+    for (const b of this.blocks()) {
+      const smId = b.metadata?.['scheduledMealId'] as string | undefined;
+      if (smId) linkedMealIds.add(smId);
+    }
+    for (const meal of this.scheduledMeals()) {
+      if (linkedMealIds.has(meal.id)) continue;
+      const synth: RoutineBlock = {
+        id: `synth-meal-${meal.id}`,
+        userId: meal.userId,
+        type: 'meal',
+        startTime: meal.scheduledTime,
+        endTime: addMinutes(meal.scheduledTime, 30),
+        label: meal.name,
+        caloricTarget: meal.caloricTarget,
+        sortOrder: 0,
+        metadata: { scheduledMealId: meal.id },
+      };
+      if (!map.has(synth.startTime)) map.set(synth.startTime, []);
+      map.get(synth.startTime)!.push(synth);
+    }
+
     return Array.from(map.entries())
       .sort((a, b) => timeToMinutes(a[0]) - timeToMinutes(b[0]))
       .map(([time, blks]) => {
@@ -1262,12 +440,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.cloneFrom = this.selectedDate();
     this.clockInterval = setInterval(() => this.clockMinute.set(this.currentMinuteOfDay()), 30_000);
     this.checkInSvc.latest().subscribe({ next: ci => this.lastCheckInDate.set(ci?.date ?? null), error: () => {} });
+    this.loadCopilotFeedback();
   }
 
   ngOnDestroy(): void { if (this.clockInterval) clearInterval(this.clockInterval); }
 
   @HostListener('document:keydown.escape')
-  onEsc() { this.closeMealPanel(); }
+  onEsc() { this.closeMealPanel(); this.overflowOpenId.set(null); }
+
+  @HostListener('document:click')
+  onDocClick() { this.overflowOpenId.set(null); }
 
   // ── Data loading ─────────────────────────────────────────────────────────────
   private loadScheduledMeals(date: string): void {
@@ -1306,6 +488,55 @@ export class DashboardComponent implements OnInit, OnDestroy {
       },
       error: () => this.applyingSchedules.set(false),
     });
+  }
+
+  // ── Water reminders ──────────────────────────────────────────────────────────
+  openWaterReminderModal(): void {
+    this.waterFrequency = 60;
+    this.waterStartTime = '07:00';
+    this.waterEndTime   = '22:00';
+    this.waterReminderModal.set(true);
+  }
+
+  closeWaterReminderModal(): void { this.waterReminderModal.set(false); }
+
+  generateWaterReminders(): void {
+    if (this.waterFrequency < 10 || !this.waterStartTime || !this.waterEndTime) return;
+    this.generatingWater.set(true);
+
+    const startMin = timeToMinutes(this.waterStartTime);
+    const endMin   = timeToMinutes(this.waterEndTime);
+    if (startMin >= endMin) { this.generatingWater.set(false); return; }
+
+    const slots: Array<{ start: string; end: string }> = [];
+    for (let m = startMin; m < endMin; m += this.waterFrequency) {
+      const blockEnd = Math.min(m + 10, endMin); // 10-min block duration
+      slots.push({
+        start: `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`,
+        end:   `${pad2(Math.floor(blockEnd / 60))}:${pad2(blockEnd % 60)}`,
+      });
+    }
+
+    let remaining = slots.length;
+    const done = () => {
+      remaining--;
+      if (remaining <= 0) {
+        this.generatingWater.set(false);
+        this.closeWaterReminderModal();
+        this.routineSvc.load(this.selectedDate()).subscribe({ error: () => {} });
+      }
+    };
+
+    for (const slot of slots) {
+      const dto: CreateBlockDto = {
+        type:       'water',
+        label:      `Lembrete de Agua`,
+        startTime:  slot.start,
+        endTime:    slot.end,
+        routineDate: this.selectedDate(),
+      };
+      this.routineSvc.createBlock(dto).subscribe({ next: done, error: done });
+    }
   }
 
   // ── Clone diet ───────────────────────────────────────────────────────────────
@@ -1406,6 +637,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.reloadSummary();
         if (result.xpGained > 0) this.showXpPop(result.xpGained);
         if (this.mealPanel()?.id === result.meal.id) this.mealPanel.set({ ...result.meal });
+        // Refresh missions — meal consumed may auto-complete ALL_MEALS
+        this.missionsWidget?.refresh();
       },
       error: () => this.togglingMeal.set(false),
     });
@@ -1476,6 +709,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   dayLabel(day: number): string { return DAY_LABELS[day] ?? '?'; }
 
   // ── Routine ──────────────────────────────────────────────────────────────────
+  /** @deprecated Canvas pivot — kept for reference; server returns 410. */
   generateRoutine(): void {
     this.generating.set(true);
     this.routineSvc.generate(this.selectedDate()).subscribe({
@@ -1485,6 +719,196 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.loadScheduledMeals(this.selectedDate());
       },
       error: () => this.generating.set(false),
+    });
+  }
+
+  // ── Canvas: Add Event modal ──────────────────────────────────────────────────
+  openAddEventModal(): void {
+    this.newEvent = { type: 'work', label: '', startTime: '08:00', endTime: '09:00', daysOfWeek: [], targetDate: this.selectedDate(), workoutSheetId: '' };
+    this.addEventModal.set(true);
+    if (!this.workoutSheetsLoaded) {
+      this.workoutSvc.list().subscribe({
+        next: sheets => { this.workoutSheets.set(sheets); this.workoutSheetsLoaded = true; },
+      });
+    }
+  }
+
+  onWorkoutSheetSelected(): void {
+    const sheet = this.workoutSheets().find(s => s.id === this.newEvent.workoutSheetId);
+    if (sheet) {
+      this.newEvent.label = sheet.name;
+      const dur = sheet.estimatedMinutes ?? 60;
+      const [h, m] = this.newEvent.startTime.split(':').map(Number);
+      const endTotal = (h ?? 0) * 60 + (m ?? 0) + dur;
+      this.newEvent.endTime = `${pad2(Math.floor(endTotal / 60) % 24)}:${pad2(endTotal % 60)}`;
+    }
+  }
+
+  closeAddEventModal(): void { this.addEventModal.set(false); }
+
+  toggleNewEventDay(day: number): void {
+    const days = this.newEvent.daysOfWeek;
+    this.newEvent = {
+      ...this.newEvent,
+      daysOfWeek: days.includes(day) ? days.filter(d => d !== day) : [...days, day].sort(),
+    };
+  }
+
+  saveNewEvent(): void {
+    if (!this.newEvent.label.trim() || !this.newEvent.startTime || !this.newEvent.endTime) return;
+    const isRecurring = this.newEvent.daysOfWeek.length > 0;
+
+    // Build metadata for exercise blocks linked to a workout sheet
+    let metadata: Record<string, unknown> | undefined;
+    if (this.newEvent.type === 'exercise' && this.newEvent.workoutSheetId) {
+      const sheet = this.workoutSheets().find(s => s.id === this.newEvent.workoutSheetId);
+      if (sheet) {
+        metadata = {
+          workoutSheetId: sheet.id,
+          workoutSheetName: sheet.name,
+          exercises: (sheet.exercises ?? []).map(e => ({
+            name: e.name, sets: e.sets, reps: e.reps,
+            restSeconds: e.restSeconds, notes: e.notes,
+          })),
+        };
+      }
+    }
+
+    const dto: CreateBlockDto = {
+      type:        this.newEvent.type,
+      label:       this.newEvent.label.trim(),
+      startTime:   this.newEvent.startTime,
+      endTime:     this.newEvent.endTime,
+      isRecurring,
+      daysOfWeek:  isRecurring ? this.newEvent.daysOfWeek : [],
+      routineDate: isRecurring ? undefined : (this.newEvent.targetDate || this.selectedDate()),
+      metadata,
+    };
+    this.savingEvent.set(true);
+    this.routineSvc.createBlock(dto).subscribe({
+      next: () => {
+        this.savingEvent.set(false);
+        this.addEventModal.set(false);
+        // Refresh the full list so recurring blocks appear correctly
+        this.routineSvc.load(this.selectedDate()).subscribe({ error: () => {} });
+        // If this was a meal block, the backend auto-created a ScheduledMeal — reload diet view
+        if (dto.type === 'meal') {
+          this.loadScheduledMeals(this.selectedDate());
+          this.reloadSummary();
+        }
+        this.loadCopilotFeedback();
+      },
+      error: () => this.savingEvent.set(false),
+    });
+  }
+
+  navigateToDiet(): void {
+    this.router.navigate(['/diet']);
+  }
+
+  isSunSafeHour(): boolean {
+    const h = new Date().getHours();
+    return h < 10 || h >= 16;
+  }
+
+  toggleOverflowMenu(blockId: string | null): void {
+    this.overflowOpenId.set(this.overflowOpenId() === blockId ? null : blockId);
+  }
+
+  toggleWorkoutDetail(blockId: string): void {
+    this.expandedWorkoutBlock.set(this.expandedWorkoutBlock() === blockId ? null : blockId);
+  }
+
+  blockExercises(block: RoutineBlock): Array<{ name: string; sets: number; reps: string; restSeconds: number; notes?: string }> {
+    const meta = block.metadata as any;
+    return meta?.exercises ?? [];
+  }
+
+  hasLinkedWorkout(block: RoutineBlock): boolean {
+    return !!(block.metadata as any)?.workoutSheetId;
+  }
+
+  dayShort(day: number): string {
+    return ['D','S','T','Q','Q','S','S'][day] ?? '?';
+  }
+
+  // ── Edit / Delete block ─────────────────────────────────────────────────────
+  openEditModal(b: RoutineBlock, ev: Event): void {
+    ev.stopPropagation();
+    this.editEvent = {
+      id: b.id,
+      type: b.type,
+      label: b.label,
+      startTime: b.startTime,
+      endTime: b.endTime,
+      daysOfWeek: b.daysOfWeek ?? [],
+      targetDate: b.routineDate ?? this.selectedDate(),
+    };
+    this.editEventModal.set(true);
+  }
+
+  closeEditModal(): void { this.editEventModal.set(false); }
+
+  toggleEditEventDay(day: number): void {
+    const days = this.editEvent.daysOfWeek;
+    this.editEvent = {
+      ...this.editEvent,
+      daysOfWeek: days.includes(day) ? days.filter(d => d !== day) : [...days, day].sort(),
+    };
+  }
+
+  saveEditEvent(): void {
+    if (!this.editEvent.label.trim() || !this.editEvent.startTime || !this.editEvent.endTime) return;
+    const isRecurring = this.editEvent.daysOfWeek.length > 0;
+    const dto: Partial<CreateBlockDto> = {
+      type:        this.editEvent.type,
+      label:       this.editEvent.label.trim(),
+      startTime:   this.editEvent.startTime,
+      endTime:     this.editEvent.endTime,
+      isRecurring,
+      daysOfWeek:  isRecurring ? this.editEvent.daysOfWeek : [],
+      routineDate: isRecurring ? undefined : (this.editEvent.targetDate || this.selectedDate()),
+    };
+    this.savingEdit.set(true);
+    this.routineSvc.updateBlock(this.editEvent.id, dto).subscribe({
+      next: () => {
+        this.savingEdit.set(false);
+        this.editEventModal.set(false);
+        this.routineSvc.load(this.selectedDate()).subscribe({ error: () => {} });
+        if (dto.type === 'meal') {
+          this.loadScheduledMeals(this.selectedDate());
+          this.reloadSummary();
+        }
+        this.loadCopilotFeedback();
+      },
+      error: () => this.savingEdit.set(false),
+    });
+  }
+
+  deleteBlock(b: RoutineBlock, ev: Event): void {
+    ev.stopPropagation();
+    if (!confirm(`Excluir "${b.label}"?`)) return;
+    this.deletingBlock.set(b.id);
+    this.routineSvc.deleteBlock(b.id).subscribe({
+      next: () => {
+        this.deletingBlock.set(null);
+        this.routineSvc.load(this.selectedDate()).subscribe({ error: () => {} });
+        if (b.type === 'meal') {
+          this.loadScheduledMeals(this.selectedDate());
+          this.reloadSummary();
+        }
+        this.loadCopilotFeedback();
+      },
+      error: () => this.deletingBlock.set(null),
+    });
+  }
+
+  // ── Copilot feedback ─────────────────────────────────────────────────────────
+  loadCopilotFeedback(): void {
+    this.copilotLoading.set(true);
+    this.copilotSvc.getFeedback(this.selectedDate()).subscribe({
+      next: fb => { this.copilotFeedback.set(fb); this.copilotLoading.set(false); },
+      error: ()  => { this.copilotLoading.set(false); },
     });
   }
 
@@ -1499,6 +923,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.closeMealPanel();
     this.openDietGroups.set(new Set());
     this.cloneFrom = next;
+    this.copilotFeedback.set(null);
+    this.loadCopilotFeedback();
   }
 
   goToday(): void { this.routineSvc.setDate(this.todayStr); this.changeDate(0); }
@@ -1631,6 +1057,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.refreshMealInPanel(result.meal);
         this.reloadSummary();
         if (result.xpGained > 0) this.showXpPop(result.xpGained);
+        // Refresh missions — meal consumed may auto-complete ALL_MEALS
+        this.missionsWidget?.refresh();
       },
       error: () => this.togglingMeal.set(false),
     });
@@ -1664,12 +1092,57 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return BLOCK_META[b.type]?.color ?? '#9ca3af';
   }
 
+  toggleBlockNotif(b: RoutineBlock): void {
+    const blockId = b.id;
+    this.blockNotifEnabled.update(set => {
+      const next = new Set(set);
+      if (next.has(blockId)) {
+        next.delete(blockId);
+      } else {
+        next.add(blockId);
+        // Create a notification for this block
+        if (!blockId.startsWith('synth-')) {
+          this.notifSvc.generate(this.selectedDate()).subscribe({ error: () => {} });
+        }
+        // Show local browser notification as confirmation
+        this.notifSvc.showLocalNotification(
+          'Lembrete ativado',
+          `Voce sera lembrado: ${b.label} as ${b.startTime}`
+        );
+      }
+      return next;
+    });
+  }
+
   toggleBlockComplete(b: RoutineBlock, event: MouseEvent): void {
     // If undoing, call immediately without photo prompt
     if (b.completedAt) {
       this._doCompleteBlock(b.id, event);
       return;
     }
+
+    // Exercise blocks: redirect to workouts page
+    if (b.type === 'exercise') {
+      this.router.navigate(['/workouts']);
+      return;
+    }
+
+    // Water blocks: open water modal
+    if (b.type === 'water') {
+      this.waterModalOpen.set(true);
+      return;
+    }
+
+    // Sun exposure blocks: only allow before 10h or after 16h
+    if (b.type === 'sun_exposure') {
+      const now = new Date();
+      const currentHour = now.getHours();
+      if (currentHour >= 10 && currentHour < 16) {
+        alert('Exposicao solar so pode ser registrada antes das 10h ou apos as 16h para proteger sua saude. Evite o sol entre 10h e 16h!');
+        return;
+      }
+    }
+
     // New completion: show photo share prompt
     this.photoPromptBlock.set({ id: b.id, event });
     this.photoDraftDataUrl.set(null);
@@ -1739,6 +1212,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         } else if (result.message && (result.capReached || result.outOfWindow)) {
           this.showXpBlockToast(result.message);
         }
+        // Refresh missions — block completion may auto-complete ACTIVITY or SLEEP_BLOCK
+        this.missionsWidget?.refresh();
       },
       error: (err) => {
         this.completingBlock.set(null);

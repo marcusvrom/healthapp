@@ -1,0 +1,145 @@
+<div class="page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <span class="hero-emoji">📸</span>
+    <h2>Check-in Semanal</h2>
+    <p>Registre seu progresso, ganhe XP e deixe o Copiloto analisar sua evolução.</p>
+  </div>
+
+  <!-- Success banner after save -->
+  @if (justSaved()) {
+    <div class="success-banner">
+      <span class="sb-icon">🎉</span>
+      <div class="sb-text">
+        <h4>Check-in registrado!</h4>
+        <p>Incrível! Seus dados foram salvos. O Copiloto já está analisando sua evolução.</p>
+      </div>
+      <span class="xp-badge">+50 XP</span>
+    </div>
+  }
+
+  <!-- Already checked in this week -->
+  @if (alreadyCheckedInThisWeek()) {
+    <div class="week-done-banner">
+      <span class="sb-icon">✅</span>
+      <div class="sb-text">
+        <h4>Check-in da semana já realizado</h4>
+        <p>Você registrou em {{ alreadyCheckedInThisWeek()! | date:'dd/MM/yyyy' }}. O próximo check-in estará disponível na segunda-feira.</p>
+      </div>
+    </div>
+  }
+
+  <!-- Check-in form -->
+  <div class="form-card" [class.disabled]="alreadyCheckedInThisWeek()">
+    <h3>⚖️ Dados de hoje · {{ todayLabel }}</h3>
+
+    <div class="fields-grid">
+      <!-- Weight -->
+      <div class="form-group">
+        <label>Peso atual (kg) *</label>
+        <input type="number"
+          [ngModel]="currentWeight()"
+          (ngModelChange)="currentWeight.set($event ? +$event : null)"
+          placeholder="ex: 78.5" min="20" max="300" step="0.1" />
+      </div>
+
+      <!-- Waist -->
+      <div class="form-group">
+        <label>Circunferência abdominal (cm)</label>
+        <input type="number" [(ngModel)]="waistCircumference"
+          placeholder="opcional" min="40" max="200" step="0.5" />
+      </div>
+
+      <!-- Adherence — auto-calculated + optional override -->
+      <div class="form-group field-full">
+        <label>Adesão ao plano esta semana *</label>
+
+        @if (adherenceData(); as data) {
+          @if (data.weekPct !== null) {
+            <!-- Auto-calc result -->
+            <div class="adherence-auto">
+              <span class="auto-label">Calculado automaticamente pelos blocos concluídos</span>
+              <span class="auto-pct">{{ data.weekPct }}%</span>
+              <span class="auto-desc">de média semanal ({{ data.dailyStats.length }} dia(s) com rotina)</span>
+
+              <!-- Daily breakdown pills -->
+              @if (data.dailyStats.length > 0) {
+                <div class="daily-breakdown">
+                  @for (d of data.dailyStats; track d.date) {
+                    <div class="day-pill"
+                      [class.pct-high]="d.pct >= 70"
+                      [class.pct-mid]="d.pct >= 35 && d.pct < 70"
+                      [class.pct-low]="d.pct > 0 && d.pct < 35"
+                      [class.pct-none]="d.pct === 0">
+                      <span class="day-name">{{ dayLabel(d.date) }}</span>
+                      <div class="day-bar"><div class="fill" [style.width.%]="d.pct"></div></div>
+                      <span class="day-pct">{{ d.pct }}%</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+
+        <!-- Stars (pre-filled from auto-calc, can be overridden) -->
+        <div class="star-row">
+          @for (s of [1,2,3,4,5]; track s) {
+            <span class="star" [class.active]="s <= adherenceScore()"
+              (click)="adherenceScore.set(s)">
+              {{ s <= adherenceScore() ? '⭐' : '☆' }}
+            </span>
+          }
+        </div>
+        <div class="adherence-label">{{ adherenceLabel() }}</div>
+        @if (adherenceData()?.weekPct !== null) {
+          <div class="override-hint">Clique nas estrelas para corrigir se desejar.</div>
+        }
+      </div>
+
+      <!-- Notes -->
+      <div class="form-group field-full">
+        <label>Observações (opcional)</label>
+        <textarea [(ngModel)]="notes" placeholder="Como foi a semana? Algo relevante?"></textarea>
+      </div>
+    </div>
+
+    <button class="btn-submit" (click)="save()" [disabled]="!canSave() || saving()">
+      @if (saving()) {
+        <span class="spinner" style="width:18px;height:18px"></span> Salvando...
+      } @else {
+        ✅ Registrar Check-in &nbsp; <span class="xp-badge">+50 XP</span>
+      }
+    </button>
+  </div>
+
+  <!-- History -->
+  <div class="history-card">
+    <h3>📋 Histórico de Check-ins</h3>
+
+    @if (loading()) {
+      <div class="empty-history"><span class="spinner"></span></div>
+    } @else if (checkIns().length === 0) {
+      <div class="empty-history">
+        <p>Nenhum check-in registrado ainda.</p>
+        <p style="margin-top:.5rem">Faça seu primeiro check-in para começar a acompanhar seu progresso!</p>
+      </div>
+    } @else {
+      <div class="history-list">
+        @for (ci of checkIns(); track ci.id) {
+          <div class="history-item">
+            <span class="hi-date">{{ ci.date | date:'dd/MM/yy' }}</span>
+            <span class="hi-weight">{{ ci.currentWeight | number:'1.1-1' }} kg</span>
+            @if (ci.waistCircumference) {
+              <span class="hi-waist">• {{ ci.waistCircumference }} cm</span>
+            }
+            <span class="hi-stars">{{ starsFor(ci.adherenceScore) }}</span>
+            <button class="hi-del" (click)="remove(ci.id)" title="Remover">✕</button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+</div>

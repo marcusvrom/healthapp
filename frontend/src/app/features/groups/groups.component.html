@@ -1,0 +1,161 @@
+<div class="page">
+  <div class="page-header">
+    <h2>👥 Grupos</h2>
+    <p>Compita em times, veja o ranking semanal e metas coletivas.</p>
+  </div>
+
+  @if (!selectedGroupId()) {
+    <!-- ── Groups list ──────────────────────────────────────────────────── -->
+    <div class="actions-row">
+      <button class="primary" (click)="showCreate = true">➕ Criar grupo</button>
+      <button class="secondary" (click)="showJoin = true">🔗 Entrar por código</button>
+    </div>
+
+    @if (loading()) {
+      <div class="empty-state"><span class="emoji">⏳</span><p>Carregando...</p></div>
+    } @else if (groups().length === 0) {
+      <div class="empty-state">
+        <span class="emoji">👥</span>
+        <p>Você ainda não faz parte de nenhum grupo.<br>Crie um ou entre com um código de convite!</p>
+      </div>
+    } @else {
+      <p class="section-title">Seus grupos</p>
+      <div class="groups-list">
+        @for (g of groups(); track g.id) {
+          <div class="group-card" (click)="openDetail(g.id)">
+            <span class="g-emoji">{{ g.avatarEmoji }}</span>
+            <div class="g-info">
+              <div class="g-name">{{ g.name }}</div>
+              <div class="g-meta">{{ g.memberCount }} membro{{ g.memberCount !== 1 ? 's' : '' }}
+                @if (g.isOwner) { · <strong>Admin</strong> }
+              </div>
+            </div>
+            <span class="g-arrow">›</span>
+          </div>
+        }
+      </div>
+    }
+
+  } @else if (detailLoading()) {
+    <div class="empty-state"><span class="emoji">⏳</span><p>Carregando grupo...</p></div>
+
+  } @else if (detail()) {
+    <!-- ── Group detail ─────────────────────────────────────────────────── -->
+    <div class="detail-panel">
+      <div class="panel-header">
+        <span class="p-emoji">{{ detail()!.group.avatarEmoji }}</span>
+        <div class="p-info">
+          <h3>{{ detail()!.group.name }}</h3>
+          <p>{{ detail()!.memberCount }} membro{{ detail()!.memberCount !== 1 ? 's' : '' }}</p>
+        </div>
+        <span class="invite-badge" (click)="copyCode(detail()!.group.inviteCode)"
+          title="Clique para copiar">
+          🔗 {{ detail()!.group.inviteCode }}
+        </span>
+        @if (copied()) { <span class="copied-hint">Copiado!</span> }
+        <button class="leave-btn" (click)="leave()">Sair</button>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="panel-section">
+        <h4>🏅 Ranking semanal</h4>
+        @for (m of detail()!.leaderboard; track m.userId; let i = $index) {
+          <div class="lb-row">
+            <span class="lb-rank">{{ rankMedal(i) }}</span>
+            @if (m.avatarUrl) {
+              <img [src]="img(m.avatarUrl)" class="lb-avatar" [alt]="m.name">
+            } @else {
+              <div class="lb-avatar">{{ initials(m.name) }}</div>
+            }
+            <div class="lb-info">
+              <div class="lb-name">{{ m.name }}</div>
+              <div class="lb-level">Nível {{ m.level }} · {{ m.levelTitle }}</div>
+            </div>
+            <span class="lb-xp">{{ m.weeklyXp }} XP</span>
+          </div>
+        }
+      </div>
+
+      <!-- Collective challenge progress -->
+      @if (detail()!.collectiveProgress.length) {
+        <div class="panel-section">
+          <h4>🏆 Metas coletivas (semana)</h4>
+          @for (cp of detail()!.collectiveProgress; track cp.challengeId) {
+            <div class="cp-row">
+              <span class="cp-emoji">{{ cp.emoji }}</span>
+              <div class="cp-body">
+                <div class="cp-title">{{ cp.title }}</div>
+                <div class="cp-bar">
+                  <div class="cp-fill"
+                    [class.done]="cp.completed"
+                    [style.width]="cpPct(cp) + '%'">
+                  </div>
+                </div>
+                <div class="cp-count">{{ cp.collectiveProgress }} / {{ cp.collectiveTarget }}</div>
+              </div>
+              @if (cp.completed) { <span class="cp-done">✅</span> }
+            </div>
+          }
+        </div>
+      }
+
+      <button class="back-btn" (click)="selectedGroupId.set(null)">← Voltar</button>
+    </div>
+  }
+</div>
+
+<!-- ── Create group modal ──────────────────────────────────────────────── -->
+@if (showCreate) {
+  <div class="modal-overlay" (click)="showCreate = false">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h3>➕ Criar grupo</h3>
+      <div class="field">
+        <label>Nome do grupo *</label>
+        <input type="text" [(ngModel)]="createForm.name" placeholder="Ex: Atletas do DF" maxlength="80">
+      </div>
+      <div class="field">
+        <label>Descrição (opcional)</label>
+        <textarea [(ngModel)]="createForm.description" placeholder="Sobre o grupo..."></textarea>
+      </div>
+      <div class="field">
+        <label>Emoji do grupo</label>
+        <div class="emoji-picker">
+          @for (e of EMOJI_OPTIONS; track e) {
+            <span [class.selected]="createForm.avatarEmoji === e"
+              (click)="createForm.avatarEmoji = e">{{ e }}</span>
+          }
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="ghost" (click)="showCreate = false">Cancelar</button>
+        <button class="primary" (click)="createGroup()"
+          [disabled]="!createForm.name.trim() || creating()">
+          {{ creating() ? '...' : 'Criar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Join group modal ────────────────────────────────────────────────── -->
+@if (showJoin) {
+  <div class="modal-overlay" (click)="showJoin = false">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h3>🔗 Entrar com código</h3>
+      <div class="field">
+        <label>Código de convite (8 letras)</label>
+        <input type="text" [(ngModel)]="joinCode"
+          placeholder="Ex: ABCD1234" maxlength="8"
+          style="text-transform:uppercase; letter-spacing:.1em; font-family:monospace">
+      </div>
+      @if (joinError()) { <p style="font-size:.78rem;color:var(--color-danger)">{{ joinError() }}</p> }
+      <div class="modal-actions">
+        <button class="ghost" (click)="showJoin = false">Cancelar</button>
+        <button class="primary" (click)="joinGroup()"
+          [disabled]="joinCode.length < 4 || joining()">
+          {{ joining() ? '...' : 'Entrar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

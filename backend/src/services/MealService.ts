@@ -154,10 +154,22 @@ export class MealService {
 
     // ── Consumed scheduled meals (recipe-linked) ──────────────────────────────
     // These are the single source of truth for recipe-based consumption.
+    // Must also include recurring meals whose daysOfWeek matches the date.
     const scheduledMealRepo = AppDataSource.getRepository(ScheduledMeal);
-    const consumedScheduled = await scheduledMealRepo.find({
-      where: { userId, scheduledDate: date, isConsumed: true },
-    });
+    const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
+    const consumedScheduled = await scheduledMealRepo
+      .createQueryBuilder("m")
+      .where("m.user_id = :userId", { userId })
+      .andWhere("m.is_consumed = true")
+      .andWhere(
+        `(
+          (m.is_recurring = false AND m.scheduled_date = :date)
+          OR
+          (m.is_recurring = true AND m.days_of_week @> :dow::jsonb)
+        )`,
+        { date, dow: JSON.stringify([dayOfWeek]) }
+      )
+      .getMany();
 
     let schedKcal = 0, schedProtein = 0, schedCarbs = 0, schedFat = 0;
     for (const sm of consumedScheduled) {

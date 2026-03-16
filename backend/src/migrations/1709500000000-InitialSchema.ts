@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 /**
- * InitialSchema – creates all tables for the HealthApp MVP.
+ * InitialSchema – creates all tables for the AiraFit MVP.
  *
  * Tables created:
  *   users, health_profiles, blood_tests, exercises, routine_blocks

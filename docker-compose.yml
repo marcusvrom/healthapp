@@ -3,20 +3,20 @@ version: "3.9"
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: healthapp_postgres
+    container_name: airafit_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER:-healthapp}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-healthapp_secret}
-      POSTGRES_DB: ${DB_NAME:-healthapp_db}
+      POSTGRES_USER: ${DB_USER:-airafit}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-airafit_secret}
+      POSTGRES_DB: ${DB_NAME:-airafit_db}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - healthapp_net
+      - airafit_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-healthapp} -d ${DB_NAME:-healthapp_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-airafit} -d ${DB_NAME:-airafit_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,7 +25,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: healthapp_backend
+    container_name: airafit_backend
     restart: unless-stopped
     depends_on:
       postgres:
@@ -35,9 +35,9 @@ services:
       PORT: ${PORT:-3000}
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: ${DB_USER:-healthapp}
-      DB_PASSWORD: ${DB_PASSWORD:-healthapp_secret}
-      DB_NAME: ${DB_NAME:-healthapp_db}
+      DB_USER: ${DB_USER:-airafit}
+      DB_PASSWORD: ${DB_PASSWORD:-airafit_secret}
+      DB_NAME: ${DB_NAME:-airafit_db}
       JWT_SECRET: ${JWT_SECRET:-change_me_in_production_please}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
     ports:
@@ -46,13 +46,13 @@ services:
       - ./backend:/app
       - uploads_data:/app/uploads   # named volume keeps uploads across deploys
     networks:
-      - healthapp_net
+      - airafit_net
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: healthapp_frontend
+    container_name: airafit_frontend
     restart: unless-stopped
     depends_on:
       - backend
@@ -63,7 +63,7 @@ services:
     ports:
       - "${FRONTEND_PORT:-4200}:80"
     networks:
-      - healthapp_net
+      - airafit_net
 
 volumes:
   postgres_data:
@@ -72,5 +72,5 @@ volumes:
     driver: local
 
 networks:
-  healthapp_net:
+  airafit_net:
     driver: bridge

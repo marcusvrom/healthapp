@@ -4,7 +4,6 @@ import { HealthProfileController } from "../controllers/HealthProfileController"
 import { BloodTestController } from "../controllers/BloodTestController";
 import { ExerciseController } from "../controllers/ExerciseController";
 import { RoutineController } from "../controllers/RoutineController";
-import { FoodController } from "../controllers/FoodController";
 import { MealController } from "../controllers/MealController";
 import { WaterController } from "../controllers/WaterController";
 import { HormoneController } from "../controllers/HormoneController";
@@ -25,6 +24,9 @@ import { GroupController } from "../controllers/GroupController";
 import { FriendshipController } from "../controllers/FriendshipController";
 import { CommunityController } from "../controllers/CommunityController";
 import { DailyMissionController } from "../controllers/DailyMissionController";
+import { OnboardingController } from "../controllers/OnboardingController";
+import { NotificationController } from "../controllers/NotificationController";
+import { WorkoutController } from "../controllers/WorkoutController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -60,16 +62,14 @@ router.post("/exercises", ...auth(ExerciseController.create));
 router.patch("/exercises/:id", ...auth(ExerciseController.update));
 router.delete("/exercises/:id", ...auth(ExerciseController.remove));
 
-// ── Routine ───────────────────────────────────────────────────────────────────
+// ── Routine (Canvas) ──────────────────────────────────────────────────────────
 router.get("/routine",                            ...auth(RoutineController.get));
-router.post("/routine/generate",                  ...auth(RoutineController.generate));
+router.get("/routine/feedback",                   ...auth(RoutineController.feedback));
+router.post("/routine/generate",                  ...auth(RoutineController.generate));  // deprecated → 410
+router.post("/routine/blocks",                    ...auth(RoutineController.createBlock));
+router.patch("/routine/blocks/:id",               ...auth(RoutineController.updateBlock));
 router.patch("/routine/blocks/:id/complete",      ...auth(RoutineController.completeBlock));
-
-// ── Foods (search is public; create requires auth) ────────────────────────────
-router.get("/foods/search", FoodController.search);
-router.get("/foods/barcode/:barcode", FoodController.byBarcode);
-router.get("/foods/:id", FoodController.getOne);
-router.post("/foods", ...auth(FoodController.create));
+router.delete("/routine/blocks/:id",              ...auth(RoutineController.deleteBlock));
 
 // ── Meals ─────────────────────────────────────────────────────────────────────
 router.get("/meals", ...auth(MealController.list));
@@ -207,8 +207,36 @@ router.delete("/friends/:id",          ...auth(FriendshipController.remove));
 router.get("/community/search",        ...auth(CommunityController.search));
 router.get("/community/profile/:id",   ...auth(CommunityController.profile));
 
+// ── Workouts (Fichas de Treino) ──────────────────────────────────────────────
+// NOTE: static sub-paths must come BEFORE parameterized routes
+router.get("/workouts/templates",                        ...auth(WorkoutController.listTemplates));
+router.post("/workouts/from-template",                   ...auth(WorkoutController.createFromTemplate));
+router.get("/workouts",                                  ...auth(WorkoutController.list));
+router.post("/workouts",                                 ...auth(WorkoutController.create));
+router.get("/workouts/:id",                              ...auth(WorkoutController.detail));
+router.patch("/workouts/:id",                            ...auth(WorkoutController.update));
+router.delete("/workouts/:id",                           ...auth(WorkoutController.remove));
+router.post("/workouts/:id/schedule",                    ...auth(WorkoutController.schedule));
+router.post("/workouts/:id/exercises",                   ...auth(WorkoutController.addExercise));
+router.patch("/workouts/:sheetId/exercises/:exId",       ...auth(WorkoutController.updateExercise));
+router.delete("/workouts/:sheetId/exercises/:exId",      ...auth(WorkoutController.removeExercise));
+
+// ── Onboarding ───────────────────────────────────────────────────────────────
+router.post("/onboarding/complete",    ...auth(OnboardingController.complete));
+
 // ── Daily Missions ────────────────────────────────────────────────────────────
 router.get("/missions/today",          ...auth(DailyMissionController.today));
-router.post("/missions/:id/complete",  ...auth(DailyMissionController.complete));
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+// NOTE: static sub-paths must come BEFORE parameterized routes
+router.get("/notifications/unread-count",  ...auth(NotificationController.unreadCount));
+router.get("/notifications/preference",    ...auth(NotificationController.getPreference));
+router.patch("/notifications/preference",  ...auth(NotificationController.setPreference));
+router.patch("/notifications/read-all",    ...auth(NotificationController.markAllRead));
+router.post("/notifications/generate",     ...auth(NotificationController.generate));
+router.post("/notifications/subscribe",    ...auth(NotificationController.subscribe));
+router.post("/notifications/unsubscribe",  ...auth(NotificationController.unsubscribe));
+router.get("/notifications",               ...auth(NotificationController.list));
+router.patch("/notifications/:id/read",    ...auth(NotificationController.markRead));
 
 export default router;

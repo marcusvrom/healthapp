@@ -1,0 +1,38 @@
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">🎯 Missões do Dia</div>
+    @if (!loading() && missions().length > 0) {
+      <span class="progress-text">
+        {{ completedCount() }}/{{ missions().length }} concluídas
+      </span>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading">Carregando missões…</div>
+  } @else {
+    @if (allDone()) {
+      <div class="all-done">✅ Todas as missões de hoje concluídas!</div>
+    }
+    <div class="mission-list">
+      @for (m of missions(); track m.id) {
+        <div class="mission-item" [class.done]="m.isCompleted">
+          <div class="check" [class.checked]="m.isCompleted">
+            @if (m.isCompleted) { ✓ }
+          </div>
+          <span class="icon">{{ missionIcon(m.missionType) }}</span>
+          <div class="content" [class.done-text]="m.isCompleted">
+            <div class="title">{{ m.title }}</div>
+            <div class="xp">+{{ m.xpReward }} XP</div>
+          </div>
+          @if (!m.isCompleted) {
+            <span class="auto-hint">auto</span>
+          }
+          @if (animating() === m.id) {
+            <div class="ripple">+{{ m.xpReward }} XP</div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,352 @@
+<div class="page">
+  <div class="page-header">
+    <h2>📊 Métricas & Progresso</h2>
+    <p>Acompanhe sua evolução de peso, hidratação e consistência.</p>
+  </div>
+
+  <!-- Streak cards -->
+  <div class="streak-row">
+    <div class="streak-card" [class.on-fire]="(streaks()?.waterCurrentStreak ?? 0) >= 3">
+      <span class="streak-icon">{{ (streaks()?.waterCurrentStreak ?? 0) >= 3 ? '🔥' : '💧' }}</span>
+      <div class="streak-value">{{ streaks()?.waterCurrentStreak ?? '—' }}</div>
+      <div class="streak-label">Sequência atual</div>
+      <div class="streak-sub">dias batendo a meta de água</div>
+    </div>
+    <div class="streak-card">
+      <span class="streak-icon">🏆</span>
+      <div class="streak-value">{{ streaks()?.waterLongestStreak ?? '—' }}</div>
+      <div class="streak-label">Melhor sequência</div>
+      <div class="streak-sub">maior recorde de hidratação</div>
+    </div>
+    <div class="streak-card">
+      <span class="streak-icon">⚖️</span>
+      <div class="streak-value">{{ latestWeight() ?? '—' }}</div>
+      <div class="streak-label">Último peso (kg)</div>
+      <div class="streak-sub">{{ weightDelta() }}</div>
+    </div>
+    <div class="streak-card">
+      <span class="streak-icon">📈</span>
+      <div class="streak-value">{{ avgWater() | number:'1.0-0' }}</div>
+      <div class="streak-label">Média de água</div>
+      <div class="streak-sub">ml/dia nos últimos 7 dias</div>
+    </div>
+  </div>
+
+  <!-- Charts grid -->
+  <div class="charts-grid">
+
+    <!-- Weight line chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>⚖️ Evolução do Peso</h3>
+        <div class="actions">
+          <div class="log-weight-form">
+            <div class="form-group">
+              <input type="number" [(ngModel)]="newWeightVal" placeholder="kg" min="20" max="300" step="0.1"
+                style="width:80px;padding:.35rem .5rem;border:1.5px solid var(--color-border);border-radius:6px;font-size:.82rem" />
+            </div>
+            <button class="btn btn-primary btn-sm" (click)="logWeight()" [disabled]="!newWeightVal || savingWeight()">
+              {{ savingWeight() ? '...' : '+ Peso' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      @if (weightLoading()) {
+        <div class="chart-empty"><span class="spinner"></span></div>
+      } @else if (weightPoints().length < 2) {
+        <div class="chart-empty">
+          <span class="emoji">⚖️</span>
+          <p>Registre pelo menos 2 pesagens<br>para ver o gráfico de evolução.</p>
+        </div>
+      } @else {
+        <div class="chart-container">
+          <svg class="svg-chart" [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#10b981" stop-opacity=".4"/>
+                <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <!-- Grid lines -->
+            @for (tick of weightYTicks(); track tick.y) {
+              <line class="grid-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="tick.y" [attr.y2]="tick.y"/>
+              <text class="axis-label" [attr.x]="padL - 4" [attr.y]="tick.y + 3" text-anchor="end">{{ tick.label }}</text>
+            }
+            <!-- X labels -->
+            @for (pt of weightXLabels(); track pt.x) {
+              <text class="axis-label" [attr.x]="pt.x" [attr.y]="svgH - padB + 14" text-anchor="middle">{{ pt.label }}</text>
+            }
+            <!-- Area fill -->
+            <path class="line-area" [attr.d]="weightAreaPath()"/>
+            <!-- Line -->
+            <path class="line-path" [attr.d]="weightLinePath()"/>
+            <!-- Dots -->
+            @for (pt of weightDots(); track pt.x) {
+              <circle class="line-dot" [attr.cx]="pt.x" [attr.cy]="pt.y" r="4"/>
+            }
+            <!-- Axes -->
+            <line class="axis-line" [attr.x1]="padL" [attr.x2]="padL" [attr.y1]="padT" [attr.y2]="svgH - padB"/>
+            <line class="axis-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="svgH - padB" [attr.y2]="svgH - padB"/>
+          </svg>
+        </div>
+      }
+    </div>
+
+    <!-- Water bar chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>💧 Hidratação — Últimos Dias</h3>
+        <div class="period-btns">
+          @for (d of [7, 14]; track d) {
+            <button class="period-btn" [class.active]="waterDays() === d" (click)="setWaterDays(d)">{{ d }}d</button>
+          }
+        </div>
+      </div>
+
+      @if (waterLoading()) {
+        <div class="chart-empty"><span class="spinner"></span></div>
+      } @else if (waterHistory().length === 0) {
+        <div class="chart-empty">
+          <span class="emoji">💧</span>
+          <p>Nenhum dado de hidratação ainda.<br>Comece a registrar na tela de hidratação.</p>
+        </div>
+      } @else {
+        <div class="chart-container">
+          <svg class="svg-chart" [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH" preserveAspectRatio="xMidYMid meet">
+            <!-- Grid lines -->
+            @for (tick of waterYTicks(); track tick.y) {
+              <line class="grid-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="tick.y" [attr.y2]="tick.y"/>
+              <text class="axis-label" [attr.x]="padL - 4" [attr.y]="tick.y + 3" text-anchor="end">{{ tick.label }}</text>
+            }
+            <!-- Bars -->
+            @for (bar of waterBars(); track bar.x) {
+              <!-- Goal bar -->
+              <rect class="bar-goal"
+                [attr.x]="bar.x" [attr.y]="bar.goalY"
+                [attr.width]="bar.w / 2 - 1" [attr.height]="bar.goalH"
+                rx="3"/>
+              <!-- Consumed bar -->
+              <rect class="bar-consumed"
+                [attr.x]="bar.x + bar.w / 2" [attr.y]="bar.consumedY"
+                [attr.width]="bar.w / 2 - 1" [attr.height]="bar.consumedH"
+                rx="3"/>
+              <!-- X label -->
+              <text class="axis-label" [attr.x]="bar.x + bar.w / 2" [attr.y]="svgH - padB + 14" text-anchor="middle">{{ bar.label }}</text>
+            }
+            <!-- Axes -->
+            <line class="axis-line" [attr.x1]="padL" [attr.x2]="padL" [attr.y1]="padT" [attr.y2]="svgH - padB"/>
+            <line class="axis-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="svgH - padB" [attr.y2]="svgH - padB"/>
+          </svg>
+        </div>
+        <!-- Legend -->
+        <div style="display:flex;gap:.75rem;margin-top:.5rem;font-size:.72rem;color:var(--color-text-muted)">
+          <span style="display:flex;align-items:center;gap:.3rem">
+            <span style="width:12px;height:12px;background:rgba(14,165,233,.4);border-radius:2px;display:inline-block"></span> Meta
+          </span>
+          <span style="display:flex;align-items:center;gap:.3rem">
+            <span style="width:12px;height:12px;background:rgba(16,185,129,.7);border-radius:2px;display:inline-block"></span> Consumido
+          </span>
+        </div>
+        <!-- Day pills legend -->
+        <div class="water-legend">
+          @for (d of waterHistory(); track d.date) {
+            <span class="day-pill" [class.met]="d.metGoal" [class.not-met]="!d.metGoal">
+              {{ d.metGoal ? '✓' : '✗' }} {{ shortDate(d.date) }}
+            </span>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Water detail table (full width) -->
+    @if (waterHistory().length > 0) {
+      <div class="chart-card" style="grid-column:1/-1">
+        <div class="chart-header"><h3>📋 Detalhe de Hidratação</h3></div>
+        <div class="water-detail">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th><th>Consumido</th><th>Meta</th><th>%</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of waterHistory().slice().reverse(); track d.date) {
+                <tr>
+                  <td>{{ d.date | date:'EEE, dd/MM' }}</td>
+                  <td>{{ d.consumedMl | number:'1.0-0' }} ml</td>
+                  <td>{{ d.goalMl | number:'1.0-0' }} ml</td>
+                  <td>{{ (d.consumedMl / d.goalMl * 100) | number:'1.0-0' }}%</td>
+                  <td>
+                    @if (d.metGoal) {
+                      <span class="met-icon">✓ Meta batida</span>
+                    } @else {
+                      <span class="unmet-icon">✗ {{ d.goalMl - d.consumedMl | number:'1.0-0' }} ml abaixo</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── Check-in weight chart ──────────────────────────────────────────── -->
+  @if (checkIns().length > 0) {
+    <div class="checkin-chart-card">
+      <div class="chart-header">
+        <h3>📸 Progresso por Check-in Semanal</h3>
+        <a routerLink="/check-in">+ Novo Check-in</a>
+      </div>
+
+      @if (checkIns().length >= 2) {
+        <div class="chart-container">
+          <svg class="svg-chart" [attr.viewBox]="'0 0 ' + svgW + ' ' + svgH" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <linearGradient id="ciAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#8b5cf6" stop-opacity=".4"/>
+                <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            @for (tick of ciYTicks(); track tick.y) {
+              <line class="grid-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="tick.y" [attr.y2]="tick.y"/>
+              <text class="axis-label" [attr.x]="padL - 4" [attr.y]="tick.y + 3" text-anchor="end">{{ tick.label }}</text>
+            }
+            @for (pt of ciXLabels(); track pt.x) {
+              <text class="axis-label" [attr.x]="pt.x" [attr.y]="svgH - padB + 14" text-anchor="middle">{{ pt.label }}</text>
+            }
+            <path style="fill:url(#ciAreaGrad);opacity:.25" [attr.d]="ciAreaPath()"/>
+            <path style="fill:none;stroke:#8b5cf6;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round" [attr.d]="ciLinePath()"/>
+            @for (pt of ciDots(); track pt.x) {
+              <circle [attr.cx]="pt.x" [attr.cy]="pt.y" r="4" fill="#8b5cf6"/>
+              @if (pt.adherence) {
+                <text class="data-label" [attr.x]="pt.x" [attr.y]="pt.y - 7" text-anchor="middle">{{ pt.adherence }}★</text>
+              }
+            }
+            <line class="axis-line" [attr.x1]="padL" [attr.x2]="padL" [attr.y1]="padT" [attr.y2]="svgH - padB"/>
+            <line class="axis-line" [attr.x1]="padL" [attr.x2]="svgW - padR" [attr.y1]="svgH - padB" [attr.y2]="svgH - padB"/>
+          </svg>
+        </div>
+      } @else {
+        <div class="chart-empty">
+          <span class="emoji">📸</span>
+          <p>Faça pelo menos 2 check-ins para ver o gráfico de evolução.</p>
+        </div>
+      }
+
+      <div class="checkin-table">
+        <table>
+          <thead>
+            <tr><th>Data</th><th>Peso (kg)</th><th>Cintura</th><th>Adesão</th><th>Notas</th></tr>
+          </thead>
+          <tbody>
+            @for (ci of checkIns(); track ci.id) {
+              <tr>
+                <td>{{ ci.date | date:'dd/MM/yy' }}</td>
+                <td>{{ ci.currentWeight | number:'1.1-1' }}</td>
+                <td>{{ ci.waistCircumference ? (ci.waistCircumference + ' cm') : '—' }}</td>
+                <td class="stars">{{ starsFor(ci.adherenceScore) }}</td>
+                <td style="color:var(--color-text-muted);font-size:.72rem">{{ ci.notes || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- ── Copilot insights ────────────────────────────────────────────────── -->
+  <div class="copilot-section">
+    <div class="section-header">
+      <h2>🤖 Insights do Copiloto</h2>
+      <a routerLink="/check-in">Fazer Check-in</a>
+    </div>
+
+    @if (insightsLoading()) {
+      <div style="text-align:center;padding:2rem"><span class="spinner"></span></div>
+    } @else {
+      <div class="insight-cards">
+        @for (ins of insights(); track ins.title) {
+          <div class="insight-card" [class]="ins.type">
+            <span class="ic-icon">{{ insightIcon(ins.type) }}</span>
+            <div class="ic-body">
+              <h4>{{ ins.title }}</h4>
+              <p>{{ ins.message }}</p>
+              @if (ins.action) {
+                <a class="ic-action" routerLink="/check-in">{{ ins.action }}</a>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- ── Daily XP Caps ────────────────────────────────────────────────── -->
+  @if (dailyCaps().length > 0) {
+    <div class="caps-card" style="margin-top:2rem">
+      <h3>⚡ Orçamento de XP de Hoje</h3>
+      <div class="cap-rows">
+        @for (c of dailyCaps(); track c.category) {
+          <div class="cap-row">
+            <span class="cap-icon">{{ capIcon(c.category) }}</span>
+            <span class="cap-label">{{ capLabel(c.category) }}</span>
+            <div class="cap-bar-track">
+              <div class="cap-bar-fill"
+                [style.width]="capPct(c) + '%'"
+                [style.background]="c.remaining === 0 ? '#ef4444' : 'var(--color-primary)'">
+              </div>
+            </div>
+            <span class="cap-text">
+              @if (c.remaining === 0) { Limite ✓ }
+              @else { +{{ c.remaining }} XP }
+            </span>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ── Weekly Ranking ────────────────────────────────────────────────── -->
+  <div class="ranking-section">
+    <div class="section-header">
+      <h2>🏆 Ranking Semanal</h2>
+      <span class="period-pill">Últimos 7 dias</span>
+    </div>
+
+    @if (rankingLoading()) {
+      <div style="text-align:center;padding:2rem"><span class="spinner"></span></div>
+    } @else if (ranking().length === 0) {
+      <div class="chart-empty">
+        <span class="emoji">🏆</span>
+        <p>Nenhum XP registrado esta semana ainda. Seja o primeiro!</p>
+      </div>
+    } @else {
+      <div class="ranking-list">
+        @for (entry of ranking(); track entry.userId; let i = $index) {
+          <div class="ranking-item"
+            [class.rank-1]="i === 0" [class.rank-2]="i === 1"
+            [class.rank-3]="i === 2" [class.is-me]="entry.userId === myUserId()">
+            <span class="rank-pos">{{ rankMedal(i) }}</span>
+            @if (entry.avatarUrl) {
+              <img class="rank-avatar" [src]="img(entry.avatarUrl)" [alt]="entry.name">
+            } @else {
+              <div class="rank-avatar">{{ entry.name.charAt(0).toUpperCase() }}</div>
+            }
+            <div class="rank-info">
+              <div class="rank-name">{{ entry.name }}{{ entry.userId === myUserId() ? ' (você)' : '' }}</div>
+              <div class="rank-level">Nível {{ entry.level }} · {{ entry.levelTitle }}</div>
+            </div>
+            <div class="rank-xp">
+              <div class="xp-val">{{ entry.weeklyXp }}</div>
+              <div class="xp-label">XP na semana</div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+</div>

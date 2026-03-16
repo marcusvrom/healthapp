@@ -1,0 +1,91 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>💊 Medicamentos & Suplementos</h2>
+      <p>Gerencie seus remédios, vitaminas e suplementos diários.</p>
+    </div>
+    <button class="btn btn-primary" (click)="openForm()">+ Adicionar</button>
+  </div>
+
+  <!-- Add/Edit form -->
+  @if (showForm()) {
+    <div class="form-card">
+      <div class="form-title">{{ editingId() ? '✏️ Editar' : '➕ Novo' }} item</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nome *</label>
+          <input type="text" [(ngModel)]="form.name" placeholder="Ex: Creatina, Vitamina D..." />
+        </div>
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select [(ngModel)]="form.type">
+            <option value="SUPLEMENTO">Suplemento</option>
+            <option value="VITAMINA">Vitamina</option>
+            <option value="REMEDIO_CONTROLADO">Medicamento Controlado</option>
+            <option value="TRT">TRT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Dosagem *</label>
+          <input type="text" [(ngModel)]="form.dosage" placeholder="Ex: 5g, 2000UI, 1 comprimido..." />
+        </div>
+        <div class="form-group">
+          <label>Horário *</label>
+          <input type="time" [(ngModel)]="form.scheduledTime" />
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:.875rem">
+        <label>Observações</label>
+        <input type="text" [(ngModel)]="form.notes" placeholder="Ex: Tomar com refeição, em jejum..." />
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" (click)="cancelForm()">Cancelar</button>
+        <button class="btn btn-primary" (click)="submit()" [disabled]="saving() || !canSubmit()">
+          {{ saving() ? '⏳ Salvando...' : editingId() ? '💾 Atualizar' : '✅ Adicionar' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- List -->
+  @if (loading()) {
+    <div style="text-align:center;padding:3rem;color:var(--color-text-muted)">
+      <div class="spinner" style="margin:0 auto 1rem"></div> Carregando...
+    </div>
+  } @else if (medications().length === 0 && !showForm()) {
+    <div class="empty-state">
+      <span class="emoji">💊</span>
+      <p>Nenhum medicamento ou suplemento cadastrado.<br>
+        Clique em <strong>+ Adicionar</strong> para começar.</p>
+    </div>
+  } @else {
+    <div class="med-list">
+      @for (med of medications(); track med.id) {
+        <div class="med-card" [class.inactive]="!med.isActive">
+          <span class="med-icon">{{ typeIcon(med.type) }}</span>
+          <div class="med-info">
+            <div class="med-name">{{ med.name }}</div>
+            <div class="med-dosage">{{ med.dosage }}</div>
+            <div class="med-time">⏰ {{ med.scheduledTime }}</div>
+            @if (med.notes) {
+              <div class="med-notes">{{ med.notes }}</div>
+            }
+          </div>
+          <div class="med-actions">
+            <span class="type-badge" [style.color]="typeMeta(med.type).color" [style.background]="typeMeta(med.type).bg">
+              {{ typeMeta(med.type).label }}
+            </span>
+            <button class="status-toggle" [class.active]="med.isActive" [class.inactive]="!med.isActive"
+              (click)="toggleActive(med)">
+              {{ med.isActive ? '✓ Ativo' : '✗ Inativo' }}
+            </button>
+            <div style="display:flex;gap:.25rem">
+              <button class="icon-btn" (click)="edit(med)" title="Editar">✏️</button>
+              <button class="icon-btn" (click)="remove(med.id)" title="Remover">🗑️</button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

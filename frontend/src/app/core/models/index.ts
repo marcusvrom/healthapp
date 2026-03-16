@@ -20,6 +20,8 @@ export type ActivityFactor =
 
 export type PrimaryGoal = 'emagrecimento' | 'ganho_massa' | 'manutencao' | 'saude_geral' | 'diabetico';
 
+export type MainActivity = 'work' | 'study' | 'mixed' | 'flexible';
+
 export interface HealthProfile {
   id: string;
   userId: string;
@@ -28,10 +30,11 @@ export interface HealthProfile {
   height: number;
   gender: Gender;
   activityFactor: ActivityFactor;
+  mainActivity?: MainActivity;
   wakeUpTime: string;
   sleepTime: string;
-  workStartTime: string;
-  workEndTime: string;
+  workStartTime?: string;
+  workEndTime?: string;
   caloricGoal?: number;
   proteinGoalG?: number;
   carbsGoalG?: number;
@@ -167,7 +170,7 @@ export interface ProtocolToggleResult {
 }
 
 // ── Routine ───────────────────────────────────────────────────────────────────
-export type BlockType = 'sleep'|'work'|'exercise'|'meal'|'water'|'sun_exposure'|'free'|'custom'|'medication';
+export type BlockType = 'sleep'|'work'|'exercise'|'meal'|'water'|'sun_exposure'|'free'|'custom'|'medication'|'study';
 export type MealType =
   | 'breakfast'|'morning_snack'|'lunch'|'afternoon_snack'
   | 'pre_workout'|'post_workout'|'dinner'|'supper';
@@ -175,7 +178,7 @@ export type MealType =
 export interface RoutineBlock {
   id: string;
   userId: string;
-  routineDate: string;
+  routineDate?: string;
   type: BlockType;
   startTime: string;
   endTime: string;
@@ -188,10 +191,57 @@ export interface RoutineBlock {
   /** ISO timestamp set when the user marks this block completed. */
   completedAt?: string;
   xpAwarded?: boolean;
+  /** Canvas recurrence fields */
+  isRecurring?: boolean;
+  daysOfWeek?: number[];
+}
+
+// ── Canvas / Copilot ──────────────────────────────────────────────────────────
+export interface FeedbackGoals {
+  caloricGoal: number;
+  proteinGoal: number;
+  waterGoal: number;
+}
+
+export interface FeedbackScheduled {
+  kcal: number;
+  proteinG: number;
+  waterMl: number;
+  sleepHours: number;
+}
+
+export interface FeedbackItem {
+  type: 'checklist' | 'warning' | 'tip';
+  icon: string;
+  title: string;
+  message: string;
+  done?: boolean;
+}
+
+export interface FeedbackResponse {
+  date: string;
+  goals: FeedbackGoals;
+  scheduled: FeedbackScheduled;
+  completeness: number;
+  feedback: FeedbackItem[];
+}
+
+export interface CreateBlockDto {
+  type: BlockType;
+  label: string;
+  startTime: string;
+  endTime: string;
+  routineDate?: string;
+  isRecurring?: boolean;
+  daysOfWeek?: number[];
+  mealType?: MealType;
+  caloricTarget?: number;
+  waterMl?: number;
+  metadata?: Record<string, unknown>;
 }
 
 // ── Food ──────────────────────────────────────────────────────────────────────
-export type FoodSource = 'TACO' | 'TBCA' | 'OpenFoodFacts' | 'UserCustom';
+export type FoodSource = 'OpenFoodFacts' | 'UserCustom';
 
 export interface Food {
   id: string;
@@ -335,7 +385,7 @@ export interface LinkedRecipe {
 export interface ScheduledMeal {
   id: string;
   userId: string;
-  scheduledDate: string;
+  scheduledDate?: string;
   name: string;
   scheduledTime: string;
   caloricTarget?: number;
@@ -349,6 +399,19 @@ export interface ScheduledMeal {
   consumedAt?: string;
   xpAwarded: boolean;
   notes?: string;
+  /** Canvas recurrence fields */
+  isRecurring?: boolean;
+  daysOfWeek?: number[];
+}
+
+// ── Recipe Ingredients ────────────────────────────────────────────────────────
+export interface RecipeIngredient {
+  id: string;
+  recipeId: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  sortOrder: number;
 }
 
 // ── Recipes (Community) ───────────────────────────────────────────────────────
@@ -366,9 +429,16 @@ export interface Recipe {
   prepTimeMin?: number;
   isPublic: boolean;
   isActive: boolean;
+  /** Monotonically increasing version — bumped on every update */
+  version: number;
+  /** If this recipe is a fork of a community recipe, points to the original */
+  forkedFromId?: string;
+  /** Version of the original at fork time */
+  forkedAtVersion?: number;
   createdAt: string;
   updatedAt: string;
   reviews?: RecipeReview[];
+  ingredients?: RecipeIngredient[];
   /** Aggregated fields returned by the community feed endpoint */
   avgRating?: number;
   likeCount?: number;
@@ -390,6 +460,9 @@ export interface RecipeFeedItem extends Recipe {
   reviewCount: number;
   /** Whether the current user has already liked/reviewed */
   myReview?: RecipeReview;
+  /** Whether a newer version exists compared to user's fork */
+  hasUpdate?: boolean;
+  originalVersion?: number;
 }
 
 // ── Recipe Schedules (weekly repetitions) ─────────────────────────────────────
@@ -519,7 +592,7 @@ export interface UserSearchResult {
 // ── Daily Missions ─────────────────────────────────────────────────────────────
 export type MissionType =
   | 'WATER_GOAL' | 'ALL_MEALS' | 'ACTIVITY'
-  | 'WEIGHT_LOG' | 'BLOOD_TEST' | 'SLEEP_BLOCK' | 'CHECK_IN';
+  | 'WEIGHT_LOG' | 'SLEEP_BLOCK';
 
 export interface DailyMission {
   id:           string;
@@ -648,4 +721,71 @@ export interface GroupDetail {
   memberCount:        number;
   leaderboard:        GroupMemberEntry[];
   collectiveProgress: GroupChallengeProgress[];
+}
+
+// ── Notifications ────────────────────────────────────────────────────────────
+export type NotificationType =
+  | 'meal_reminder' | 'water_reminder' | 'exercise_reminder'
+  | 'medication_reminder' | 'block_reminder' | 'system';
+
+export interface AppNotification {
+  id:               string;
+  userId:           string;
+  type:             NotificationType;
+  title:            string;
+  message:          string;
+  blockId?:         string;
+  scheduledTime?:   string;
+  notificationDate?:string;
+  isRead:           boolean;
+  createdAt:        string;
+}
+
+export interface NotificationListResponse {
+  notifications: AppNotification[];
+  unreadCount:   number;
+}
+
+// ── Workout Sheets (Fichas de Treino) ─────────────────────────────────────────
+
+export interface WorkoutSheetExercise {
+  id:          string;
+  sheetId:     string;
+  name:        string;
+  sets:        number;
+  reps:        string;
+  restSeconds: number;
+  notes?:      string;
+  sortOrder:   number;
+}
+
+export interface WorkoutSheet {
+  id:               string;
+  userId:           string;
+  name:             string;
+  description?:     string;
+  category?:        string;
+  daysOfWeek:       number[];
+  estimatedMinutes: number;
+  isActive:         boolean;
+  fromTemplate?:    string;
+  exercises?:       WorkoutSheetExercise[];
+  createdAt:        string;
+}
+
+export interface TemplateExercise {
+  name:        string;
+  sets:        number;
+  reps:        string;
+  restSeconds: number;
+  notes?:      string;
+}
+
+export interface WorkoutTemplate {
+  slug:             string;
+  name:             string;
+  description:      string;
+  category:         string;
+  estimatedMinutes: number;
+  exercises:        TemplateExercise[];
 }

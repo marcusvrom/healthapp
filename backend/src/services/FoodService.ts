@@ -12,7 +12,7 @@ const OFF_FIELDS =
  * ───────────
  * Hybrid food-search strategy:
  *
- *  1. LOCAL  – full-text ILIKE search on our PostgreSQL (TACO / TBCA / cache)
+ *  1. LOCAL  – full-text ILIKE search on our PostgreSQL (cached foods)
  *  2. BARCODE – exact barcode lookup locally, then OpenFoodFacts
  *  3. FALLBACK – OpenFoodFacts search API when local results are scarce
  *  4. AUTO-SAVE – results from OpenFoodFacts are persisted to avoid repeat calls
@@ -36,7 +36,7 @@ export class FoodService {
     const localResults = await this.repo.find({
       where: { name: ILike(`%${trimmed}%`) },
       take: limit,
-      order: { source: "ASC", name: "ASC" }, // TACO/TBCA first
+      order: { source: "ASC", name: "ASC" },
     });
 
     if (localResults.length >= 5) return localResults;
@@ -105,7 +105,7 @@ export class FoodService {
 
       const res = await fetch(url.toString(), {
         signal: AbortSignal.timeout(8_000),
-        headers: { "User-Agent": "HealthApp-MVP/1.0 (contact@healthapp.local)" },
+        headers: { "User-Agent": "AiraFit-MVP/1.0 (contact@airafit.local)" },
       });
 
       if (!res.ok) return [];
@@ -124,7 +124,7 @@ export class FoodService {
       const url = `${OFF_BASE}/api/v0/product/${encodeURIComponent(barcode)}.json?fields=${OFF_FIELDS}`;
       const res = await fetch(url, {
         signal: AbortSignal.timeout(8_000),
-        headers: { "User-Agent": "HealthApp-MVP/1.0 (contact@healthapp.local)" },
+        headers: { "User-Agent": "AiraFit-MVP/1.0 (contact@airafit.local)" },
       });
 
       if (!res.ok) return null;

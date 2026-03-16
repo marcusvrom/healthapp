@@ -1,0 +1,467 @@
+<div class="page">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="hdr-text">
+      <h2>Receitas da Comunidade</h2>
+      <p>Explore receitas da comunidade, avalie, importe para sua colecao e vincule-as a sua dieta.</p>
+    </div>
+    <button class="btn-create" (click)="openCreateModal()">
+      <span>+</span> Nova Receita
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="sv">{{ feed().length }}</div>
+      <div class="sl">Comunidade</div>
+    </div>
+    <div class="stat-card">
+      <div class="sv">{{ mine().length }}</div>
+      <div class="sl">Minhas</div>
+    </div>
+    <div class="stat-card">
+      <div class="sv">{{ importedCount() }}</div>
+      <div class="sl">Importadas</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn" [class.active]="tab() === 'feed'"  (click)="setTab('feed')">
+      Comunidade <span class="tab-count">({{ feed().length }})</span>
+    </button>
+    <button class="tab-btn" [class.active]="tab() === 'mine'"  (click)="setTab('mine')">
+      Minhas Receitas <span class="tab-count">({{ mine().length }})</span>
+    </button>
+  </div>
+
+  <!-- Search & Filters -->
+  <div class="search-section">
+    <div class="search-bar">
+      <div class="search-wrap">
+        <span class="si">🔍</span>
+        @if (tab() === 'feed') {
+          <input type="text"
+            [placeholder]="searchPlaceholder()"
+            [ngModel]="searchQuery()" (ngModelChange)="onSearchChange($event)"
+            (keydown.enter)="doSearch()" />
+        } @else {
+          <input type="text" placeholder="Buscar nas minhas receitas..." [(ngModel)]="localQuery" />
+        }
+      </div>
+      @if (tab() === 'feed') {
+        <button class="btn btn-primary btn-sm" (click)="doSearch()" style="white-space:nowrap">Buscar</button>
+        @if (searchQuery()) {
+          <button class="btn btn-ghost btn-sm" (click)="clearSearch()">Limpar</button>
+        }
+      }
+    </div>
+
+    <div class="filter-row">
+      <span class="filter-label">Filtros:</span>
+      <button class="filter-chip" [class.active]="searchFilter() === 'all'"
+        (click)="setSearchFilter('all')">Todos</button>
+      <button class="filter-chip" [class.active]="searchFilter() === 'name'"
+        (click)="setSearchFilter('name')">Por Nome</button>
+      <button class="filter-chip" [class.active]="searchFilter() === 'ingredient'"
+        (click)="setSearchFilter('ingredient')">Por Ingrediente</button>
+      <button class="filter-chip" [class.active]="searchFilter() === 'description'"
+        (click)="setSearchFilter('description')">Por Descricao</button>
+
+      @if (tab() === 'feed') {
+        <select class="sort-select" [(ngModel)]="sortOption" (ngModelChange)="doSearch()">
+          <option value="rating">Melhor avaliadas</option>
+          <option value="likes">Mais curtidas</option>
+          <option value="recent">Mais recentes</option>
+        </select>
+      }
+    </div>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div style="text-align:center;padding:3rem;color:var(--color-text-muted)">
+      <div class="spinner" style="margin:0 auto 1rem"></div> Carregando receitas...
+    </div>
+  } @else {
+
+    <!-- Feed tab -->
+    @if (tab() === 'feed') {
+      @if (filteredFeed().length > 0) {
+        <div class="feed">
+          @for (r of filteredFeed(); track r.id) {
+            <div class="recipe-card">
+              <div class="card-body">
+                <div class="r-header">
+                  <span class="r-title">{{ r.title }}</span>
+                  @if (r.isPublic) { <span class="badge badge-public">Publico</span> }
+                  @if (r.hasUpdate) { <span class="badge badge-update">Atualizar</span> }
+                </div>
+
+                <div class="macro-row">
+                  <span class="mp kcal">{{ r.kcal | number:'1.0-0' }} kcal</span>
+                  <span class="mp prot">{{ r.proteinG | number:'1.0-0' }}g prot</span>
+                  <span class="mp carb">{{ r.carbsG | number:'1.0-0' }}g carb</span>
+                  <span class="mp fat">{{ r.fatG | number:'1.0-0' }}g gord</span>
+                  @if (r.servings > 1) { <span class="mp serv">x{{ r.servings }}</span> }
+                  @if (r.prepTimeMin) { <span class="mp time">{{ r.prepTimeMin }} min</span> }
+                </div>
+
+                @if (r.ingredients?.length) {
+                  <div class="ingredients-preview">
+                    <span class="ing-icon">&#127860;</span>
+                    <span class="ing-text">{{ ingredientsSummary(r.ingredients!) }}</span>
+                  </div>
+                }
+
+                @if (r.description) {
+                  <p class="r-desc">{{ r.description }}</p>
+                }
+
+                <div class="rating-row">
+                  <span class="stars">{{ stars(r.avgRating) }}</span>
+                  <span class="r-count">{{ r.avgRating | number:'1.1-1' }} ({{ r.reviewCount }})</span>
+                  <span class="like-count">
+                    @if (r.myReview?.isLiked) { <span style="color:#ef4444">&#10084;</span> }
+                    {{ r.likeCount }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="card-footer">
+                <button class="cf-btn primary" (click)="openImport(r)">
+                  {{ r.hasUpdate ? 'Atualizar' : 'Importar' }}
+                </button>
+                <button class="cf-btn" [class.liked]="r.myReview?.isLiked" (click)="toggleLike(r)">
+                  {{ r.myReview?.isLiked ? '&#10084;' : '&#9825;' }}
+                </button>
+                <button class="cf-btn" (click)="openRating(r)">Avaliar</button>
+                <button class="cf-btn" (click)="openDetail(r)">Ver</button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <span class="es-icon">&#127760;</span>
+          <div class="es-title">Nenhuma receita encontrada</div>
+          <p>Tente uma busca diferente ou seja o primeiro a compartilhar uma receita!</p>
+        </div>
+      }
+    }
+
+    <!-- Mine tab -->
+    @if (tab() === 'mine') {
+      @if (filteredMine().length > 0) {
+        <div class="feed">
+          @for (r of filteredMine(); track r.id) {
+            <div class="recipe-card">
+              <div class="card-body">
+                <div class="r-header">
+                  <span class="r-title">{{ r.title }}</span>
+                  @if (r.forkedFromId) { <span class="badge badge-fork">Importada</span> }
+                  <span class="badge" [class.badge-public]="r.isPublic" [class.badge-private]="!r.isPublic">
+                    {{ r.isPublic ? 'Publico' : 'Privado' }}
+                  </span>
+                </div>
+
+                <div class="macro-row">
+                  <span class="mp kcal">{{ r.kcal | number:'1.0-0' }} kcal</span>
+                  <span class="mp prot">{{ r.proteinG | number:'1.0-0' }}g prot</span>
+                  <span class="mp carb">{{ r.carbsG | number:'1.0-0' }}g carb</span>
+                  <span class="mp fat">{{ r.fatG | number:'1.0-0' }}g gord</span>
+                  @if (r.prepTimeMin) { <span class="mp time">{{ r.prepTimeMin }} min</span> }
+                </div>
+
+                @if (r.ingredients?.length) {
+                  <div class="ingredients-preview">
+                    <span class="ing-icon">&#127860;</span>
+                    <span class="ing-text">{{ ingredientsSummary(r.ingredients!) }}</span>
+                  </div>
+                }
+
+                @if (r.description) { <p class="r-desc">{{ r.description }}</p> }
+              </div>
+
+              <div class="card-footer">
+                <button class="cf-btn" (click)="openDetail(r)">Ver</button>
+                <button class="cf-btn" (click)="openEdit(r)">Editar</button>
+                <button class="cf-btn danger" (click)="remove(r)">Remover</button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <span class="es-icon">&#128221;</span>
+          <div class="es-title">Nenhuma receita ainda</div>
+          <p>Clique em <strong>+ Nova Receita</strong> para criar ou importe da comunidade.</p>
+        </div>
+      }
+    }
+  }
+</div>
+
+<!-- ── Create / Edit Modal ─────────────────────────────────── -->
+@if (showForm()) {
+  <div class="modal-overlay" (click)="closeModals()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>{{ editingId() ? 'Editar Receita' : 'Nova Receita' }}</h3>
+        <button class="close-btn" (click)="closeModals()">&#10005;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="field">
+          <label>Titulo *</label>
+          <input type="text" [(ngModel)]="form.title" placeholder="Ex: Omelete de Frango com Espinafre" />
+        </div>
+        <div class="field">
+          <label>Descricao (opcional)</label>
+          <input type="text" [(ngModel)]="form.description" placeholder="Breve descricao da receita..." />
+        </div>
+        <div class="field">
+          <label>Modo de preparo *</label>
+          <textarea [(ngModel)]="form.instructions" placeholder="Descreva o passo a passo..." rows="4"></textarea>
+        </div>
+
+        <div class="field-row-4">
+          <div class="field">
+            <label>Calorias (kcal) *</label>
+            <input type="number" [(ngModel)]="form.kcal" min="0" />
+          </div>
+          <div class="field">
+            <label>Proteina (g)</label>
+            <input type="number" [(ngModel)]="form.proteinG" min="0" />
+          </div>
+          <div class="field">
+            <label>Carbs (g)</label>
+            <input type="number" [(ngModel)]="form.carbsG" min="0" />
+          </div>
+          <div class="field">
+            <label>Gordura (g)</label>
+            <input type="number" [(ngModel)]="form.fatG" min="0" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Porcoes</label>
+            <input type="number" [(ngModel)]="form.servings" min="1" />
+          </div>
+          <div class="field">
+            <label>Tempo de preparo (min)</label>
+            <input type="number" [(ngModel)]="form.prepTimeMin" min="1" />
+          </div>
+        </div>
+
+        <!-- Ingredients -->
+        <div class="ingredients-section">
+          <div class="ing-header">
+            <span class="ing-title">Ingredientes</span>
+            <button class="add-ing-btn" (click)="addIngredient()">+ Adicionar ingrediente</button>
+          </div>
+
+          @if (form.ingredients.length > 0) {
+            <div class="ing-labels">
+              <span>Nome</span>
+              <span>Qtd</span>
+              <span>Unidade</span>
+              <span></span>
+            </div>
+
+            @for (ing of form.ingredients; track $index) {
+              <div class="ing-row">
+                <input type="text" [(ngModel)]="ing.name" placeholder="Ex: Frango desfiado" />
+                <input type="number" [(ngModel)]="ing.quantity" min="0" step="0.5" />
+                <select [(ngModel)]="ing.unit">
+                  @for (u of unitOptions; track u) {
+                    <option [value]="u">{{ u }}</option>
+                  }
+                </select>
+                <button class="rm-btn" (click)="removeIngredient($index)" title="Remover">&#10005;</button>
+              </div>
+            }
+          } @else {
+            <p style="font-size:.82rem;color:var(--color-text-subtle);margin:.5rem 0">
+              Nenhum ingrediente adicionado.
+            </p>
+          }
+        </div>
+
+        <div class="toggle-wrap" style="margin-bottom:.5rem">
+          <input type="checkbox" id="pub-toggle" [(ngModel)]="form.isPublic" />
+          <label for="pub-toggle">Publicar no feed da comunidade</label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeModals()">Cancelar</button>
+        <button class="btn btn-primary" (click)="saveRecipe()" [disabled]="saving()">
+          {{ saving() ? 'Salvando...' : editingId() ? 'Atualizar' : 'Criar Receita' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Import Confirmation Modal ──────────────────────────── -->
+@if (importTarget()) {
+  <div class="modal-overlay" (click)="closeModals()">
+    <div class="modal" (click)="$event.stopPropagation()" style="max-width:500px">
+      <div class="modal-head">
+        <h3>{{ isResync() ? 'Atualizar Receita' : 'Importar Receita' }}</h3>
+        <button class="close-btn" (click)="closeModals()">&#10005;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="import-card">
+          <div class="ic-title">{{ importTarget()!.title }}</div>
+          <div class="macro-row" style="margin-bottom:.625rem">
+            <span class="mp kcal">{{ importTarget()!.kcal | number:'1.0-0' }} kcal</span>
+            <span class="mp prot">{{ importTarget()!.proteinG | number:'1.0-0' }}g prot</span>
+            <span class="mp carb">{{ importTarget()!.carbsG | number:'1.0-0' }}g carb</span>
+            <span class="mp fat">{{ importTarget()!.fatG | number:'1.0-0' }}g gord</span>
+          </div>
+          @if (importTarget()!.ingredients?.length) {
+            <div style="font-size:.82rem;color:var(--color-text-muted)">
+              {{ importTarget()!.ingredients!.length }} ingrediente(s)
+            </div>
+          }
+        </div>
+
+        @if (isResync()) {
+          <p style="font-size:.875rem;color:var(--color-text-muted);line-height:1.6;margin-bottom:1rem">
+            O autor atualizou esta receita. Deseja sincronizar sua copia com a versao mais recente?
+          </p>
+        } @else {
+          <p style="font-size:.875rem;color:var(--color-text-muted);line-height:1.6;margin-bottom:1rem">
+            Uma copia privada sera adicionada em <strong>Minhas Receitas</strong>. Voce podera edita-la
+            livremente sem afetar a receita original.
+          </p>
+        }
+
+        <div class="xp-badge">+{{ XP_IMPORT }} XP ao importar</div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeModals()">Cancelar</button>
+        <button class="btn btn-primary" (click)="confirmImport()" [disabled]="saving()">
+          {{ saving() ? 'Importando...' : isResync() ? 'Sincronizar' : 'Importar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Detail Modal ───────────────────────────────────────── -->
+@if (detailTarget()) {
+  <div class="modal-overlay" (click)="closeModals()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>{{ detailTarget()!.title }}</h3>
+        <button class="close-btn" (click)="closeModals()">&#10005;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="macro-row" style="margin-bottom:1rem">
+          <span class="mp kcal">{{ detailTarget()!.kcal | number:'1.0-0' }} kcal</span>
+          <span class="mp prot">{{ detailTarget()!.proteinG | number:'1.0-0' }}g prot</span>
+          <span class="mp carb">{{ detailTarget()!.carbsG | number:'1.0-0' }}g carb</span>
+          <span class="mp fat">{{ detailTarget()!.fatG | number:'1.0-0' }}g gord</span>
+          @if (detailTarget()!.servings > 1) {
+            <span class="mp serv">{{ detailTarget()!.servings }} porcoes</span>
+          }
+          @if (detailTarget()!.prepTimeMin) {
+            <span class="mp time">{{ detailTarget()!.prepTimeMin }} min</span>
+          }
+        </div>
+
+        @if (detailTarget()!.description) {
+          <p style="font-size:.9rem;color:var(--color-text-muted);line-height:1.6;margin-bottom:1rem">
+            {{ detailTarget()!.description }}
+          </p>
+        }
+
+        @if (detailTarget()!.version) {
+          <div class="version-info" style="margin-bottom:1rem">
+            <span class="vi-badge">v{{ detailTarget()!.version }}</span>
+            @if (detailTarget()!.forkedFromId) {
+              <span>Importada (versao original: v{{ detailTarget()!.forkedAtVersion }})</span>
+            }
+          </div>
+        }
+
+        <!-- Ingredients list -->
+        @if (detailTarget()!.ingredients?.length) {
+          <div class="detail-ingredients">
+            <div class="di-title">Ingredientes</div>
+            @for (ing of detailTarget()!.ingredients; track $index) {
+              <div class="di-item">
+                <span class="di-qty">{{ ing.quantity }} {{ ing.unit }}</span>
+                <span>{{ ing.name }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="detail-prep">
+          <div class="dp-title">Modo de Preparo</div>
+          <div class="dp-text">{{ detailTarget()!.instructions }}</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeModals()">Fechar</button>
+        @if (!detailTarget()!.forkedFromId && detailTarget()!.isPublic) {
+          <button class="btn btn-primary" (click)="openImport(detailTarget()!); detailTarget.set(null)">Importar</button>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Rating Modal ───────────────────────────────────────── -->
+@if (ratingTarget()) {
+  <div class="modal-overlay" (click)="closeModals()">
+    <div class="modal" (click)="$event.stopPropagation()" style="max-width:420px">
+      <div class="modal-head">
+        <h3>Avaliar: {{ ratingTarget()!.title }}</h3>
+        <button class="close-btn" (click)="closeModals()">&#10005;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="field">
+          <label>Sua nota</label>
+          <div class="star-picker">
+            @for (s of [1,2,3,4,5]; track s) {
+              <button (click)="ratingVal.set(s)" [style.filter]="s <= ratingVal() ? '' : 'grayscale(1)'">&#11088;</button>
+            }
+          </div>
+          <div style="font-size:.82rem;color:var(--color-text-muted);margin-top:.5rem">
+            {{ ratingVal() > 0 ? ratingVal() + '/5' : 'Sem nota' }}
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Comentario (opcional)</label>
+          <textarea [(ngModel)]="ratingComment" placeholder="Deixe sua opiniao..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeModals()">Cancelar</button>
+        <button class="btn btn-primary" (click)="submitRating()" [disabled]="saving()">
+          {{ saving() ? 'Enviando...' : 'Enviar Avaliacao' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (xpPopVisible()) {
+  <div class="xp-pop" [style.left]="xpPopX + 'px'" [style.top]="xpPopY + 'px'">
+    +{{ lastXp() }} XP
+  </div>
+}

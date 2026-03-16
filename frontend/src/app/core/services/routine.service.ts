@@ -2,7 +2,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { ApiService } from './api.service';
-import { RoutineBlock, BlockCompleteResult } from '../models';
+import { RoutineBlock, BlockCompleteResult, CreateBlockDto, FeedbackResponse } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class RoutineService {
@@ -18,11 +18,35 @@ export class RoutineService {
     );
   }
 
+  /** @deprecated Canvas pivot: use createBlock() instead. Will return 410 from the server. */
   generate(date?: string) {
     const d = date ?? this.selectedDate();
     return this.api.post<RoutineBlock[]>(`/routine/generate?date=${d}`, {}).pipe(
       tap(b => this.blocks.set(b))
     );
+  }
+
+  createBlock(dto: CreateBlockDto): Observable<RoutineBlock> {
+    return this.api.post<RoutineBlock>('/routine/blocks', dto).pipe(
+      tap(block => this.blocks.update(list => [...list, block]))
+    );
+  }
+
+  updateBlock(id: string, dto: Partial<CreateBlockDto>): Observable<RoutineBlock> {
+    return this.api.patch<RoutineBlock>(`/routine/blocks/${id}`, dto).pipe(
+      tap(block => this.blocks.update(list => list.map(b => b.id === block.id ? block : b)))
+    );
+  }
+
+  deleteBlock(id: string): Observable<void> {
+    return this.api.delete<void>(`/routine/blocks/${id}`).pipe(
+      tap(() => this.blocks.update(list => list.filter(b => b.id !== id)))
+    );
+  }
+
+  getFeedback(date?: string): Observable<FeedbackResponse> {
+    const d = date ?? this.selectedDate();
+    return this.api.get<FeedbackResponse>('/routine/feedback', { date: d });
   }
 
   /**

@@ -9,13 +9,31 @@ export interface LinkRecipeDto {
   servings: number;
 }
 
+export interface CreateScheduledMealDto {
+  name: string;
+  scheduledTime: string;
+  scheduledDate?: string;
+  caloricTarget?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+  notes?: string;
+  isRecurring?: boolean;
+  daysOfWeek?: number[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class ScheduledMealService {
   private api = inject(ApiService);
 
-  /** Fetch all scheduled meals for a given date. */
+  /** Fetch all scheduled meals for a given date (includes recurring meals matching the day-of-week). */
   list(date: string): Observable<ScheduledMeal[]> {
     return this.api.get<ScheduledMeal[]>('/scheduled-meals', { date });
+  }
+
+  /** Create a new scheduled meal, optionally as a recurring weekly event. */
+  create(dto: CreateScheduledMealDto): Observable<ScheduledMeal> {
+    return this.api.post<ScheduledMeal>('/scheduled-meals', dto);
   }
 
   /**

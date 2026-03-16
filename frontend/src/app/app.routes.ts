@@ -26,8 +26,6 @@ export const routes: Routes = [
     loadComponent: () => import('./shared/components/nav-shell.component').then(m => m.NavShellComponent),
     children: [
       { path: 'dashboard', loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent) },
-      { path: 'nutrition', loadComponent: () => import('./features/nutrition/nutrition.component').then(m => m.NutritionComponent) },
-      { path: 'water',     loadComponent: () => import('./features/water/water-tracker.component').then(m => m.WaterTrackerComponent) },
       { path: 'hormones',  loadComponent: () => import('./features/hormones/hormones.component').then(m => m.HormonesComponent) },
       { path: 'progress',  loadComponent: () => import('./features/progress/progress.component').then(m => m.ProgressComponent) },
       { path: 'profile',   loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent) },
@@ -39,6 +37,7 @@ export const routes: Routes = [
       { path: 'recipes',      loadComponent: () => import('./features/recipes/recipe-community.component').then(m => m.RecipeCommunityComponent) },
       { path: 'glossary',     loadComponent: () => import('./features/glossary/glossary.component').then(m => m.GlossaryComponent) },
       { path: 'check-in',     loadComponent: () => import('./features/check-in/check-in.component').then(m => m.CheckInComponent) },
+      { path: 'workouts',     loadComponent: () => import('./features/workouts/workouts.component').then(m => m.WorkoutsComponent) },
       { path: 'feed',         loadComponent: () => import('./features/feed/feed.component').then(m => m.FeedComponent) },
       { path: 'challenges',   loadComponent: () => import('./features/challenges/challenges.component').then(m => m.ChallengesComponent) },
       { path: 'groups',       loadComponent: () => import('./features/groups/groups.component').then(m => m.GroupsComponent) },
