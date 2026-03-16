@@ -17,6 +17,10 @@ const CATEGORY_META: Record<string, { icon: string; color: string }> = {
   Cardio:       { icon: '❤️‍🔥', color: '#ef4444' },
   'Full Body':  { icon: '🔥', color: '#7c3aed' },
   ABC:          { icon: '🅰️', color: '#0891b2' },
+  Pilates:      { icon: '🧘‍♀️', color: '#0ea5e9' },
+  Natacao:      { icon: '🏊', color: '#0284c7' },
+  Yoga:         { icon: '🕉️', color: '#8b5cf6' },
+  Ciclismo:     { icon: '🚴', color: '#f59e0b' },
 };
 
 @Component({

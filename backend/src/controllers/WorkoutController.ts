@@ -206,6 +206,69 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
       { name: "Elevacao lateral", sets: 3, reps: "12-15", restSeconds: 60 },
     ],
   },
+
+  // ── Outras modalidades ────────────────────────────────────────────
+  {
+    slug: "pilates-solo",
+    name: "Pilates Solo (Core e Mobilidade)",
+    description: "Sequencia de pilates no solo para estabilidade, postura e controle",
+    category: "Pilates",
+    estimatedMinutes: 45,
+    exercises: [
+      { name: "Respiracao lateral e ativacao de core", sets: 1, reps: "3min", restSeconds: 0 },
+      { name: "The Hundred", sets: 2, reps: "60s", restSeconds: 30 },
+      { name: "Roll Up", sets: 3, reps: "8-10", restSeconds: 30 },
+      { name: "Single Leg Stretch", sets: 3, reps: "12 cada", restSeconds: 30 },
+      { name: "Shoulder Bridge", sets: 3, reps: "10-12", restSeconds: 45 },
+      { name: "Swimming", sets: 3, reps: "40s", restSeconds: 30 },
+      { name: "Spine Stretch", sets: 2, reps: "8", restSeconds: 30 },
+    ],
+  },
+  {
+    slug: "natacao-resistencia",
+    name: "Natacao (Resistencia Tecnica)",
+    description: "Treino de piscina com foco em tecnica e condicionamento aerobico",
+    category: "Natacao",
+    estimatedMinutes: 55,
+    exercises: [
+      { name: "Aquecimento crawl leve", sets: 1, reps: "200m", restSeconds: 30 },
+      { name: "Pernada com prancha", sets: 4, reps: "50m", restSeconds: 30 },
+      { name: "Tecnica de bracada (drill)", sets: 4, reps: "50m", restSeconds: 30 },
+      { name: "Serie principal crawl", sets: 6, reps: "100m", restSeconds: 45, notes: "Ritmo moderado" },
+      { name: "Nado costas", sets: 4, reps: "50m", restSeconds: 30 },
+      { name: "Soltura", sets: 1, reps: "100m", restSeconds: 0 },
+    ],
+  },
+  {
+    slug: "yoga-vinyasa",
+    name: "Yoga Vinyasa (Fluxo e Flexibilidade)",
+    description: "Sequencia dinamica para mobilidade, respiracao e equilibrio",
+    category: "Yoga",
+    estimatedMinutes: 50,
+    exercises: [
+      { name: "Respiracao consciente (pranayama)", sets: 1, reps: "5min", restSeconds: 0 },
+      { name: "Saudacao ao Sol A", sets: 4, reps: "1", restSeconds: 20 },
+      { name: "Saudacao ao Sol B", sets: 3, reps: "1", restSeconds: 20 },
+      { name: "Posturas em pe (guerreiro I/II)", sets: 3, reps: "45s cada lado", restSeconds: 20 },
+      { name: "Posturas de equilibrio", sets: 3, reps: "30s cada lado", restSeconds: 20 },
+      { name: "Torcoes e extensoes de coluna", sets: 2, reps: "5min", restSeconds: 20 },
+      { name: "Savasana", sets: 1, reps: "6min", restSeconds: 0 },
+    ],
+  },
+  {
+    slug: "ciclismo-intervalado",
+    name: "Ciclismo Intervalado (Bike)",
+    description: "Sessao de bike para ganho de resistencia e potencia",
+    category: "Ciclismo",
+    estimatedMinutes: 50,
+    exercises: [
+      { name: "Pedalada leve (aquecimento)", sets: 1, reps: "10min", restSeconds: 0 },
+      { name: "Intervalo forte", sets: 6, reps: "2min", restSeconds: 90, notes: "Zona 4" },
+      { name: "Cadencia alta", sets: 4, reps: "90s", restSeconds: 60 },
+      { name: "Subida simulada", sets: 4, reps: "3min", restSeconds: 90 },
+      { name: "Volta a calma", sets: 1, reps: "8min", restSeconds: 0 },
+    ],
+  },
 ];
 
 export class WorkoutController {
