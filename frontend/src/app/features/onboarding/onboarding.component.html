@@ -19,7 +19,7 @@
 
   <!-- Step content -->
   <main class="content">
-    <div class="step-card" [class.wide]="step() === 5">
+    <div class="step-card" [class.wide]="step() === 4">
 
       <!-- Step 0: Personal info -->
       @if (step() === 0) {
@@ -138,54 +138,8 @@
         </div>
       }
 
-      <!-- Step 3: Exercises -->
+      <!-- Step 3: Goal -->
       @if (step() === 3) {
-        <div class="step-header">
-          <span class="emoji">🏋️</span>
-          <h2>Atividades físicas</h2>
-          <p>Selecione as atividades que você pratica (pode escolher mais de uma).</p>
-        </div>
-        @if (presets().length === 0) {
-          <div class="flex items-center justify-center" style="padding:2rem">
-            <span class="spinner"></span>
-          </div>
-        } @else {
-          <div class="fields">
-            <div class="exercise-grid">
-              @for (p of presets(); track p.name) {
-                <div class="exercise-card" [class.selected]="isExerciseSelected(p)" (click)="toggleExercise(p)">
-                  <div class="ex-name">{{ categoryIcon(p.category) }} {{ p.name }}</div>
-                  <div class="ex-meta">MET {{ p.met }} · Score hipertrofia: {{ p.hypertrophyScore }}/10</div>
-                </div>
-              }
-            </div>
-
-            @if (exercise.selected.length > 0) {
-              <div class="form-group">
-                <label>Dias da semana</label>
-                <div class="day-selector">
-                  @for (d of days; track d; let i = $index) {
-                    <button type="button" class="day-btn" [class.active]="isDaySelected(i)" (click)="toggleDay(i)">{{ d }}</button>
-                  }
-                </div>
-              </div>
-              <div class="row-2">
-                <div class="form-group">
-                  <label>Horário preferido</label>
-                  <input type="time" [(ngModel)]="exercise.preferredTime" />
-                </div>
-                <div class="form-group">
-                  <label>Duração (min)</label>
-                  <input type="number" [(ngModel)]="exercise.durationMinutes" min="10" max="300" />
-                </div>
-              </div>
-            }
-          </div>
-        }
-      }
-
-      <!-- Step 4: Goal -->
-      @if (step() === 4) {
         <div class="step-header">
           <span class="emoji">🎯</span>
           <h2>Objetivo principal</h2>
@@ -214,8 +168,8 @@
         </div>
       }
 
-      <!-- Step 5: Summary + Routine Base -->
-      @if (step() === 5) {
+      <!-- Step 4: Summary + Routine Base -->
+      @if (step() === 4) {
         @if (saving()) {
           <div style="text-align:center;padding:3rem 0">
             <div style="font-size:3rem;margin-bottom:1rem">⏳</div>

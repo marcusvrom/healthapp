@@ -694,3 +694,46 @@
 
   strong { color: var(--color-text); }
 }
+
+.recurring-guide {
+  margin: 1rem 0;
+  border: 1px solid var(--color-info-soft-border);
+  background: var(--color-info-soft-bg);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  color: var(--color-info-soft-text);
+
+  h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    color: var(--color-info-soft-text);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: color-mix(in srgb, var(--color-info-soft-text) 82%, var(--color-text) 18%);
+  }
+
+  .guide-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .btn-outline {
+    border-color: color-mix(in srgb, var(--color-info-soft-text) 45%, var(--color-border) 55%);
+    color: var(--color-info-soft-text);
+    background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+
+    &:hover {
+      background: color-mix(in srgb, var(--color-info-soft-bg) 72%, var(--color-surface) 28%);
+      border-color: var(--color-info-soft-text);
+    }
+  }
+}

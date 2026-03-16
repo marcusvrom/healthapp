@@ -1,4 +1,5 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { WorkoutService } from '../../core/services/workout.service';
@@ -27,6 +28,7 @@ const CATEGORY_META: Record<string, { icon: string; color: string }> = {
 })
 export class WorkoutsComponent implements OnInit {
   private svc = inject(WorkoutService);
+  private route = inject(ActivatedRoute);
 
   tab = signal<Tab>('sheets');
   loading = signal(false);
@@ -63,7 +65,13 @@ export class WorkoutsComponent implements OnInit {
   schedDays: boolean[] = [false, false, false, false, false, false, false];
   scheduling = signal(false);
 
+  showRecurringGuide = signal(false);
+
   ngOnInit(): void {
+    this.route.queryParamMap.subscribe(params => {
+      this.showRecurringGuide.set(params.get('setupRecurring') === '1');
+    });
+
     this.loadSheets();
     this.svc.getTemplates().subscribe({
       next: t => this.templates.set(t),
@@ -262,6 +270,17 @@ export class WorkoutsComponent implements OnInit {
       },
       error: () => this.scheduling.set(false),
     });
+  }
+
+
+  dismissRecurringGuide(): void {
+    this.showRecurringGuide.set(false);
+    localStorage.setItem('ha_workout_recurring_pref', 'skip');
+  }
+
+  keepRecurringGuideActive(): void {
+    this.showRecurringGuide.set(false);
+    localStorage.removeItem('ha_workout_recurring_pref');
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────

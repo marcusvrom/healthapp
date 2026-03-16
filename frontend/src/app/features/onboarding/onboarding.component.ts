@@ -6,7 +6,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import {
-  ExercisePreset, ActivityFactor, Gender, PrimaryGoal,
+  ActivityFactor, Gender, PrimaryGoal,
   MainActivity, MetabolicResult,
 } from '../../core/models';
 
@@ -18,7 +18,6 @@ interface ScheduleStep  {
   workStartTime: string; workEndTime: string;
 }
 interface ActivityStep  { activityFactor: ActivityFactor|''; }
-interface ExerciseStep  { selected: ExercisePreset[]; daysOfWeek: number[]; preferredTime: string; durationMinutes: number; }
 interface GoalStep      { primaryGoal: PrimaryGoal|''; targetWeight: number|null; }
 interface RoutineBaseStep {
   wakeUpTime: string;
@@ -38,7 +37,7 @@ const WATER_INTERVAL_OPTIONS: Array<{ value: number; label: string }> = [
 ];
 
 // ── Constants ───────────────────────────────────────────────────────────────
-const STEPS = ['Pessoal', 'Horários', 'Atividade', 'Exercícios', 'Objetivo', 'Resumo e Rotina'];
+const STEPS = ['Pessoal', 'Horários', 'Atividade', 'Objetivo', 'Resumo e Rotina'];
 
 const GOAL_OPTIONS: Array<{ value: PrimaryGoal; icon: string; label: string; desc: string; kcal: string }> = [
   { value: 'emagrecimento', icon: '🔥', label: 'Emagrecimento',   desc: 'Perder peso com déficit calórico controlado', kcal: '-500 kcal/dia' },
@@ -61,8 +60,6 @@ const MAIN_ACTIVITY_OPTIONS: Array<{ value: MainActivity; icon: string; label: s
   { value: 'mixed',    icon: '💼📚', label: 'Misto (Trabalho + Estudos)', desc: 'Concilio trabalho e estudos' },
   { value: 'flexible', icon: '🌊', label: 'Livre/Flexível',         desc: 'Não tenho horário fixo de atividade' },
 ];
-
-const DAYS = ['D','S','T','Q','Q','S','S'];
 
 const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: string }> = [
   { key: 'breakfast',       label: 'Café da Manhã',    icon: '☕', time: '07:30' },
@@ -89,11 +86,9 @@ export class OnboardingComponent {
   step    = signal(0);
   saving  = signal(false);
   errorMsg= signal('');
-  presets = signal<ExercisePreset[]>([]);
   metabolic = signal<MetabolicResult | null>(null);
 
   readonly steps               = STEPS;
-  readonly days                = DAYS;
   readonly goalOptions         = GOAL_OPTIONS;
   readonly activityOptions     = ACTIVITY_OPTIONS;
   readonly mainActivityOptions = MAIN_ACTIVITY_OPTIONS;
@@ -112,7 +107,6 @@ export class OnboardingComponent {
     workStartTime: '09:00', workEndTime: '18:00',
   };
   activity: ActivityStep = { activityFactor: '' };
-  exercise: ExerciseStep = { selected: [], daysOfWeek: [1, 3, 5], preferredTime: '07:00', durationMinutes: 60 };
   goal:     GoalStep     = { primaryGoal: '', targetWeight: null };
   routineBase: RoutineBaseStep = {
     wakeUpTime: '07:00',
@@ -130,11 +124,6 @@ export class OnboardingComponent {
     waterIntervalMin: 45,
   };
 
-  constructor() { this.loadPresets(); }
-
-  private loadPresets(): void {
-    this.profileSvc.getPresets().subscribe({ next: p => this.presets.set(p), error: () => {} });
-  }
 
   // ── Main activity helpers ──────────────────────────────────────────────────
 
@@ -175,8 +164,7 @@ export class OnboardingComponent {
                   && !!this.personal.weight && !!this.personal.height;
       case 1: return !!this.schedule.wakeUpTime && !!this.schedule.sleepTime && !!this.schedule.mainActivity;
       case 2: return !!this.activity.activityFactor;
-      case 3: return true; // exercises are optional
-      case 4: return !!this.goal.primaryGoal;
+      case 3: return !!this.goal.primaryGoal;
       default: return false;
     }
   }
@@ -186,8 +174,8 @@ export class OnboardingComponent {
 
     const currentStep = this.step();
 
-    // When leaving step 4 (Goal) → save profile + exercises, then load metabolic for step 5
-    if (currentStep === 4) {
+    // When leaving step 3 (Goal) → save profile, then load metabolic for step 4
+    if (currentStep === 3) {
       this.saveProfileAndPrepareFinish();
       return;
     }
@@ -197,41 +185,11 @@ export class OnboardingComponent {
 
   back(): void { this.step.update(s => Math.max(0, s - 1)); }
 
-  // ── Exercise helpers ──────────────────────────────────────────────────────
-
-  isExerciseSelected(p: ExercisePreset): boolean {
-    return this.exercise.selected.some(s => s.name === p.name);
-  }
-
-  toggleExercise(p: ExercisePreset): void {
-    if (this.isExerciseSelected(p)) {
-      this.exercise.selected = this.exercise.selected.filter(s => s.name !== p.name);
-    } else {
-      this.exercise.selected = [...this.exercise.selected, p];
-    }
-  }
-
-  isDaySelected(i: number): boolean { return this.exercise.daysOfWeek.includes(i); }
-  toggleDay(i: number): void {
-    if (this.isDaySelected(i)) {
-      this.exercise.daysOfWeek = this.exercise.daysOfWeek.filter(d => d !== i);
-    } else {
-      this.exercise.daysOfWeek = [...this.exercise.daysOfWeek, i].sort();
-    }
-  }
-
-  categoryIcon(cat: string): string {
-    const icons: Record<string, string> = {
-      strength: '🏋️', cardio: '🏃', flexibility: '🤸', mind_body: '🧘', sports: '⚽'
-    };
-    return icons[cat] ?? '💪';
-  }
-
-  // ── Save profile + exercises, then advance to step 5 with metabolic data ──
+  // ── Save profile, then advance to step 4 with metabolic data ──
 
   private saveProfileAndPrepareFinish(): void {
     this.saving.set(true);
-    this.step.set(5);
+    this.step.set(4);
 
     const profileDto: Record<string, unknown> = {
       age:            this.personal.age!,
@@ -253,32 +211,9 @@ export class OnboardingComponent {
     }
 
     this.profileSvc.saveProfile(profileDto as any).subscribe({
-      next: () => this.saveExercisesThenLoadMetabolic(),
+      next: () => this.loadMetabolicAndShow(),
       error: () => { this.errorMsg.set('Erro ao salvar perfil.'); this.saving.set(false); },
     });
-  }
-
-  private saveExercisesThenLoadMetabolic(): void {
-    if (this.exercise.selected.length === 0) {
-      this.loadMetabolicAndShow();
-      return;
-    }
-
-    let remaining = this.exercise.selected.length;
-    for (const ex of this.exercise.selected) {
-      this.profileSvc.addExercise({
-        name:            ex.name,
-        category:        ex.category,
-        met:             ex.met,
-        hypertrophyScore:ex.hypertrophyScore,
-        durationMinutes: this.exercise.durationMinutes,
-        preferredTime:   this.exercise.preferredTime,
-        daysOfWeek:      this.exercise.daysOfWeek,
-      }).subscribe({
-        next: () => { if (--remaining === 0) this.loadMetabolicAndShow(); },
-        error: () => { if (--remaining === 0) this.loadMetabolicAndShow(); },
-      });
-    }
   }
 
   private loadMetabolicAndShow(): void {
@@ -288,7 +223,7 @@ export class OnboardingComponent {
         // Pre-fill routine base from schedule step
         this.routineBase.wakeUpTime = this.schedule.wakeUpTime;
         this.routineBase.sleepTime  = this.schedule.sleepTime;
-        this.routineBase.preferredTrainTime = this.exercise.preferredTime || '07:00';
+        this.routineBase.preferredTrainTime = this.routineBase.preferredTrainTime || '07:00';
         this.saving.set(false);
       },
       error: () => {
@@ -308,13 +243,6 @@ export class OnboardingComponent {
       .filter(([, v]) => v)
       .map(([key]) => key);
 
-    // Build exercise list for auto-creating a workout sheet
-    const exercisesPayload = this.exercise.selected.length > 0
-      ? this.exercise.selected.map(ex => ({
-          name: ex.name,
-          category: ex.category,
-        }))
-      : undefined;
 
     const payload = {
       wakeUpTime:         this.routineBase.wakeUpTime,
@@ -323,9 +251,6 @@ export class OnboardingComponent {
       meals:              selectedMeals,
       waterReminders:     this.routineBase.waterReminders,
       waterIntervalMin:   this.routineBase.waterReminders ? this.routineBase.waterIntervalMin : undefined,
-      exercises:          exercisesPayload,
-      exerciseDaysOfWeek: this.exercise.daysOfWeek.length > 0 ? this.exercise.daysOfWeek : undefined,
-      exerciseDurationMin: this.exercise.durationMinutes,
     };
 
     this.apiSvc.post('/onboarding/complete', payload).subscribe({

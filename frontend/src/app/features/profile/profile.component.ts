@@ -1,11 +1,11 @@
-import { Component, inject, signal, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { ProfileService } from '../../core/services/profile.service';
 import { UserService } from '../../core/services/user.service';
 import {
   HealthProfile, ActivityFactor, Gender,
-  Exercise, ExerciseCategory, ExercisePreset, BloodTest,
+  BloodTest,
 } from '../../core/models';
 import { environment } from '../../environments/environment';
 
@@ -16,17 +16,6 @@ const ACTIVITY_LABELS: Record<ActivityFactor, string> = {
   moderately_active: '🏃 Moderadamente ativo',
   very_active:       '💪 Muito ativo',
   extra_active:      '🏋️ Extremamente ativo',
-};
-
-const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const DAYS = [0, 1, 2, 3, 4, 5, 6];
-
-const CATEGORY_LABEL: Record<ExerciseCategory, string> = {
-  strength:    '💪 Força',
-  cardio:      '🏃 Cardio',
-  flexibility: '🧘 Flexibilidade',
-  mind_body:   '🧠 Mente-corpo',
-  sports:      '⚽ Esporte',
 };
 
 // ── Blood test accordion ───────────────────────────────────────────────────────
@@ -94,18 +83,6 @@ const BT_SECTIONS: BtSection[] = [
   },
 ];
 
-// ── Blank exercise form ───────────────────────────────────────────────────────
-function blankExForm() {
-  return {
-    id: undefined as string | undefined,
-    selectedPresetName: '',
-    name: '', category: 'strength' as ExerciseCategory,
-    met: 0, hypertrophyScore: 0,
-    durationMinutes: 45,
-    preferredTime: '', daysOfWeek: [] as number[],
-  };
-}
-
 @Component({
   selector: 'app-profile',
   standalone: true,
@@ -124,17 +101,12 @@ export class ProfileComponent implements OnInit {
   saveSuccess     = signal(false);
   saveError       = signal('');
   savingBt        = signal(false);
-  exercises       = signal<Exercise[]>([]);
-  presets         = signal<ExercisePreset[]>([]);
   uploadingAvatar = signal(false);
   avatarError     = signal('');
   avatarUrl       = signal<string | null>(null);
 
-  showExForm    = signal(false);
-  addingEx      = signal(false);
   openBtSection = signal<number | null>(0); // first section open by default
 
-  exForm = blankExForm();
 
   // bt needs an index signature so Angular can use bt[f.key] in the template
   bt: { [key: string]: string | number | null | undefined; collectedAt: string } = {
@@ -147,18 +119,13 @@ export class ProfileComponent implements OnInit {
     workStartTime: '09:00', workEndTime: '18:00',
   };
 
-  readonly days      = DAYS;
-  readonly dayLabels = DAY_LABELS;
   readonly btSections = BT_SECTIONS;
   readonly activityOptions = Object.entries(ACTIVITY_LABELS).map(([value, label]) => ({ value, label }));
-  readonly categoryOptions = Object.entries(CATEGORY_LABEL).map(([value, label]) => ({ value: value as ExerciseCategory, label }));
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
   ngOnInit(): void {
     this.profileSvc.loadProfile().subscribe({ next: p => Object.assign(this.form, p), error: () => {} });
     this.profileSvc.loadMetabolic().subscribe({ error: () => {} });
-    this.profileSvc.getExercises().subscribe({ next: ex => this.exercises.set(ex), error: () => {} });
-    this.profileSvc.getPresets().subscribe({ next: p => this.presets.set(p), error: () => {} });
     this.userSvc.loadMe().subscribe({
       next: u => this.avatarUrl.set(u.avatarUrl ? `${this.apiBase}${u.avatarUrl}` : null),
       error: () => {},
@@ -193,88 +160,6 @@ export class ProfileComponent implements OnInit {
     });
   }
 
-  // ── Exercises ───────────────────────────────────────────────────────────────
-  categoryLabel(cat: ExerciseCategory): string {
-    return CATEGORY_LABEL[cat] ?? cat;
-  }
-
-  openAddExercise(): void {
-    this.exForm = blankExForm();
-    this.showExForm.set(true);
-  }
-
-  startEdit(ex: Exercise): void {
-    this.exForm = {
-      id: ex.id,
-      selectedPresetName: '',
-      name: ex.name,
-      category: ex.category,
-      met: ex.met,
-      hypertrophyScore: ex.hypertrophyScore,
-      durationMinutes: ex.durationMinutes,
-      preferredTime: ex.preferredTime ?? '',
-      daysOfWeek: [...ex.daysOfWeek],
-    };
-    this.showExForm.set(true);
-  }
-
-  cancelEdit(): void {
-    this.exForm = blankExForm();
-    this.showExForm.set(false);
-  }
-
-  onPresetChange(name: string): void {
-    const p = this.presets().find(x => x.name === name);
-    if (!p) return;
-    this.exForm.name           = p.name;
-    this.exForm.category       = p.category;
-    this.exForm.met            = p.met;
-    this.exForm.hypertrophyScore = p.hypertrophyScore;
-  }
-
-  toggleDay(d: number): void {
-    const idx = this.exForm.daysOfWeek.indexOf(d);
-    if (idx >= 0) this.exForm.daysOfWeek.splice(idx, 1);
-    else           this.exForm.daysOfWeek.push(d);
-  }
-
-  submitExercise(): void {
-    if (!this.exForm.name.trim()) return;
-    this.addingEx.set(true);
-
-    const dto: Partial<Exercise> = {
-      name:             this.exForm.name,
-      category:         this.exForm.category,
-      met:              this.exForm.met,
-      hypertrophyScore: this.exForm.hypertrophyScore,
-      durationMinutes:  this.exForm.durationMinutes,
-      preferredTime:    this.exForm.preferredTime || undefined,
-      daysOfWeek:       this.exForm.daysOfWeek,
-    };
-
-    const req$ = this.exForm.id
-      ? this.profileSvc.updateExercise(this.exForm.id, dto)
-      : this.profileSvc.addExercise(dto);
-
-    req$.subscribe({
-      next: saved => {
-        if (this.exForm.id) {
-          this.exercises.update(ex => ex.map(e => e.id === saved.id ? saved : e));
-        } else {
-          this.exercises.update(ex => [...ex, saved]);
-        }
-        this.addingEx.set(false);
-        this.cancelEdit();
-      },
-      error: () => this.addingEx.set(false),
-    });
-  }
-
-  deleteExercise(id: string): void {
-    this.profileSvc.deleteExercise(id).subscribe({
-      next: () => this.exercises.update(ex => ex.filter(e => e.id !== id)),
-    });
-  }
 
   // ── Blood test ──────────────────────────────────────────────────────────────
   toggleBtSection(idx: number): void {

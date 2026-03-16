@@ -1,4 +1,17 @@
 <div class="workouts-page">
+  @if (showRecurringGuide()) {
+    <section class="recurring-guide">
+      <div>
+        <h3>📌 Quer transformar seus treinos em rotina recorrente?</h3>
+        <p>Vimos que você já tem treino na agenda. Configure a recorrência para não precisar cadastrar toda semana ou escolha não receber este lembrete.</p>
+      </div>
+      <div class="guide-actions">
+        <button class="btn-outline" (click)="dismissRecurringGuide()">Não tenho interesse</button>
+        <button class="btn-primary" (click)="keepRecurringGuideActive()">Vou configurar agora</button>
+      </div>
+    </section>
+  }
+
   <!-- ── Header ────────────────────────────────────────────────────── -->
   <header class="page-header">
     <div class="header-left">
