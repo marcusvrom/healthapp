@@ -1,5 +1,5 @@
-import { Component, inject, OnInit, signal, HostListener } from '@angular/core';
-import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { Router, RouterOutlet, RouterLink, RouterLinkActive, NavigationEnd } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { UserService } from '../../core/services/user.service';
 import { ThemeService } from '../../core/services/theme.service';
@@ -18,6 +18,7 @@ import { AppNotification } from '../../core/models';
 export class NavShellComponent implements OnInit {
   private auth    = inject(AuthService);
   private userSvc = inject(UserService);
+  private router  = inject(Router);
   readonly theme  = inject(ThemeService);
   readonly notifSvc = inject(NotificationService);
 
@@ -28,6 +29,61 @@ export class NavShellComponent implements OnInit {
   avatarUrl = signal<string | null>(null);
   isMobileMenuOpen = signal(false);
   notifDropdownOpen = signal(false);
+  openGroups = signal<Record<string, boolean>>({
+    journey: true,
+    nutrition: false,
+    community: false,
+    professional: false,
+    account: false,
+  });
+
+  readonly navGroups = [
+    {
+      id: 'journey',
+      title: 'Minha Jornada',
+      items: [
+        { route: '/dashboard', icon: '📅', label: 'Dashboard' },
+        { route: '/planning', icon: '📋', label: 'Planejamento' },
+        { route: '/workouts', icon: '🏋️', label: 'Treinos' },
+        { route: '/progress', icon: '📊', label: 'Progresso' },
+        { route: '/check-in', icon: '📸', label: 'Check-in' },
+      ],
+    },
+    {
+      id: 'nutrition',
+      title: 'Nutrição e Saúde',
+      items: [
+        { route: '/diet', icon: '🍽️', label: 'Dieta' },
+        { route: '/recipes', icon: '📖', label: 'Receitas' },
+        { route: '/protocols', icon: '💊', label: 'Protocolos' },
+        { route: '/hormones', icon: '💉', label: 'Hormônios' },
+      ],
+    },
+    {
+      id: 'community',
+      title: 'Comunidade',
+      items: [
+        { route: '/feed', icon: '🌐', label: 'Feed Social' },
+        { route: '/challenges', icon: '🏆', label: 'Desafios' },
+        { route: '/leaderboard', icon: '🥇', label: 'Ranking' },
+        { route: '/groups', icon: '👥', label: 'Grupos' },
+        { route: '/comunidade', icon: '🌍', label: 'Comunidade' },
+      ],
+    },
+    {
+      id: 'professional',
+      title: 'Área Profissional',
+      items: [{ route: '/clinical', icon: '🩺', label: 'Clínico' }],
+    },
+    {
+      id: 'account',
+      title: 'Configurações',
+      items: [
+        { route: '/profile', icon: '👤', label: 'Perfil' },
+        { route: '/glossary', icon: '❓', label: 'Glossário' },
+      ],
+    },
+  ] as const;
 
   ngOnInit(): void {
     this.userSvc.loadMe().subscribe({
@@ -43,6 +99,13 @@ export class NavShellComponent implements OnInit {
     this.notifSvc.refreshUnreadCount().subscribe({ error: () => {} });
     this.notifSvc.getPreference().subscribe({ error: () => {} });
     this.notifSvc.startPolling();
+
+    this.ensureActiveGroupOpen();
+    this.router.events.subscribe(event => {
+      if (event instanceof NavigationEnd) {
+        this.ensureActiveGroupOpen();
+      }
+    });
   }
 
   toggleMobileMenu() {
@@ -60,6 +123,14 @@ export class NavShellComponent implements OnInit {
   }
 
   logout(): void { this.auth.logout(); }
+
+  toggleGroup(groupId: string): void {
+    this.openGroups.update(current => ({ ...current, [groupId]: !current[groupId] }));
+  }
+
+  isGroupOpen(groupId: string): boolean {
+    return !!this.openGroups()[groupId];
+  }
 
   getInitials(name: string): string {
     return name && name !== 'Minha conta' ? name.charAt(0).toUpperCase() : '👤';
@@ -112,5 +183,18 @@ export class NavShellComponent implements OnInit {
 
   private calculateLevel(xp: number): number {
     return Math.floor(xp / 100) + 1;
+  }
+
+  private ensureActiveGroupOpen(): void {
+    const currentUrl = this.router.url;
+    this.openGroups.update(current => {
+      const next = { ...current };
+      this.navGroups.forEach(group => {
+        if (group.items.some(item => currentUrl.startsWith(item.route))) {
+          next[group.id] = true;
+        }
+      });
+      return next;
+    });
   }
 }

@@ -11,60 +11,25 @@
         </div>
 
         <nav (click)="onNavClick($event)">
-          <span class="nav-section">Principal</span>
-          <a routerLink="/dashboard" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">📅</span> Dashboard
-          </a>
-          <a routerLink="/diet" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">🍽️</span> Dieta
-          </a>
-<a routerLink="/recipes" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">📖</span> Receitas
-          </a>
-          <a routerLink="/protocols" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">💊</span> Protocolos
-          </a>
-          <a routerLink="/hormones" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">💉</span> Hormônios
-          </a>
-          <a routerLink="/workouts" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">🏋️</span> Treinos
-          </a>
-          <a routerLink="/progress" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">📊</span> Progresso
-          </a>
-          <a routerLink="/check-in" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">📸</span> Check-in
-          </a>
-          <a routerLink="/feed" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">🌐</span> Feed Social
-          </a>
-          <a routerLink="/challenges" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">🏆</span> Desafios
-          </a>
-          <a routerLink="/leaderboard" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">🥇</span> Ranking
-          </a>
-          <a routerLink="/groups" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">👥</span> Grupos
-          </a>
-          <a routerLink="/comunidade" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">🌍</span> Comunidade
-          </a>
-          <a routerLink="/clinical" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">🩺</span> Clínico
-          </a>
-          <a routerLink="/planning" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">📋</span> Planejamento
-          </a>
+          <span class="nav-section">Explorar áreas</span>
+          @for (group of navGroups; track group.id) {
+            <section class="menu-group" [class.open]="isGroupOpen(group.id)">
+              <button class="menu-group-trigger" type="button" (click)="toggleGroup(group.id)">
+                <span>{{ group.title }}</span>
+                <span class="chevron">▾</span>
+              </button>
 
-          <span class="nav-section">Configurações</span>
-          <a routerLink="/profile" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">👤</span> Perfil
-          </a>
-          <a routerLink="/glossary" routerLinkActive="active-link" class="nav-item">
-            <span class="icon">❓</span> Glossário
-          </a>
+              @if (isGroupOpen(group.id)) {
+                <div class="menu-group-items">
+                  @for (item of group.items; track item.route) {
+                    <a [routerLink]="item.route" routerLinkActive="active-link" class="nav-item">
+                      <span class="icon">{{ item.icon }}</span> {{ item.label }}
+                    </a>
+                  }
+                </div>
+              }
+            </section>
+          }
         </nav>
 
         <div class="sidebar-footer">
