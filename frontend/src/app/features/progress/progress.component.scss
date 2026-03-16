@@ -131,8 +131,8 @@
 
   .ic-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; margin-top: .1rem; }
   .ic-body  { flex: 1; min-width: 0;
-    h4 { font-size: .88rem; font-weight: 700; margin-bottom: .3rem; }
-    p  { font-size: .82rem; line-height: 1.5; color: var(--color-text-muted); }
+    h4 { font-size: .88rem; font-weight: 700; margin-bottom: .3rem; color: var(--color-text); }
+    p  { font-size: .82rem; line-height: 1.5; color: var(--color-text); }
     .ic-action {
       display: inline-block; margin-top: .5rem;
       font-size: .75rem; font-weight: 700; color: var(--color-primary);

@@ -78,7 +78,7 @@
   }
   .em-fields { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1.25rem;
     label { font-size: .78rem; font-weight: 600; color: var(--color-text-muted); display: flex; flex-direction: column; gap: .3rem;
-      input { font-size: .95rem; padding: .6rem .75rem; border-radius: 10px; border: 1.5px solid var(--color-border); background: var(--color-surface-2); min-height: 44px; transition: border-color .2s, box-shadow .2s; outline: none;
+      input { font-size: .95rem; padding: .6rem .75rem; border-radius: 10px; border: 1.5px solid var(--color-border); background: var(--color-surface-2); min-height: 44px; transition: border-color .2s, box-shadow .2s; outline: none; color: var(--color-text);
         &:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb, 99,102,241), .12); }
       }
     }
@@ -86,7 +86,7 @@
   }
   .em-recurrence { margin-bottom: 1.25rem;
     .em-days-row { display: flex; gap: .375rem; margin-top: .5rem; flex-wrap: wrap;
-      button { width: 40px; height: 40px; border-radius: 50%; font-size: .75rem; font-weight: 700; border: 2px solid var(--color-border); background: var(--color-surface); cursor: pointer; transition: all .2s; -webkit-tap-highlight-color: transparent;
+      button { width: 40px; height: 40px; border-radius: 50%; font-size: .75rem; font-weight: 700; border: 2px solid var(--color-border); background: var(--color-surface); cursor: pointer; transition: all .2s; -webkit-tap-highlight-color: transparent; color: var(--color-text);
         &.selected { background: var(--color-primary); border-color: var(--color-primary); color: #fff; box-shadow: 0 2px 8px rgba(var(--color-primary-rgb, 99,102,241), .3); }
         &:hover:not(.selected) { background: var(--color-surface-2); border-color: var(--color-text-subtle); }
         &:active { transform: scale(.9); }
