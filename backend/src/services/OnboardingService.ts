@@ -99,6 +99,7 @@ export class OnboardingService {
 
     const blocks: Partial<RoutineBlock>[] = [];
     const meals: Partial<ScheduledMeal>[] = [];
+    const mealBlockLinks: Array<{ blockIndex: number; name: string; scheduledTime: string }> = [];
 
     // ── 1. Sleep block ────────────────────────────────────────────────────
     const sleepMin = timeToMinutes(dto.sleepTime);
@@ -231,6 +232,7 @@ export class OnboardingService {
         proteinG, carbsG, fatG,
       });
 
+      const blockIndex = blocks.length;
       blocks.push({
         userId, type: BlockType.MEAL, isRecurring: true,
         daysOfWeek: allDays,
@@ -241,6 +243,12 @@ export class OnboardingService {
         caloricTarget: mealCal,
         sortOrder: sortOrder++,
         metadata: { mealKey },
+      });
+
+      mealBlockLinks.push({
+        blockIndex,
+        name: MEAL_LABELS[mealKey] ?? mealKey,
+        scheduledTime: mealTime,
       });
     }
 
@@ -340,14 +348,33 @@ export class OnboardingService {
         }
       }
 
+      if (meals.length > 0) {
+        const savedMeals = await manager.getRepository(ScheduledMeal).save(
+          meals.map(m => manager.getRepository(ScheduledMeal).create(m))
+        );
+
+        // Link each meal routine block to the corresponding ScheduledMeal.
+        // This avoids rendering duplicates in the dashboard (real block + synthetic block).
+        const mealIdByKey = new Map<string, string>();
+        for (const m of savedMeals) {
+          mealIdByKey.set(`${m.name}::${m.scheduledTime}`, m.id);
+        }
+        for (const link of mealBlockLinks) {
+          const scheduledMealId = mealIdByKey.get(`${link.name}::${link.scheduledTime}`);
+          if (!scheduledMealId) continue;
+
+          const block = blocks[link.blockIndex];
+          if (!block) continue;
+
+          block.metadata = {
+            ...(block.metadata ?? {}),
+            scheduledMealId,
+          };
+        }
+      }
       if (blocks.length > 0) {
         await manager.getRepository(RoutineBlock).save(
           blocks.map(b => manager.getRepository(RoutineBlock).create(b))
-        );
-      }
-      if (meals.length > 0) {
-        await manager.getRepository(ScheduledMeal).save(
-          meals.map(m => manager.getRepository(ScheduledMeal).create(m))
         );
       }
     });
