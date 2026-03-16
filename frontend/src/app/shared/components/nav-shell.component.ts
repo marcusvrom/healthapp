@@ -125,7 +125,19 @@ export class NavShellComponent implements OnInit {
   logout(): void { this.auth.logout(); }
 
   toggleGroup(groupId: string): void {
-    this.openGroups.update(current => ({ ...current, [groupId]: !current[groupId] }));
+    this.openGroups.update(current => {
+      const openingSelectedGroup = !current[groupId];
+      const next = Object.keys(current).reduce((acc, id) => {
+        acc[id] = false;
+        return acc;
+      }, {} as Record<string, boolean>);
+
+      if (openingSelectedGroup) {
+        next[groupId] = true;
+      }
+
+      return next;
+    });
   }
 
   isGroupOpen(groupId: string): boolean {
@@ -187,14 +199,17 @@ export class NavShellComponent implements OnInit {
 
   private ensureActiveGroupOpen(): void {
     const currentUrl = this.router.url;
-    this.openGroups.update(current => {
-      const next = { ...current };
-      this.navGroups.forEach(group => {
-        if (group.items.some(item => currentUrl.startsWith(item.route))) {
-          next[group.id] = true;
-        }
-      });
-      return next;
-    });
+    const activeGroupId = this.navGroups.find(group =>
+      group.items.some(item => currentUrl.startsWith(item.route)),
+    )?.id;
+
+    if (!activeGroupId) return;
+
+    this.openGroups.update(current =>
+      Object.keys(current).reduce((acc, id) => {
+        acc[id] = id === activeGroupId;
+        return acc;
+      }, {} as Record<string, boolean>),
+    );
   }
 }
