@@ -1,4 +1,12 @@
 <div class="auth-page">
+  <div class="hero-mobile">
+    <img class="hero-logo" src="assets/brand/airafit-logo-2000.png" alt="AiraFit logo" />
+    <div>
+      <h1>AiraFit</h1>
+      <p>Sua jornada para uma vida mais saudável começa aqui.</p>
+    </div>
+  </div>
+
   <!-- Hero panel -->
   <div class="hero">
     <div>
@@ -18,7 +26,7 @@
 
   <!-- Form panel -->
   <div class="form-side">
-    <div class="form-card animate-fade">
+    <div class="form-card animate-fade card">
       <div class="logo">
         <img class="brand-logo" src="assets/brand/airafit-logo-2000.png" alt="AiraFit logo" />
         <strong>AiraFit</strong>
@@ -37,6 +45,7 @@
           <input
             id="email" type="email" name="email"
             [(ngModel)]="email" required placeholder="seu@email.com"
+            inputmode="email" autocomplete="email"
           />
         </div>
 
@@ -45,6 +54,7 @@
           <input
             id="password" type="password" name="password"
             [(ngModel)]="password" required placeholder="••••••••"
+            autocomplete="current-password"
           />
         </div>
 
