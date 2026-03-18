@@ -10,6 +10,7 @@ import { AppDataSource } from "./config/typeorm.config";
 import { env } from "./config/env";
 import router from "./routes";
 import { errorMiddleware } from "./middleware/error.middleware";
+import { NotificationScheduler } from "./services/NotificationScheduler";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -93,6 +94,9 @@ async function bootstrap(): Promise<void> {
 
   app.listen(env.port, () => {
     console.log(`[SERVER] Rodando em http://localhost:${env.port}`);
+
+    // Start background notification scheduler
+    NotificationScheduler.start();
   });
 }
 

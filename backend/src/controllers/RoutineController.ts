@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AppDataSource } from "../config/typeorm.config";
 import { RoutineBlock, BlockType, MealType } from "../entities/RoutineBlock";
+import { BlockCompletion } from "../entities/BlockCompletion";
 import { ScheduledMeal } from "../entities/ScheduledMeal";
 import { HealthProfile } from "../entities/HealthProfile";
 import { BloodTest } from "../entities/BloodTest";
@@ -69,9 +70,10 @@ function checkTimeWindow(block: { routineDate: string; isRecurring?: boolean; st
   return { allowed: true, outOfWindow: false };
 }
 
-const routineRepo   = () => AppDataSource.getRepository(RoutineBlock);
-const mealRepo      = () => AppDataSource.getRepository(ScheduledMeal);
-const profileRepo   = () => AppDataSource.getRepository(HealthProfile);
+const routineRepo     = () => AppDataSource.getRepository(RoutineBlock);
+const completionRepo  = () => AppDataSource.getRepository(BlockCompletion);
+const mealRepo        = () => AppDataSource.getRepository(ScheduledMeal);
+const profileRepo     = () => AppDataSource.getRepository(HealthProfile);
 
 // ── Meal-type inference & macro distribution ──────────────────────────────────
 
@@ -108,6 +110,8 @@ export class RoutineController {
    * Returns the union of:
    *  - One-off blocks created specifically for the requested date
    *  - Recurring blocks whose daysOfWeek includes the requested day-of-week
+   *
+   * Each block is enriched with per-date completion info from block_completions.
    */
   static async get(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -129,7 +133,32 @@ export class RoutineController {
         .addOrderBy("b.start_time", "ASC")
         .getMany();
 
-      res.json(blocks);
+      // Load completions for all these blocks on the requested date
+      const blockIds = blocks.map(b => b.id);
+      let completions: BlockCompletion[] = [];
+      if (blockIds.length > 0) {
+        completions = await completionRepo()
+          .createQueryBuilder("c")
+          .where("c.block_id IN (:...blockIds)", { blockIds })
+          .andWhere("c.completion_date = :date", { date })
+          .getMany();
+      }
+
+      const completionMap = new Map(completions.map(c => [c.blockId, c]));
+
+      // Merge completion info into each block for the response
+      const enriched = blocks.map(b => {
+        const c = completionMap.get(b.id);
+        return {
+          ...b,
+          // Per-date completion fields (override entity-level ones)
+          completedAt: c?.completedAt ?? null,
+          xpAwarded: c?.xpAwarded ?? false,
+          completionId: c?.id ?? null,
+        };
+      });
+
+      res.json(enriched);
     } catch (err) {
       next(err);
     }
@@ -624,12 +653,12 @@ export class RoutineController {
 
   /**
    * PATCH /routine/blocks/:id/complete
-   * Toggles completedAt (complete ↔ undo).
+   * Toggles completion for a block on a specific date using BlockCompletion.
    *
    * XP is awarded on first completion ONLY when:
-   *  1. routineDate === today          (anti-backdating)
-   *  2. Current time within window     (anti-preemptive completion)
-   *  3. Daily XP cap not yet reached   (anti-farming)
+   *  1. Date === today                    (anti-backdating)
+   *  2. Current time within window        (anti-preemptive completion)
+   *  3. Daily XP cap not yet reached      (anti-farming)
    *
    * The block is still marked as done even when XP is denied (soft rejection).
    * Returns { block, xpGained, totalXp, level, capReached, outOfWindow, message }
@@ -650,16 +679,24 @@ export class RoutineController {
         return;
       }
 
-      // ── Hard reject: cannot complete blocks from other days ───────────────
       const today = new Date().toISOString().slice(0, 10);
-      if (!block.isRecurring && block.routineDate !== today) {
+      const completionDate = (req.body as any)?.date || today;
+
+      // ── Hard reject: cannot complete blocks from other days ───────────────
+      if (!block.isRecurring && block.routineDate !== completionDate) {
         res.status(409).json({
           message: "Somente blocos do dia atual podem ser concluídos.",
         });
         return;
       }
 
-      const isUndoing = !!block.completedAt;
+      // Check if there's already a completion for this block+date
+      const existing = await completionRepo().findOneBy({
+        blockId: block.id,
+        completionDate,
+      });
+
+      const isUndoing = !!existing;
 
       // ── Sun exposure: only allow before 10h or after 16h ────────────────
       if (!isUndoing && block.type === BlockType.SUN_EXPOSURE) {
@@ -671,8 +708,6 @@ export class RoutineController {
           return;
         }
       }
-
-      block.completedAt = isUndoing ? undefined : new Date();
 
       const XP_FOR_TYPE: Partial<Record<BlockType, number>> = {
         [BlockType.EXERCISE]:     XP_REWARDS.BLOCK_EXERCISE,
@@ -690,14 +725,29 @@ export class RoutineController {
       let outOfWindow = false;
       let message: string | undefined;
 
-      if (!isUndoing && !block.xpAwarded) {
+      if (isUndoing) {
+        // Remove the completion record (undo)
+        await completionRepo().delete({ id: existing!.id });
+      } else {
+        // Create new completion
+        const completion = completionRepo().create({
+          blockId: block.id,
+          userId: req.userId,
+          completionDate,
+          completedAt: new Date(),
+          xpAwarded: false,
+        });
+
         // ── Time-window check ──────────────────────────────────────────────
-        const window = checkTimeWindow(block);
-        outOfWindow  = window.outOfWindow;
+        const window = checkTimeWindow({
+          routineDate: completionDate,
+          isRecurring: block.isRecurring,
+          startTime: block.startTime,
+          endTime: block.endTime,
+        });
+        outOfWindow = window.outOfWindow;
 
         if (!window.allowed) {
-          // Hard reject returned only for the "other day" case above, so this
-          // branch currently is unreachable, but kept for safety.
           res.status(409).json({ message: window.reason });
           return;
         }
@@ -712,17 +762,18 @@ export class RoutineController {
 
             if (waterPct < 0.70) {
               message = `XP de agua liberado apenas ao atingir 70% da meta diaria (${Math.round(waterPct * 100)}% atual). Continue bebendo!`;
-              // Block marked done but no XP
-              await routineRepo().save(block);
+              await completionRepo().save(completion);
               if (totalXp === 0) totalXp = await GamificationService.getXp(req.userId);
               const level = GamificationService.levelFromXp(totalXp);
-              res.json({ block, xpGained: 0, totalXp, level, capReached: false, outOfWindow: false, message });
+              // Return block with completion info merged
+              const responseBlock = { ...block, completedAt: completion.completedAt, xpAwarded: false, completionId: completion.id };
+              res.json({ block: responseBlock, xpGained: 0, totalXp, level, capReached: false, outOfWindow: false, message });
               return;
             }
           }
 
           // ── Daily cap check ──────────────────────────────────────────────
-          const category = block.type as string; // e.g. "exercise"
+          const category = block.type as string;
           const remaining = await GamificationService.remainingDailyXp(
             req.userId, today, category
           );
@@ -736,18 +787,29 @@ export class RoutineController {
               req.userId, reward, category, block.id
             );
             xpGained      = reward;
-            block.xpAwarded = true;
+            completion.xpAwarded = true;
           }
         } else {
           message = window.reason;
         }
+
+        await completionRepo().save(completion);
+
+        // Also update the block-level completedAt for backwards compatibility
+        block.completedAt = completion.completedAt;
+        block.xpAwarded = completion.xpAwarded || block.xpAwarded;
+        await routineRepo().save(block);
+      }
+
+      if (isUndoing) {
+        // Clear block-level completedAt for backwards compat
+        block.completedAt = undefined;
+        await routineRepo().save(block);
       }
 
       if (totalXp === 0) {
         totalXp = await GamificationService.getXp(req.userId);
       }
-
-      await routineRepo().save(block);
 
       // ── Optional social photo (only on first completion, not undo) ────────
       let postId: string | undefined;
@@ -798,7 +860,17 @@ export class RoutineController {
       }
 
       const level = GamificationService.levelFromXp(totalXp);
-      res.json({ block, xpGained, totalXp, level, capReached, outOfWindow, message, postId, photoBonusXp });
+
+      // Return block with per-date completion info
+      const completionForDate = isUndoing ? null : await completionRepo().findOneBy({ blockId: block.id, completionDate: today });
+      const responseBlock = {
+        ...block,
+        completedAt: completionForDate?.completedAt ?? null,
+        xpAwarded: completionForDate?.xpAwarded ?? false,
+        completionId: completionForDate?.id ?? null,
+      };
+
+      res.json({ block: responseBlock, xpGained, totalXp, level, capReached, outOfWindow, message, postId, photoBonusXp });
     } catch (err) {
       next(err);
     }

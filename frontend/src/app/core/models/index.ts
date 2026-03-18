@@ -188,9 +188,11 @@ export interface RoutineBlock {
   waterMl?: number;
   metadata?: Record<string, unknown>;
   sortOrder: number;
-  /** ISO timestamp set when the user marks this block completed. */
-  completedAt?: string;
+  /** ISO timestamp set when the user marks this block completed (per-date from BlockCompletion). */
+  completedAt?: string | null;
   xpAwarded?: boolean;
+  /** ID of the BlockCompletion record for this date (null if not completed). */
+  completionId?: string | null;
   /** Canvas recurrence fields */
   isRecurring?: boolean;
   daysOfWeek?: number[];

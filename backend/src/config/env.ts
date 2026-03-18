@@ -12,6 +12,10 @@ export const env = {
   corsOrigins: process.env.CORS_ORIGINS ?? "http://localhost:4200",
   /** Cookie domain for HttpOnly JWT cookie – omit in dev so localhost works */
   cookieDomain: process.env.COOKIE_DOMAIN ?? undefined,
+  /** VAPID keys for Web Push notifications */
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? "",
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
+  vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:dev@airafit.com",
   db: {
     host: process.env.DB_HOST ?? "localhost",
     port: Number(process.env.DB_PORT ?? 5432),

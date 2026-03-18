@@ -36,6 +36,12 @@ router.post("/auth/register", AuthController.register);
 router.post("/auth/login", AuthController.login);
 router.post("/auth/logout", AuthController.logout);
 
+// ── VAPID public key (public — needed for push subscription) ─────────────────
+router.get("/push/vapid-key", (_req: Request, res: Response) => {
+  const key = process.env.VAPID_PUBLIC_KEY ?? "";
+  res.json({ publicKey: key });
+});
+
 // ── Helper to cast req for authenticated routes ────────────────────────────
 type AuthHandler = (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void> | void;
 function auth(handler: AuthHandler) {
