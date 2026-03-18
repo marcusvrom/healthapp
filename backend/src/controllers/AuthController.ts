@@ -7,6 +7,34 @@ import { env } from "../config/env";
 
 const userRepo = () => AppDataSource.getRepository(User);
 
+/** Parse JWT expiresIn string (e.g. "7d", "24h", "30m") to milliseconds */
+function expiresInToMs(expiresIn: string): number {
+  const match = expiresIn.match(/^(\d+)(s|m|h|d)$/);
+  if (!match) return 7 * 24 * 60 * 60 * 1000; // default 7 days
+  const n = Number(match[1]);
+  switch (match[2]) {
+    case "s": return n * 1000;
+    case "m": return n * 60 * 1000;
+    case "h": return n * 60 * 60 * 1000;
+    case "d": return n * 24 * 60 * 60 * 1000;
+    default:  return 7 * 24 * 60 * 60 * 1000;
+  }
+}
+
+const COOKIE_NAME = "ha_token";
+const isProduction = env.nodeEnv === "production";
+
+function setTokenCookie(res: Response, token: string): void {
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "strict" : "lax",
+    domain: env.cookieDomain || undefined,
+    maxAge: expiresInToMs(env.jwtExpiresIn),
+    path: "/",
+  });
+}
+
 export class AuthController {
   /** POST /auth/register */
   static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -29,6 +57,7 @@ export class AuthController {
       await userRepo().save(user);
 
       const token = AuthController.signToken(user.id);
+      setTokenCookie(res, token);
       res.status(201).json({ token, userId: user.id });
     } catch (err) {
       next(err);
@@ -47,10 +76,23 @@ export class AuthController {
       }
 
       const token = AuthController.signToken(user.id);
+      setTokenCookie(res, token);
       res.json({ token, userId: user.id });
     } catch (err) {
       next(err);
     }
+  }
+
+  /** POST /auth/logout */
+  static async logout(_req: Request, res: Response): Promise<void> {
+    res.clearCookie(COOKIE_NAME, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "strict" : "lax",
+      domain: env.cookieDomain || undefined,
+      path: "/",
+    });
+    res.json({ message: "Logout realizado." });
   }
 
   private static signToken(userId: string): string {

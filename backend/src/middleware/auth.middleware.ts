@@ -6,19 +6,28 @@ export interface AuthenticatedRequest extends Request {
   userId: string;
 }
 
+const COOKIE_NAME = "ha_token";
+
 export function authMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
 ): void {
-  const authHeader = req.headers.authorization;
+  // 1. Try HttpOnly cookie first (preferred)
+  let token: string | undefined = req.cookies?.[COOKIE_NAME];
 
-  if (!authHeader?.startsWith("Bearer ")) {
+  // 2. Fall back to Authorization header (backwards compat / mobile clients)
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.slice(7);
+    }
+  }
+
+  if (!token) {
     res.status(401).json({ message: "Token de autenticação não fornecido." });
     return;
   }
-
-  const token = authHeader.slice(7);
 
   try {
     const payload = jwt.verify(token, env.jwtSecret) as { sub: string };

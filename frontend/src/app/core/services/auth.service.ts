@@ -9,9 +9,12 @@ export class AuthService {
   private api    = inject(ApiService);
   private router = inject(Router);
 
-  readonly isLoggedIn = signal(!!this.token);
+  readonly isLoggedIn = signal(!!this.userId);
 
-  get token(): string | null { return localStorage.getItem('ha_token'); }
+  /** Token is now stored in an HttpOnly cookie set by the backend.
+   *  We no longer read it from localStorage – this getter exists for
+   *  backwards compatibility with code that checks truthiness. */
+  get token(): string | null { return this.userId ? '__httponly__' : null; }
   get userId(): string | null { return localStorage.getItem('ha_uid'); }
 
   register(email: string, name: string, password: string) {
@@ -27,7 +30,8 @@ export class AuthService {
   }
 
   logout(): void {
-    localStorage.removeItem('ha_token');
+    // Call backend to clear HttpOnly cookie
+    this.api.post('/auth/logout', {}).subscribe({ error: () => {} });
     localStorage.removeItem('ha_uid');
     localStorage.removeItem('ha_onboarded');
     this.isLoggedIn.set(false);
@@ -43,7 +47,7 @@ export class AuthService {
   }
 
   private persist(res: AuthResponse): void {
-    localStorage.setItem('ha_token', res.token);
+    // Token cookie is set by the backend (HttpOnly) — we only store userId
     localStorage.setItem('ha_uid', res.userId);
     this.isLoggedIn.set(true);
   }

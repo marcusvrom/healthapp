@@ -34,6 +34,7 @@ const router = Router();
 // ── Auth (public) ─────────────────────────────────────────────────────────────
 router.post("/auth/register", AuthController.register);
 router.post("/auth/login", AuthController.login);
+router.post("/auth/logout", AuthController.logout);
 
 // ── Helper to cast req for authenticated routes ────────────────────────────
 type AuthHandler = (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void> | void;

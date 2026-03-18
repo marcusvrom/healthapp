@@ -6,7 +6,7 @@ export const authGuard: CanActivateFn = () => {
   const auth   = inject(AuthService);
   const router = inject(Router);
 
-  if (!auth.token) {
+  if (!auth.userId) {
     router.navigate(['/auth/login']);
     return false;
   }
@@ -17,7 +17,7 @@ export const publicGuard: CanActivateFn = () => {
   const auth   = inject(AuthService);
   const router = inject(Router);
 
-  if (auth.token) {
+  if (auth.userId) {
     router.navigate(['/dashboard']);
     return false;
   }
