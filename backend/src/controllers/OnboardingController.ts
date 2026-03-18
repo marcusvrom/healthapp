@@ -19,6 +19,7 @@ export class OnboardingController {
       const {
         wakeUpTime, sleepTime, preferredTrainTime, meals,
         waterReminders, waterIntervalMin,
+        exercises, exerciseDaysOfWeek, exerciseDurationMin,
       } = req.body as CompleteOnboardingDto;
 
       if (!wakeUpTime || !sleepTime || !preferredTrainTime || !Array.isArray(meals) || meals.length === 0) {
@@ -35,6 +36,9 @@ export class OnboardingController {
         meals,
         waterReminders: waterReminders === true,
         waterIntervalMin: waterIntervalMin ? Number(waterIntervalMin) : undefined,
+        exercises,
+        exerciseDaysOfWeek,
+        exerciseDurationMin: exerciseDurationMin ? Number(exerciseDurationMin) : undefined,
       });
 
       res.status(201).json({ message: "Rotina base criada com sucesso." });

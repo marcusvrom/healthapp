@@ -407,6 +407,8 @@
                         {{ b.startTime }}–{{ b.endTime }}
                         @if (b.caloricTarget) { · {{ b.caloricTarget | number:'1.0-0' }} kcal }
                         @if (b.waterMl)       { · {{ b.waterMl | number:'1.0-0' }} ml }
+                        @if (b.type === 'exercise' && hasLinkedWorkout(b)) { · {{ blockExercises(b).length }} exercicios }
+                        @if (b.type === 'exercise' && isBlockCompleted(b)) { · <span style="color:#16a34a;font-weight:600">Concluido</span> }
                       </div>
                     </div>
 
@@ -419,8 +421,8 @@
                         </button>
                       } @else if (b.type === 'exercise' && !isBlockCompleted(b)) {
                         <button class="bc-go-btn" style="color:#166534"
-                          (click)="toggleBlockComplete(b, $event); $event.stopPropagation()">
-                          Ir →
+                          (click)="openWorkoutCompletion(b); $event.stopPropagation()">
+                          Iniciar →
                         </button>
                       } @else if (!isBlockCompleted(b) && !isDone(b) && !mealConsumed(b) && !isCompletable(b)) {
                         <!-- Non-completable: show nothing -->
@@ -597,6 +599,7 @@
 
     <div class="card" style="display:flex;flex-direction:column;gap:.5rem">
       <div style="font-size:.82rem;font-weight:700;margin-bottom:.125rem">⚡ Ações rápidas</div>
+      <a routerLink="/workouts"    class="btn btn-secondary w-full">💪 Fichas de treino</a>
       <a routerLink="/nutrition"   class="btn btn-secondary w-full">🍽️ Registrar refeição</a>
       <a routerLink="/protocols"   class="btn btn-secondary w-full">💊 Protocolos clínicos</a>
       <a routerLink="/recipes"     class="btn btn-secondary w-full">📖 Receitas da comunidade</a>
@@ -766,6 +769,81 @@
 <!-- Anti-cheat toast (cap reached / out of window) -->
 @if (xpBlockToast()) {
   <div class="xp-block-toast">🚫 {{ xpBlockToast() }}</div>
+}
+
+<!-- ── Workout completion modal ──────────────────────────────────── -->
+@if (workoutCompletionBlock()) {
+  <div class="workout-overlay" (click)="closeWorkoutCompletion()">
+    <div class="workout-modal" (click)="$event.stopPropagation()">
+      <div class="wm-header">
+        <div class="wm-title-row">
+          <span class="wm-icon">💪</span>
+          <div>
+            <h3>{{ workoutCompletionBlock()!.label }}</h3>
+            <span class="wm-subtitle">{{ workoutCompletionBlock()!.startTime }}–{{ workoutCompletionBlock()!.endTime }}</span>
+          </div>
+        </div>
+        <button class="wm-close" (click)="closeWorkoutCompletion()" type="button">✕</button>
+      </div>
+
+      <div class="wm-stats-bar">
+        <div class="wm-stat">
+          <span class="wm-stat-icon">⏱️</span>
+          <span class="wm-stat-value">{{ formatElapsed(workoutElapsedSeconds()) }}</span>
+          <span class="wm-stat-label">Tempo</span>
+        </div>
+        <div class="wm-stat">
+          <span class="wm-stat-icon">📊</span>
+          <span class="wm-stat-value">{{ workoutProgress() }}%</span>
+          <span class="wm-stat-label">Progresso</span>
+        </div>
+        <div class="wm-stat">
+          <span class="wm-stat-icon">🏋️</span>
+          <span class="wm-stat-value">{{ workoutCheckedExercises().size }}/{{ workoutCompletionExercises().length }}</span>
+          <span class="wm-stat-label">Exercicios</span>
+        </div>
+      </div>
+
+      <div class="wm-progress-bar">
+        <div class="wm-progress-fill" [style.width.%]="workoutProgress()"></div>
+      </div>
+
+      <div class="wm-exercises">
+        @if (workoutCompletionExercises().length === 0) {
+          <div class="wm-empty">
+            <p>Este treino nao possui exercicios vinculados.</p>
+            <p>Voce pode concluir diretamente ou <a routerLink="/workouts" style="color:var(--color-primary);font-weight:600;text-decoration:underline">vincular uma ficha de treino</a> ao bloco.</p>
+          </div>
+        } @else {
+          @for (ex of workoutCompletionExercises(); track ex.name; let i = $index) {
+            <div class="wm-exercise" [class.done]="workoutCheckedExercises().has(i)" (click)="toggleWorkoutExercise(i)">
+              <div class="wm-ex-check" [class.checked]="workoutCheckedExercises().has(i)">
+                {{ workoutCheckedExercises().has(i) ? '✓' : '' }}
+              </div>
+              <div class="wm-ex-info">
+                <span class="wm-ex-name">{{ ex.name }}</span>
+                <span class="wm-ex-detail">{{ ex.sets }} series · {{ ex.reps }} reps · {{ ex.restSeconds >= 60 ? (ex.restSeconds / 60 | number:'1.0-0') + 'min' : ex.restSeconds + 's' }} descanso</span>
+                @if (ex.notes) {
+                  <span class="wm-ex-notes">💡 {{ ex.notes }}</span>
+                }
+              </div>
+              <span class="wm-ex-num">#{{ i + 1 }}</span>
+            </div>
+          }
+        }
+      </div>
+
+      <div class="wm-footer">
+        <div class="wm-xp-hint">+25 XP ao concluir o treino</div>
+        <div class="wm-footer-actions">
+          <button class="btn btn-secondary" (click)="closeWorkoutCompletion()">Cancelar</button>
+          <button class="btn btn-primary wm-finish-btn" (click)="finishWorkout($event)">
+            {{ workoutCompletionExercises().length > 0 && workoutProgress() < 100 ? 'Concluir mesmo assim' : 'Concluir Treino' }} 🎉
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 }
 
 <!-- ── Photo share prompt ─────────────────────────────────────────── -->

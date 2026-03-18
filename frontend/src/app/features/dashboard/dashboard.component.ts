@@ -291,6 +291,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   expandedWorkoutBlock = signal<string | null>(null);
   overflowOpenId = signal<string | null>(null);
 
+  // ── Workout completion modal ──────────────────────────────────────────────
+  workoutCompletionBlock = signal<RoutineBlock | null>(null);
+  workoutCheckedExercises = signal<Set<number>>(new Set());
+  workoutElapsedSeconds = signal(0);
+  private workoutTimerInterval: ReturnType<typeof setInterval> | null = null;
+
   // ── Edit block state ──────────────────────────────────────────────────────
   editEventModal = signal(false);
   editEvent: { id: string; type: BlockType; label: string; startTime: string; endTime: string; daysOfWeek: number[]; targetDate: string } = {
@@ -443,7 +449,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadCopilotFeedback();
   }
 
-  ngOnDestroy(): void { if (this.clockInterval) clearInterval(this.clockInterval); }
+  ngOnDestroy(): void {
+    if (this.clockInterval) clearInterval(this.clockInterval);
+    if (this.workoutTimerInterval) clearInterval(this.workoutTimerInterval);
+  }
 
   @HostListener('document:keydown.escape')
   onEsc() { this.closeMealPanel(); this.overflowOpenId.set(null); }
@@ -1121,9 +1130,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Exercise blocks: redirect to workouts page
+    // Exercise blocks: open workout completion modal
     if (b.type === 'exercise') {
-      this.router.navigate(['/workouts']);
+      this.openWorkoutCompletion(b);
       return;
     }
 
@@ -1145,6 +1154,59 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     // New completion: show photo share prompt
     this.photoPromptBlock.set({ id: b.id, event });
+    this.photoDraftDataUrl.set(null);
+    this.photoDraftCaption = '';
+    this.photoSharePublic  = true;
+  }
+
+  // ── Workout completion modal ──────────────────────────────────────────────
+
+  openWorkoutCompletion(block: RoutineBlock): void {
+    this.workoutCompletionBlock.set(block);
+    this.workoutCheckedExercises.set(new Set());
+    this.workoutElapsedSeconds.set(0);
+    if (this.workoutTimerInterval) clearInterval(this.workoutTimerInterval);
+    this.workoutTimerInterval = setInterval(() => {
+      this.workoutElapsedSeconds.update(s => s + 1);
+    }, 1000);
+  }
+
+  closeWorkoutCompletion(): void {
+    if (this.workoutTimerInterval) { clearInterval(this.workoutTimerInterval); this.workoutTimerInterval = null; }
+    this.workoutCompletionBlock.set(null);
+  }
+
+  toggleWorkoutExercise(index: number): void {
+    this.workoutCheckedExercises.update(set => {
+      const next = new Set(set);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  }
+
+  workoutCompletionExercises(): Array<{ name: string; sets: number; reps: string; restSeconds: number; notes?: string }> {
+    const block = this.workoutCompletionBlock();
+    return block ? this.blockExercises(block) : [];
+  }
+
+  workoutProgress(): number {
+    const total = this.workoutCompletionExercises().length;
+    if (total === 0) return 100;
+    return Math.round((this.workoutCheckedExercises().size / total) * 100);
+  }
+
+  formatElapsed(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${pad2(m)}:${pad2(s)}`;
+  }
+
+  finishWorkout(event: MouseEvent): void {
+    const block = this.workoutCompletionBlock();
+    if (!block) return;
+    this.closeWorkoutCompletion();
+    // Show photo share prompt for the completed block
+    this.photoPromptBlock.set({ id: block.id, event });
     this.photoDraftDataUrl.set(null);
     this.photoDraftCaption = '';
     this.photoSharePublic  = true;

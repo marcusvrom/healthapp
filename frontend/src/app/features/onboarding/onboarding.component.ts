@@ -4,10 +4,11 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ProfileService } from '../../core/services/profile.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ApiService } from '../../core/services/api.service';
+import { WorkoutService } from '../../core/services/workout.service';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import {
   ActivityFactor, Gender, PrimaryGoal,
-  MainActivity, MetabolicResult,
+  MainActivity, MetabolicResult, WorkoutTemplate,
 } from '../../core/models';
 
 // ── Local step interfaces ───────────────────────────────────────────────────
@@ -78,15 +79,22 @@ const MEAL_OPTIONS: Array<{ key: string; label: string; icon: string; time: stri
   templateUrl: './onboarding.component.html',
 })
 export class OnboardingComponent {
-  private profileSvc = inject(ProfileService);
-  private authSvc    = inject(AuthService);
-  private apiSvc     = inject(ApiService);
-  private router     = inject(Router);
+  private profileSvc  = inject(ProfileService);
+  private authSvc     = inject(AuthService);
+  private apiSvc      = inject(ApiService);
+  private workoutSvc  = inject(WorkoutService);
+  private router      = inject(Router);
 
   step    = signal(0);
   saving  = signal(false);
   errorMsg= signal('');
   metabolic = signal<MetabolicResult | null>(null);
+
+  // ── Workout template state ──────────────────────────────────────────────────
+  workoutTemplates = signal<WorkoutTemplate[]>([]);
+  selectedTemplate = signal<WorkoutTemplate | null>(null);
+  templateFilter   = signal<string>('all');
+  creatingFromTemplate = signal(false);
 
   readonly steps               = STEPS;
   readonly goalOptions         = GOAL_OPTIONS;
@@ -155,6 +163,37 @@ export class OnboardingComponent {
   hasSelectedMeals(): boolean {
     return Object.values(this.routineBase.meals).some(v => v);
   }
+
+  // ── Workout template helpers ──────────────────────────────────────────────────
+
+  get filteredTemplates(): WorkoutTemplate[] {
+    const f = this.templateFilter();
+    const templates = this.workoutTemplates();
+    if (f === 'all') return templates;
+    return templates.filter(t => t.category === f);
+  }
+
+  get templateCategories(): string[] {
+    return [...new Set(this.workoutTemplates().map(t => t.category))];
+  }
+
+  selectTemplate(tpl: WorkoutTemplate): void {
+    this.selectedTemplate.set(
+      this.selectedTemplate()?.slug === tpl.slug ? null : tpl
+    );
+  }
+
+  skipTemplate(): void {
+    this.selectedTemplate.set(null);
+  }
+
+  readonly CATEGORY_ICONS: Record<string, string> = {
+    PPL: '🏋️', 'Upper/Lower': '💪', Atletismo: '🏃', Cardio: '❤️‍🔥',
+    'Full Body': '🔥', ABC: '🅰️', Pilates: '🧘‍♀️', Natacao: '🏊',
+    Yoga: '🕉️', Ciclismo: '🚴',
+  };
+
+  categoryIcon(cat: string): string { return this.CATEGORY_ICONS[cat] ?? '📋'; }
 
   // ── Step navigation ────────────────────────────────────────────────────────
 
@@ -231,6 +270,11 @@ export class OnboardingComponent {
         this.saving.set(false);
       },
     });
+    // Load workout templates for the template picker
+    this.workoutSvc.getTemplates().subscribe({
+      next: t => this.workoutTemplates.set(t),
+      error: () => {},
+    });
   }
 
   // ── Finish: call onboarding/complete endpoint ────────────────────────────
@@ -243,8 +287,9 @@ export class OnboardingComponent {
       .filter(([, v]) => v)
       .map(([key]) => key);
 
+    const tpl = this.selectedTemplate();
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       wakeUpTime:         this.routineBase.wakeUpTime,
       sleepTime:          this.routineBase.sleepTime,
       preferredTrainTime: this.routineBase.preferredTrainTime,
@@ -253,10 +298,37 @@ export class OnboardingComponent {
       waterIntervalMin:   this.routineBase.waterReminders ? this.routineBase.waterIntervalMin : undefined,
     };
 
+    // If user selected a template, include exercises for the onboarding service
+    if (tpl) {
+      payload['exercises'] = tpl.exercises.map(e => ({
+        name: e.name,
+        category: tpl.category,
+        sets: e.sets,
+        reps: e.reps,
+      }));
+      payload['exerciseDurationMin'] = tpl.estimatedMinutes;
+    }
+
+    // Complete onboarding first
     this.apiSvc.post('/onboarding/complete', payload).subscribe({
       next: () => {
-        this.authSvc.markOnboarded();
-        this.router.navigate(['/dashboard']);
+        // If user chose a template, create the workout sheet from it
+        if (tpl) {
+          this.workoutSvc.createFromTemplate(tpl.slug).subscribe({
+            next: () => {
+              this.authSvc.markOnboarded();
+              this.router.navigate(['/dashboard']);
+            },
+            error: () => {
+              // Onboarding completed successfully, just navigate even if template creation fails
+              this.authSvc.markOnboarded();
+              this.router.navigate(['/dashboard']);
+            },
+          });
+        } else {
+          this.authSvc.markOnboarded();
+          this.router.navigate(['/dashboard']);
+        }
       },
       error: () => {
         this.errorMsg.set('Erro ao finalizar onboarding. Tente novamente.');

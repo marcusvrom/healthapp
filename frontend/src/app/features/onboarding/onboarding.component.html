@@ -293,6 +293,67 @@
                 </div>
               </div>
             </div>
+
+            <!-- Block 3: Workout Template Picker -->
+            <div class="summary-block template-block">
+              <h3>💪 Escolha sua ficha de treino</h3>
+              <p class="template-hint">Selecione um template pronto para começar a treinar. Você pode personalizar depois.</p>
+
+              <!-- Category filter -->
+              @if (workoutTemplates().length > 0) {
+                <div class="tpl-filter-row">
+                  <button class="tpl-filter-chip" [class.active]="templateFilter() === 'all'" (click)="templateFilter.set('all')">Todos</button>
+                  @for (cat of templateCategories; track cat) {
+                    <button class="tpl-filter-chip" [class.active]="templateFilter() === cat" (click)="templateFilter.set(cat)">
+                      {{ categoryIcon(cat) }} {{ cat }}
+                    </button>
+                  }
+                </div>
+
+                <div class="tpl-grid">
+                  @for (tpl of filteredTemplates; track tpl.slug) {
+                    <div class="tpl-card"
+                         [class.selected]="selectedTemplate()?.slug === tpl.slug"
+                         (click)="selectTemplate(tpl)">
+                      <div class="tpl-card-header">
+                        <span class="tpl-card-icon">{{ categoryIcon(tpl.category) }}</span>
+                        <div class="tpl-card-info">
+                          <div class="tpl-card-name">{{ tpl.name }}</div>
+                          <div class="tpl-card-meta">{{ tpl.category }} · {{ tpl.estimatedMinutes }}min · {{ tpl.exercises.length }} exercicios</div>
+                        </div>
+                        <div class="tpl-card-check">
+                          @if (selectedTemplate()?.slug === tpl.slug) { ✓ }
+                        </div>
+                      </div>
+                      @if (selectedTemplate()?.slug === tpl.slug) {
+                        <div class="tpl-card-exercises">
+                          @for (ex of tpl.exercises; track ex.name; let i = $index) {
+                            <div class="tpl-ex-row">
+                              <span class="tpl-ex-num">{{ i + 1 }}</span>
+                              <span class="tpl-ex-name">{{ ex.name }}</span>
+                              <span class="tpl-ex-detail">{{ ex.sets }}x{{ ex.reps }}</span>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+
+                @if (selectedTemplate()) {
+                  <div class="tpl-selected-info">
+                    ✅ Ficha selecionada: <strong>{{ selectedTemplate()!.name }}</strong>
+                    <button class="tpl-clear-btn" (click)="skipTemplate()">Remover seleção</button>
+                  </div>
+                } @else {
+                  <div class="tpl-skip-info">
+                    💡 Você pode pular esta etapa e criar suas fichas depois em <strong>Fichas de Treino</strong>.
+                  </div>
+                }
+              } @else {
+                <p style="font-size:.85rem;color:var(--color-text-muted)">Carregando templates...</p>
+              }
+            </div>
           </div>
         }
       }
