@@ -1,12 +1,42 @@
 {
   "name": "AiraFit",
   "short_name": "AiraFit",
-  "description": "Sua plataforma de saúde e bem-estar",
-  "theme_color": "#0d2329",
+  "description": "Sua plataforma de saúde, nutrição e bem-estar personalizados",
+  "theme_color": "#10b981",
   "background_color": "#0d2329",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
   "scope": "./",
-  "start_url": "./",
+  "start_url": "./dashboard",
+  "id": "/dashboard",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["health", "fitness", "lifestyle"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Hoje",
+      "description": "Ver agenda de hoje",
+      "url": "/dashboard",
+      "icons": [{ "src": "assets/icons/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Dieta",
+      "short_name": "Dieta",
+      "description": "Ver plano alimentar",
+      "url": "/diet",
+      "icons": [{ "src": "assets/icons/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Check-in",
+      "short_name": "Check-in",
+      "description": "Registrar check-in semanal",
+      "url": "/check-in",
+      "icons": [{ "src": "assets/icons/icon-96x96.png", "sizes": "96x96" }]
+    }
+  ],
   "icons": [
     {
       "src": "assets/icons/icon-72x72.png",

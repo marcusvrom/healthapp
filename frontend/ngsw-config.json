@@ -26,5 +26,42 @@
         ]
       }
     }
+  ],
+  "dataGroups": [
+    {
+      "name": "api-profile",
+      "urls": ["/api/v1/profile", "/api/v1/profile/metabolic", "/api/v1/users/me"],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 10,
+        "maxAge": "1h",
+        "timeout": "5s"
+      }
+    },
+    {
+      "name": "api-routine",
+      "urls": ["/api/v1/routine**"],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 30,
+        "maxAge": "5m",
+        "timeout": "3s"
+      }
+    },
+    {
+      "name": "api-static",
+      "urls": [
+        "/api/v1/workouts/templates",
+        "/api/v1/exercises/presets",
+        "/api/v1/gamification/ranking",
+        "/api/v1/challenges"
+      ],
+      "cacheConfig": {
+        "strategy": "performance",
+        "maxSize": 20,
+        "maxAge": "30m",
+        "timeout": "10s"
+      }
+    }
   ]
 }

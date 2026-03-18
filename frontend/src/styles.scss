@@ -118,6 +118,29 @@ html, body {
   color: var(--color-text);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* Native-app scroll feel */
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+}
+
+/* ── Mobile / Touch global ─────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Remove tap flash on all interactive elements */
+  a, button, [role="button"], input[type="checkbox"], input[type="radio"],
+  label, select, .option-card, .activity-card, .goal-card, .tpl-card,
+  .meal-check, .bn-item {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Ensure minimum 44×44px touch targets */
+  button:not(.compact), [role="button"]:not(.compact) {
+    min-height: 44px;
+  }
+
+  /* Better text sizing on mobile — prevents iOS auto-zoom on inputs */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* ── Typography ────────────────────────────────────────────────── */

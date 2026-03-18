@@ -60,18 +60,23 @@
       </aside>
 
       <main class="main">
-        <!-- Mobile top bar with bell -->
+        <!-- Mobile top bar -->
         <div class="mobile-top-bar">
           <div class="mtb-brand">
             <img class="mtb-logo" src="assets/brand/airafit-logo-2000.png" alt="AiraFit logo" />
             <span class="mtb-name">AiraFit</span>
           </div>
           <div class="mtb-actions">
-            <button class="mtb-btn" (click)="toggleNotifDropdown($event)" title="Notificacoes">
+            <button class="mtb-btn" (click)="toggleNotifDropdown($event)" title="Notificações">
               🔔
               @if (notifSvc.unreadCount() > 0) {
                 <span class="notif-badge">{{ notifSvc.unreadCount() > 9 ? '9+' : notifSvc.unreadCount() }}</span>
               }
+            </button>
+            <button class="mtb-btn mtb-menu-btn" (click)="toggleMobileMenu()" title="Menu" [class.active]="isMobileMenuOpen()">
+              <span class="hamburger-icon" [class.open]="isMobileMenuOpen()">
+                <span></span><span></span><span></span>
+              </span>
             </button>
           </div>
         </div>
@@ -131,10 +136,11 @@
       <a routerLink="/diet" routerLinkActive="active-link" class="bn-item">
         <span class="bn-icon">🍽️</span><span>Dieta</span>
       </a>
-      <a routerLink="/check-in" class="bn-item active-link" style="margin-top: -15px;">
-        <div style="background: var(--color-primary); color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px var(--color-primary-light);">
-          <span style="font-size: 1.5rem;">+</span>
+      <a routerLink="/check-in" routerLinkActive="active-link" class="bn-item bn-fab">
+        <div class="bn-fab-circle">
+          <span class="bn-fab-icon">+</span>
         </div>
+        <span>Check-in</span>
       </a>
       <a routerLink="/progress" routerLinkActive="active-link" class="bn-item">
         <span class="bn-icon">📊</span><span>Evolucao</span>
