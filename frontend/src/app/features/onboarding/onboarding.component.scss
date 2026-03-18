@@ -112,7 +112,13 @@
 }
 
 /* Wider card for final step */
-.step-card.wide { max-width: 860px; }
+.step-card.wide {
+  max-width: 860px;
+
+  @media (max-width: 600px) {
+    max-width: 100%;
+  }
+}
 
 /* Gender cards */
 .gender-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem;
@@ -233,7 +239,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
-  @media (max-width: 640px) { grid-template-columns: 1fr; }
+  @media (max-width: 640px) { grid-template-columns: 1fr; gap: 1rem; }
 
   .template-block { grid-column: 1 / -1; }
 }
@@ -243,16 +249,26 @@
   border-radius: var(--radius-md);
   padding: 1.25rem;
   background: var(--color-surface-2);
+  color: var(--color-text);
 
-  h3 { font-size: .95rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: .4rem; }
+  h3 {
+    font-size: .95rem; font-weight: 700; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .4rem;
+    color: var(--color-text);
+  }
+
+  @media (max-width: 480px) {
+    padding: 1rem .875rem;
+    h3 { font-size: .88rem; margin-bottom: .75rem; }
+  }
 }
 
 .metric-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: .75rem;
   .metric {
-    background: var(--color-primary-light); border-radius: var(--radius); padding: .75rem;
-    text-align: center;
-    .value { font-size: 1.25rem; font-weight: 800; color: var(--color-primary-dark); word-break: break-word; }
+    background: var(--color-surface); border-radius: var(--radius-md); padding: .75rem;
+    text-align: center; border: 1px solid var(--color-border);
+    .value { font-size: 1.15rem; font-weight: 800; color: var(--color-primary); word-break: break-word; }
     .label { font-size: .7rem; color: var(--color-text-muted); margin-top: .15rem; }
   }
   .metric.full { grid-column: span 2; }
@@ -261,7 +277,7 @@
     gap: .5rem;
     .metric {
       padding: .5rem;
-      .value { font-size: 1rem; }
+      .value { font-size: .95rem; }
       .label { font-size: .65rem; }
     }
   }
@@ -274,10 +290,12 @@
     display: flex; align-items: center; gap: .5rem;
     padding: .5rem .75rem;
     border: 1.5px solid var(--color-border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-md);
     cursor: pointer; transition: all .2s;
-    background: var(--color-bg);
+    background: var(--color-surface);
+    color: var(--color-text);
     font-size: .82rem;
+    min-height: 44px;
 
     .cb { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--color-border);
       display: flex; align-items: center; justify-content: center; font-size: .65rem;
@@ -299,9 +317,9 @@
 
 .water-section {
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   padding: .75rem;
-  background: var(--color-bg);
+  background: var(--color-surface);
 }
 
 .water-toggle {
@@ -318,8 +336,8 @@
 
 .water-detail {
   margin-top: .5rem; padding: .35rem .5rem;
-  background: rgba(59,130,246,.08); border-radius: var(--radius);
-  .water-goal { font-size: .78rem; font-weight: 600; color: #2563eb; }
+  background: rgba(59,130,246,.1); border-radius: var(--radius-md);
+  .water-goal { font-size: .78rem; font-weight: 600; color: var(--color-primary); }
 }
 
 .interval-options {
@@ -332,7 +350,10 @@
   border-radius: 99px;
   font-size: .78rem; font-weight: 600;
   cursor: pointer; transition: all .2s;
-  background: var(--color-bg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  min-height: 36px;
+  display: inline-flex; align-items: center;
 
   &.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
   &:hover { border-color: var(--color-primary); }
@@ -352,36 +373,55 @@
 }
 
 .tpl-filter-chip {
-  padding: .3rem .7rem; border-radius: 99px; font-size: .75rem; font-weight: 600;
-  border: 1.5px solid var(--color-border); background: var(--color-bg);
+  padding: .35rem .75rem; border-radius: 99px; font-size: .75rem; font-weight: 600;
+  border: 1.5px solid var(--color-border); background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer; transition: all .2s; white-space: nowrap;
+  min-height: 32px;
 
   &.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
   &:hover:not(.active) { border-color: var(--color-primary); }
 }
 
 .tpl-grid {
-  display: flex; flex-direction: column; gap: .625rem;
-  max-height: 400px; overflow-y: auto; padding-right: .25rem;
+  display: flex; flex-direction: column; gap: .5rem;
+  max-height: 320px; overflow-y: auto; padding-right: .25rem;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+
+  @media (max-width: 600px) {
+    max-height: 260px;
+  }
 }
 
 .tpl-card {
   border: 2px solid var(--color-border); border-radius: var(--radius-md);
-  cursor: pointer; transition: all .2s; background: var(--color-bg); overflow: hidden;
+  cursor: pointer; transition: all .2s;
+  background: var(--color-surface);
+  color: var(--color-text);
+  overflow: hidden;
 
   &:hover { border-color: var(--color-primary-dark); }
   &.selected { border-color: var(--color-primary); background: var(--color-primary-light);
     .tpl-card-check { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    .tpl-card-name { color: var(--color-primary-dark); }
   }
 
   .tpl-card-header {
-    display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem;
+    display: flex; align-items: center; gap: .75rem;
+    padding: .875rem 1rem;
+    min-height: 52px;
   }
   .tpl-card-icon { font-size: 1.35rem; flex-shrink: 0; }
   .tpl-card-info { flex: 1; min-width: 0;
-    .tpl-card-name { font-size: .85rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .tpl-card-meta { font-size: .7rem; color: var(--color-text-muted); margin-top: .1rem; }
+    .tpl-card-name {
+      font-size: .85rem; font-weight: 700;
+      color: var(--color-text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .tpl-card-meta {
+      font-size: .7rem; color: var(--color-text-muted); margin-top: .15rem;
+    }
   }
   .tpl-card-check {
     width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--color-border);
@@ -397,18 +437,28 @@
 
   .tpl-ex-row {
     display: flex; align-items: center; gap: .5rem; font-size: .75rem;
+    color: var(--color-text);
     .tpl-ex-num { width: 18px; height: 18px; border-radius: 50%; background: var(--color-primary);
       color: #fff; display: flex; align-items: center; justify-content: center;
       font-size: .6rem; font-weight: 700; flex-shrink: 0; }
     .tpl-ex-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
     .tpl-ex-detail { font-size: .68rem; color: var(--color-text-muted); flex-shrink: 0; }
   }
+
+  @media (max-width: 480px) {
+    .tpl-card-header { padding: .75rem .875rem; min-height: 48px; }
+    .tpl-card-icon { font-size: 1.15rem; }
+    .tpl-card-info {
+      .tpl-card-name { font-size: .8rem; }
+      .tpl-card-meta { font-size: .68rem; }
+    }
+  }
 }
 
 .tpl-selected-info {
   margin-top: .75rem; padding: .625rem .875rem; border-radius: var(--radius);
-  background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25);
-  font-size: .82rem; color: #15803d; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3);
+  font-size: .82rem; color: #22c55e; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
 
   .tpl-clear-btn {
     font-size: .72rem; color: var(--color-text-muted); background: none;
@@ -419,8 +469,8 @@
 }
 
 .tpl-skip-info {
-  margin-top: .75rem; padding: .5rem .75rem; border-radius: var(--radius);
-  background: rgba(59,130,246,.06); font-size: .78rem; color: var(--color-text-muted);
+  margin-top: .75rem; padding: .625rem .875rem; border-radius: var(--radius);
+  background: rgba(59,130,246,.08); font-size: .78rem; color: var(--color-text-muted);
 }
 
 /* Navigation */
@@ -428,10 +478,11 @@
   display: flex; justify-content: space-between; align-items: center;
   margin-top: 2rem; padding-top: 1.5rem;
   border-top: 1px solid var(--color-border);
+  gap: .75rem;
 
   @media (max-width: 480px) {
     margin-top: 1.25rem; padding-top: 1rem;
-    .btn { font-size: .82rem; padding: .5rem 1rem; }
+    .btn { font-size: .82rem; padding: .5rem 1rem; min-height: 44px; }
   }
 }
-.step-counter { font-size: .82rem; color: var(--color-text-subtle); }
+.step-counter { font-size: .82rem; color: var(--color-text-subtle); flex-shrink: 0; }
