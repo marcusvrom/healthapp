@@ -5,15 +5,11 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import path from "path";
-import { fileURLToPath } from "url";
 import { AppDataSource } from "./config/typeorm.config";
 import { env } from "./config/env";
 import router from "./routes";
 import { errorMiddleware } from "./middleware/error.middleware";
 import { NotificationScheduler } from "./services/NotificationScheduler";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function bootstrap(): Promise<void> {
   // ── Database connection ──────────────────────────────────────────────────

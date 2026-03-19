@@ -8,7 +8,6 @@ import { XpLog } from "../entities/XpLog";
 import { RoutineBlock } from "../entities/RoutineBlock";
 import { ChallengeService } from "../services/ChallengeService";
 import { GamificationService } from "../services/GamificationService";
-import { RoutineBlock } from "../entities/RoutineBlock";
 
 function groupRepo()  { return AppDataSource.getRepository(Group); }
 function memberRepo() { return AppDataSource.getRepository(GroupMember); }

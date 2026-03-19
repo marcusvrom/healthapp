@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import webpush from "web-push";
 import { AppDataSource } from "../config/typeorm.config";
+import { LgpdService } from "./LgpdService";
 import { RoutineBlock, BlockType } from "../entities/RoutineBlock";
 import { BlockCompletion } from "../entities/BlockCompletion";
 import { PushSubscription } from "../entities/PushSubscription";
@@ -181,6 +182,14 @@ export class NotificationScheduler {
     });
 
     console.log("[SCHEDULER] Iniciado — verificando lembretes a cada minuto.");
+
+    // Data retention cleanup — runs daily at 03:00 AM
+    cron.schedule("0 3 * * *", () => {
+      LgpdService.cleanupExpiredData()
+        .then(r => console.log("[LGPD] Limpeza de retencao:", r))
+        .catch(err => console.error("[LGPD] Erro na limpeza:", err));
+    });
+    console.log("[LGPD] Limpeza de retencao agendada — 03:00 diariamente.");
   }
 
   /** Stop the cron job (for graceful shutdown) */

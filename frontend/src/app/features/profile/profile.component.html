@@ -147,5 +147,45 @@
         {{ savingBt() ? 'Salvando...' : '🩸 Salvar Exame' }}
       </button>
     </div>
+
+    <!-- ── LGPD / Privacidade ──────────────────────────────────────────── -->
+    <div class="card lgpd-card" style="grid-column: 1 / -1">
+      <div class="section-title">🔒 Privacidade e Dados (LGPD)</div>
+      <p class="lgpd-desc">
+        Conforme a Lei Geral de Protecao de Dados (LGPD), voce tem direito de exportar seus dados pessoais
+        ou solicitar a exclusao permanente da sua conta.
+      </p>
+      <div class="lgpd-actions">
+        <button class="btn btn-outline" (click)="exportMyData()" [disabled]="exportingData()">
+          @if (exportingData()) { Exportando... } @else { 📥 Exportar meus dados }
+        </button>
+        <button class="btn btn-danger-outline" (click)="confirmDeleteAccount()">
+          🗑️ Excluir minha conta
+        </button>
+      </div>
+    </div>
   </div>
+
+  <!-- Delete account confirmation modal -->
+  @if (showDeleteConfirm()) {
+    <div class="modal-overlay" (click)="cancelDelete()">
+      <div class="modal-content delete-modal" (click)="$event.stopPropagation()">
+        <h3>Excluir conta permanentemente?</h3>
+        <p>Esta acao e <strong>irreversivel</strong>. Todos os seus dados serao apagados permanentemente, incluindo:</p>
+        <ul>
+          <li>Perfil de saude e exames de sangue</li>
+          <li>Fichas de treino e registros de exercicios</li>
+          <li>Conquistas e XP</li>
+          <li>Dietas, receitas e hidratacao</li>
+          <li>Check-ins e historico completo</li>
+        </ul>
+        <div class="delete-modal-actions">
+          <button class="btn btn-outline" (click)="cancelDelete()">Cancelar</button>
+          <button class="btn btn-danger" (click)="deleteMyAccount()" [disabled]="deletingAccount()">
+            @if (deletingAccount()) { Excluindo... } @else { Confirmar exclusao }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

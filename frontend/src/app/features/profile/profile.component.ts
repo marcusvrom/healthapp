@@ -1,8 +1,11 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
+import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { ProfileService } from '../../core/services/profile.service';
 import { UserService } from '../../core/services/user.service';
+import { AuthService } from '../../core/services/auth.service';
 import {
   HealthProfile, ActivityFactor, Gender,
   BloodTest,
@@ -93,6 +96,13 @@ const BT_SECTIONS: BtSection[] = [
 export class ProfileComponent implements OnInit {
   private profileSvc = inject(ProfileService);
   private userSvc    = inject(UserService);
+  private authSvc    = inject(AuthService);
+  private http       = inject(HttpClient);
+  private router     = inject(Router);
+
+  exportingData     = signal(false);
+  deletingAccount   = signal(false);
+  showDeleteConfirm = signal(false);
 
   readonly apiBase = environment.apiUrl.replace('/api/v1', '');
 
@@ -176,6 +186,49 @@ export class ProfileComponent implements OnInit {
         setTimeout(() => this.saveSuccess.set(false), 3000);
       },
       error: () => this.savingBt.set(false),
+    });
+  }
+
+  // ── LGPD ──────────────────────────────────────────────────────────────────
+  exportMyData(): void {
+    this.exportingData.set(true);
+    this.http.get(`${environment.apiUrl}/lgpd/export`, {
+      responseType: 'blob',
+      withCredentials: true,
+    }).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `airafit-dados-pessoais-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.exportingData.set(false);
+      },
+      error: () => this.exportingData.set(false),
+    });
+  }
+
+  confirmDeleteAccount(): void {
+    this.showDeleteConfirm.set(true);
+  }
+
+  cancelDelete(): void {
+    this.showDeleteConfirm.set(false);
+  }
+
+  deleteMyAccount(): void {
+    this.deletingAccount.set(true);
+    this.http.delete(`${environment.apiUrl}/lgpd/account`, {
+      body: { confirm: 'EXCLUIR MINHA CONTA' },
+      withCredentials: true,
+    }).subscribe({
+      next: () => {
+        this.deletingAccount.set(false);
+        this.authSvc.logout();
+        this.router.navigate(['/login']);
+      },
+      error: () => this.deletingAccount.set(false),
     });
   }
 }

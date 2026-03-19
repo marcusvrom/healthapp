@@ -104,13 +104,16 @@ JWT_SECRET=<segredo forte, mín. 32 chars>
 | Protocolos        | ClinicalProtocol, ClinicalProtocolLog, Medication, MedicationLog | ClinicalProtocolController, MedicationController |
 | Rotina/Treinos    | RoutineBlock, BlockCompletion, WorkoutSheet, WorkoutSheetExercise, Exercise | RoutineController, WorkoutController, ExerciseController |
 | Social            | BlockPost, BlockLike, BlockComment, Friendship, Group, GroupMember | SocialController, FriendshipController, GroupController, CommunityController |
-| Gamificação       | XpLog, DailyMission, Challenge, ChallengeParticipant        | RankingController, DailyMissionController, ChallengeController |
+| Gamificação       | XpLog, DailyMission, Challenge, ChallengeParticipant, UserBadge, ExerciseLog | RankingController, DailyMissionController, ChallengeController, BadgeController |
 | Notificações      | Notification, PushSubscription                               | NotificationController                   |
 
-### Funcionalidades Recentes (Sprints 1-6)
+### Funcionalidades Recentes (Sprints 1-12)
 - **Sprint 1-2**: HttpOnly JWT cookies, Helmet, CORS restritivo, rate limiting
 - **Sprint 3-4**: BlockCompletion (completions por data em blocos recorrentes), NotificationScheduler (node-cron + Web Push VAPID)
 - **Sprint 5-6**: PWA completa (manifest, SW data cache, iOS meta tags), mobile UX (touch targets 44px, overscroll, hamburger animado)
+- **Sprint 7-8**: Scanner de alimentos (barcode via html5-qrcode, busca OpenFoodFacts, cadastro manual), FoodController + FoodService
+- **Sprint 9-10**: Badges/conquistas (22 badges, 6 categorias, 3 tiers), ExerciseLog + progressão de treino, relatórios PDF (PDFKit)
+- **Sprint 11-12**: Jest (37 testes), correção de todos erros TS pré-existentes (0 errors), LGPD (export de dados, exclusão de conta, retenção automática)
 
 ---
 
@@ -190,8 +193,8 @@ Routes → Controllers → Services → TypeORM Repositories → PostgreSQL
 | 3-4      | BlockCompletion + NotificationScheduler + Web Push        | ✅ Concluído |
 | 5-6      | Mobile UX + PWA completa                                  | ✅ Concluído |
 | 7-8      | Scanner alimentos (barcode/busca/cadastro)                | ✅ Concluído |
-| 9-10     | Badges/conquistas + progressão treino + relatórios PDF    | ⏳ Pendente |
-| 11-12    | Testes automatizados + LGPD compliance (retenção, RIPD)   | ⏳ Pendente |
+| 9-10     | Badges/conquistas + progressão treino + relatórios PDF    | ✅ Concluído |
+| 11-12    | Testes automatizados + LGPD compliance (retenção, RIPD)   | ✅ Concluído |
 | 13-14    | Modelo Freemium: planos, paywall, Stripe/assinaturas      | ⏳ Pendente |
 | 15-16    | Copilot IA generativa (Claude API, resumos, sugestões)    | ⏳ Pendente |
 
@@ -244,17 +247,11 @@ DB_PASSWORD=<senha forte>
 
 ---
 
-## 11. Erros Pré-Existentes Conhecidos
+## 11. Estado de Compilação e Testes
 
-Os seguintes erros de compilação TypeScript (`npx tsc --noEmit`) existem no backend e **não foram introduzidos pelas sprints recentes**:
-
-- `BloodTest.ts` — campos opcionais vs. TypeORM strict
-- `GroupController.ts` — tipagem de membro de grupo
-- `RecipeSchedule.ts` — relação nullable
-- `RoutineGeneratorService.ts` — acesso a campos opcionais
-- `import.meta` — configuração de target no tsconfig
-
-Estes devem ser resolvidos na sprint de testes (11-12).
+- **TypeScript**: `npx tsc --noEmit` → 0 errors (todos os erros pré-existentes corrigidos na Sprint 11-12)
+- **Jest**: 37 testes passando (CalculationService, BadgeCatalog, WorkoutTemplates)
+- **LGPD**: Export de dados (Art. 18 V), exclusão de conta (Art. 18 VI), limpeza automática (cron 03:00, notificações 90d, XP/water logs 365d)
 
 ---
 

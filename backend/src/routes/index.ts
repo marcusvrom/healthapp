@@ -30,6 +30,7 @@ import { FoodController } from "../controllers/FoodController";
 import { WorkoutController } from "../controllers/WorkoutController";
 import { BadgeController } from "../controllers/BadgeController";
 import { ReportController } from "../controllers/ReportController";
+import { LgpdController } from "../controllers/LgpdController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -248,6 +249,10 @@ router.post("/badges/check", ...auth(BadgeController.check));
 
 // ── Reports / PDF ───────────────────────────────────────────────────────────
 router.get("/reports/progress", ...auth(ReportController.progressReport));
+
+// ── LGPD / Privacidade ──────────────────────────────────────────────────────
+router.get("/lgpd/export",      ...auth(LgpdController.exportData));
+router.delete("/lgpd/account",  ...auth(LgpdController.deleteAccount));
 
 // ── Onboarding ───────────────────────────────────────────────────────────────
 router.post("/onboarding/complete",    ...auth(OnboardingController.complete));

@@ -45,7 +45,7 @@ export class RoutineGeneratorService {
    * Generate an ordered list of RoutineBlock objects (not yet persisted).
    * The caller is responsible for saving them via the TypeORM repository.
    */
-  static generate(input: GenerateRoutineInput): Omit<RoutineBlock, "id" | "createdAt" | "updatedAt" | "user">[] {
+  static generate(input: GenerateRoutineInput): BlockSlot[] {
     const {
       healthProfile: hp,
       exercises,
@@ -60,7 +60,7 @@ export class RoutineGeneratorService {
 
     // ── 1. Fixed blocks: sleep & work ─────────────────────────────────────
     blocks.push(...this.buildSleepBlocks(hp.sleepTime, hp.wakeUpTime, date));
-    blocks.push(this.buildWorkBlock(hp.workStartTime, hp.workEndTime, date));
+    blocks.push(this.buildWorkBlock(hp.workStartTime ?? "09:00", hp.workEndTime ?? "18:00", date));
 
     // ── 2. Exercise blocks ─────────────────────────────────────────────────
     const exerciseBlockSlots = this.buildExerciseBlocks(exercises, hp, blocks, date);
@@ -440,4 +440,8 @@ export class RoutineGeneratorService {
 }
 
 // Internal type used only within this service
-type BlockSlot = Omit<RoutineBlock, "id" | "createdAt" | "updatedAt" | "user">;
+type BlockSlot = Omit<RoutineBlock, "id" | "createdAt" | "updatedAt" | "user" | "daysOfWeek" | "isRecurring" | "xpAwarded"> & {
+  daysOfWeek?: number[];
+  isRecurring?: boolean;
+  xpAwarded?: boolean;
+};

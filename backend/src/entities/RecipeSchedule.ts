@@ -25,7 +25,7 @@ import { User } from "./User";
 @Index("IDX_recipe_schedules_user", ["userId"])
 @Unique("UQ_recipe_schedule_user_meal_recipe", ["userId", "mealName", "recipeId"])
 export class RecipeSchedule {
-  @PrimaryGeneratedColumn("text")
+  @PrimaryGeneratedColumn("uuid")
   id!: string;
 
   @Column({ name: "user_id", type: "uuid" })

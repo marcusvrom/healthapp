@@ -123,3 +123,108 @@
     .avatar-hint { font-size: .8rem; color: var(--color-text-muted); margin-top: .25rem; }
   }
 }
+
+// ── LGPD section ──────────────────────────────────────────────────────────────
+.lgpd-card {
+  border-color: var(--color-border) !important;
+}
+
+.lgpd-desc {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin: 0.5rem 0 1rem;
+  line-height: 1.5;
+}
+
+.lgpd-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1.2rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-height: 44px;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.btn-danger-outline {
+  background: transparent;
+  color: var(--color-danger);
+  border: 1.5px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1.2rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1.2rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-height: 44px;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// ── Delete modal ──────────────────────────────────────────────────────────────
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.delete-modal {
+  background: var(--color-bg);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  max-width: 440px;
+  width: 100%;
+
+  h3 {
+    font-family: var(--font-heading);
+    color: var(--color-danger);
+    margin: 0 0 0.75rem;
+  }
+
+  p {
+    color: var(--color-text);
+    font-size: 0.9rem;
+    margin: 0 0 0.5rem;
+  }
+
+  ul {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    padding-left: 1.25rem;
+    margin: 0 0 1.25rem;
+
+    li { margin-bottom: 0.3rem; }
+  }
+}
+
+.delete-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}

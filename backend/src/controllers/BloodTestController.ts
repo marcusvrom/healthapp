@@ -27,8 +27,8 @@ export class BloodTestController {
   /** POST /blood-tests */
   static async create(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const test = bloodTestRepo().create({ ...req.body, userId: req.userId });
-      const saved = await bloodTestRepo().save(test);
+      const test = bloodTestRepo().create({ ...req.body, userId: req.userId } as Partial<BloodTest>);
+      const saved = await bloodTestRepo().save(test) as BloodTest;
 
       // Immediately compute adjustments
       const adjustments = await BloodTestController.computeAdjustments(
