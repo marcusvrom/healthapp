@@ -300,10 +300,14 @@
               <p class="template-hint">Selecione um template pronto para começar a treinar. Você pode personalizar depois.</p>
 
               <!-- Category filter -->
-              @if (workoutTemplates().length > 0) {
+              @if (templateLoading()) {
+                <p class="tpl-loading-msg">Carregando templates de treino...</p>
+              } @else if (templateLoadError()) {
+                <p class="tpl-error-msg">{{ templateLoadError() }}</p>
+              } @else if (workoutTemplates().length > 0) {
                 <div class="tpl-filter-row">
                   <button class="tpl-filter-chip" [class.active]="templateFilter() === 'all'" (click)="templateFilter.set('all')">Todos</button>
-                  @for (cat of templateCategories; track cat) {
+                  @for (cat of templateCategories(); track cat) {
                     <button class="tpl-filter-chip" [class.active]="templateFilter() === cat" (click)="templateFilter.set(cat)">
                       {{ categoryIcon(cat) }} {{ cat }}
                     </button>
@@ -311,7 +315,7 @@
                 </div>
 
                 <div class="tpl-grid">
-                  @for (tpl of filteredTemplates; track tpl.slug) {
+                  @for (tpl of filteredTemplates(); track tpl.slug) {
                     <div class="tpl-card"
                          [class.selected]="selectedTemplate()?.slug === tpl.slug"
                          (click)="selectTemplate(tpl)">
@@ -336,6 +340,10 @@
                           }
                         </div>
                       }
+                    </div>
+                  } @empty {
+                    <div class="tpl-empty-state">
+                      Nenhum template encontrado para este filtro.
                     </div>
                   }
                 </div>

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ProfileService } from '../../core/services/profile.service';
@@ -94,6 +94,8 @@ export class OnboardingComponent {
   workoutTemplates = signal<WorkoutTemplate[]>([]);
   selectedTemplate = signal<WorkoutTemplate | null>(null);
   templateFilter   = signal<string>('all');
+  templateLoading  = signal(false);
+  templateLoadError = signal('');
   creatingFromTemplate = signal(false);
 
   readonly steps               = STEPS;
@@ -166,16 +168,16 @@ export class OnboardingComponent {
 
   // ── Workout template helpers ──────────────────────────────────────────────────
 
-  get filteredTemplates(): WorkoutTemplate[] {
+  readonly filteredTemplates = computed<WorkoutTemplate[]>(() => {
     const f = this.templateFilter();
     const templates = this.workoutTemplates();
     if (f === 'all') return templates;
     return templates.filter(t => t.category === f);
-  }
+  });
 
-  get templateCategories(): string[] {
-    return [...new Set(this.workoutTemplates().map(t => t.category))];
-  }
+  readonly templateCategories = computed<string[]>(() =>
+    [...new Set(this.workoutTemplates().map(t => t.category))]
+  );
 
   selectTemplate(tpl: WorkoutTemplate): void {
     this.selectedTemplate.set(
@@ -194,6 +196,20 @@ export class OnboardingComponent {
   };
 
   categoryIcon(cat: string): string { return this.CATEGORY_ICONS[cat] ?? '📋'; }
+
+  private normalizeTemplate(raw: WorkoutTemplate): WorkoutTemplate {
+    const fallbackCategory = 'Outros';
+    const fallbackSlug = `tpl-${Math.random().toString(36).slice(2, 10)}`;
+    return {
+      ...raw,
+      slug: raw.slug || fallbackSlug,
+      name: raw.name?.trim() || 'Template sem nome',
+      description: raw.description ?? '',
+      category: raw.category?.trim() || fallbackCategory,
+      estimatedMinutes: Number.isFinite(raw.estimatedMinutes) ? raw.estimatedMinutes : 0,
+      exercises: Array.isArray(raw.exercises) ? raw.exercises : [],
+    };
+  }
 
   // ── Step navigation ────────────────────────────────────────────────────────
 
@@ -271,9 +287,18 @@ export class OnboardingComponent {
       },
     });
     // Load workout templates for the template picker
+    this.templateLoading.set(true);
+    this.templateLoadError.set('');
     this.workoutSvc.getTemplates().subscribe({
-      next: t => this.workoutTemplates.set(t),
-      error: () => {},
+      next: t => {
+        const normalized = (t ?? []).map((tpl) => this.normalizeTemplate(tpl));
+        this.workoutTemplates.set(normalized);
+        this.templateLoading.set(false);
+      },
+      error: () => {
+        this.templateLoadError.set('Não foi possível carregar os templates agora.');
+        this.templateLoading.set(false);
+      },
     });
   }
 
