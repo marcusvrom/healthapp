@@ -8,6 +8,8 @@ import { CheckInService } from '../../core/services/check-in.service';
 import { CopilotService } from '../../core/services/copilot.service';
 import { GamificationService } from '../../core/services/gamification.service';
 import { ApiService } from '../../core/services/api.service';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import { WeeklyCheckIn, CopilotInsight, RankingEntry, DailyCap } from '../../core/models';
 
 @Component({
@@ -23,7 +25,9 @@ export class ProgressComponent implements OnInit {
   private copilotSvc      = inject(CopilotService);
   private gamificationSvc = inject(GamificationService);
   private api             = inject(ApiService);
+  private http            = inject(HttpClient);
   img = (path: string | null | undefined) => this.api.storageUrl(path);
+  downloadingReport = signal(false);
 
   streaks        = signal<StreakData | null>(null);
   waterHistory   = signal<WaterDayStats[]>([]);
@@ -355,5 +359,24 @@ export class ProgressComponent implements OnInit {
   capPct(c: DailyCap): number {
     if (c.cap === 0) return 0;
     return Math.min(100, Math.round((c.earned / c.cap) * 100));
+  }
+
+  downloadReport(): void {
+    this.downloadingReport.set(true);
+    this.http.get(`${environment.apiUrl}/reports/progress`, {
+      responseType: 'blob',
+      withCredentials: true,
+    }).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `airafit-progresso-${new Date().toISOString().slice(0, 10)}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.downloadingReport.set(false);
+      },
+      error: () => this.downloadingReport.set(false),
+    });
   }
 }

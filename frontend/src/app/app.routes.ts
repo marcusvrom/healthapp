@@ -43,6 +43,8 @@ export const routes: Routes = [
       { path: 'challenges',   loadComponent: () => import('./features/challenges/challenges.component').then(m => m.ChallengesComponent) },
       { path: 'groups',       loadComponent: () => import('./features/groups/groups.component').then(m => m.GroupsComponent) },
       { path: 'leaderboard',  loadComponent: () => import('./features/leaderboard/leaderboard.component').then(m => m.LeaderboardComponent) },
+      { path: 'badges',       loadComponent: () => import('./features/badges/badges.component').then(m => m.BadgesComponent) },
+      { path: 'progression',  loadComponent: () => import('./features/workout-progression/workout-progression.component').then(m => m.WorkoutProgressionComponent) },
       { path: 'comunidade',            loadComponent: () => import('./features/comunidade/comunidade.component').then(m => m.ComunidadeComponent) },
       { path: 'comunidade/perfil/:id', loadComponent: () => import('./features/comunidade/public-profile.component').then(m => m.PublicProfileComponent) },
     ],

@@ -1,0 +1,160 @@
+<div class="progression-page">
+  <header class="page-header">
+    <h1>Progressao de Treino</h1>
+    <p class="subtitle">Registre cargas e acompanhe sua evolucao</p>
+  </header>
+
+  @if (loading()) {
+    <div class="loading">Carregando fichas...</div>
+  } @else {
+    <!-- Sheet selector -->
+    @if (sheets().length > 1) {
+      <div class="sheet-tabs">
+        @for (s of sheets(); track s.id) {
+          <button class="sheet-tab" [class.active]="selectedSheet()?.id === s.id" (click)="selectSheet(s)">
+            {{ s.name }}
+          </button>
+        }
+      </div>
+    }
+
+    @if (selectedSheet(); as sheet) {
+      <!-- Exercise list with progression links -->
+      <section class="exercises-section">
+        <div class="section-header">
+          <h2>Exercicios</h2>
+          <button class="btn-add" (click)="openLogForm()">+ Registrar carga</button>
+        </div>
+
+        @if (sheet.exercises && sheet.exercises.length > 0) {
+          <div class="exercise-list">
+            @for (ex of sheet.exercises; track ex.id) {
+              <div class="exercise-row">
+                <div class="exercise-info">
+                  <span class="exercise-name">{{ ex.name }}</span>
+                  <span class="exercise-detail">{{ ex.sets }}x{{ ex.reps }}</span>
+                </div>
+                <div class="exercise-actions">
+                  <button class="btn-icon" title="Registrar carga" (click)="openLogForm(ex.name)">📝</button>
+                  <button class="btn-icon" title="Ver progressao" (click)="viewProgression(ex.name)">📈</button>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="empty-msg">Nenhum exercicio nesta ficha.</p>
+        }
+      </section>
+
+      <!-- Progression chart -->
+      @if (selectedExercise()) {
+        <section class="progression-section">
+          <h2>{{ selectedExercise() }}</h2>
+
+          @if (loadingProgression()) {
+            <div class="loading">Carregando dados...</div>
+          } @else if (progression().length === 0) {
+            <p class="empty-msg">Nenhum registro encontrado para este exercicio.</p>
+          } @else {
+            <div class="chart-wrapper">
+              <div class="chart-bars">
+                @for (pt of progression(); track pt.date) {
+                  <div class="chart-col">
+                    <div class="bar-container">
+                      <div class="bar" [style.height.%]="barHeight(pt.maxWeight)">
+                        <span class="bar-label">{{ pt.maxWeight }}kg</span>
+                      </div>
+                    </div>
+                    <span class="chart-date">{{ pt.date | date:'dd/MM' }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div class="progression-stats">
+              <div class="stat-card">
+                <span class="stat-value">{{ progression()[0].maxWeight }} kg</span>
+                <span class="stat-label">Primeira carga</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value">{{ progression()[progression().length - 1].maxWeight }} kg</span>
+                <span class="stat-label">Ultima carga</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-value">{{ maxWeightInProgression() }} kg</span>
+                <span class="stat-label">Recorde</span>
+              </div>
+            </div>
+          }
+        </section>
+      }
+
+      <!-- Recent logs -->
+      @if (recentLogs().length > 0) {
+        <section class="logs-section">
+          <h2>Registros recentes</h2>
+          <div class="logs-list">
+            @for (log of recentLogs(); track log.id) {
+              <div class="log-row">
+                <div class="log-info">
+                  <span class="log-name">{{ log.exerciseName }}</span>
+                  <span class="log-detail">{{ log.sets }}x{{ log.reps }} — {{ log.weightKg }}kg</span>
+                  <span class="log-date">{{ log.logDate | date:'dd/MM/yyyy' }}</span>
+                </div>
+                <button class="btn-icon btn-delete" (click)="deleteLog(log.id)">🗑️</button>
+              </div>
+            }
+          </div>
+        </section>
+      }
+    } @else {
+      <p class="empty-msg">Nenhuma ficha de treino encontrada.</p>
+    }
+  }
+
+  <!-- Log form modal -->
+  @if (showLogForm()) {
+    <div class="modal-overlay" (click)="closeLogForm()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <h2>Registrar Carga</h2>
+
+        <label class="form-label">Exercicio</label>
+        @if (exerciseNames().length > 0) {
+          <select class="form-input" [ngModel]="logExerciseName()" (ngModelChange)="logExerciseName.set($event)">
+            <option value="">Selecione...</option>
+            @for (name of exerciseNames(); track name) {
+              <option [value]="name">{{ name }}</option>
+            }
+          </select>
+        } @else {
+          <input class="form-input" [ngModel]="logExerciseName()" (ngModelChange)="logExerciseName.set($event)" placeholder="Nome do exercicio" />
+        }
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Series</label>
+            <input type="number" class="form-input" [ngModel]="logSets()" (ngModelChange)="logSets.set($event)" min="1" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Reps</label>
+            <input class="form-input" [ngModel]="logReps()" (ngModelChange)="logReps.set($event)" placeholder="10" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Peso (kg)</label>
+            <input type="number" class="form-input" [ngModel]="logWeight()" (ngModelChange)="logWeight.set($event)" min="0" step="0.5" />
+          </div>
+        </div>
+
+        <label class="form-label">Observacoes</label>
+        <input class="form-input" [ngModel]="logNotes()" (ngModelChange)="logNotes.set($event)" placeholder="Opcional" />
+
+        <div class="form-actions">
+          <button class="btn-cancel" (click)="closeLogForm()">Cancelar</button>
+          <button class="btn-save" [disabled]="saving() || !logExerciseName()" (click)="saveLog()">
+            @if (saving()) { Salvando... } @else { Salvar }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

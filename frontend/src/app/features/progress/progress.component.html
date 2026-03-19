@@ -1,7 +1,14 @@
 <div class="page">
   <div class="page-header">
-    <h2>📊 Métricas & Progresso</h2>
-    <p>Acompanhe sua evolução de peso, hidratação e consistência.</p>
+    <div class="page-header-row">
+      <div>
+        <h2>📊 Métricas & Progresso</h2>
+        <p>Acompanhe sua evolução de peso, hidratação e consistência.</p>
+      </div>
+      <button class="btn-report" (click)="downloadReport()" [disabled]="downloadingReport()">
+        @if (downloadingReport()) { Gerando... } @else { 📄 Baixar Relatório PDF }
+      </button>
+    </div>
   </div>
 
   <!-- Streak cards -->
