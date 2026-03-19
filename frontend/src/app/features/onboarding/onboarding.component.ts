@@ -298,14 +298,9 @@ export class OnboardingComponent {
       waterIntervalMin:   this.routineBase.waterReminders ? this.routineBase.waterIntervalMin : undefined,
     };
 
-    // If user selected a template, include exercises for the onboarding service
+    // Pass only duration so the backend can size the exercise block correctly,
+    // but do NOT send exercises — the worksheet is created via createFromTemplate below.
     if (tpl) {
-      payload['exercises'] = tpl.exercises.map(e => ({
-        name: e.name,
-        category: tpl.category,
-        sets: e.sets,
-        reps: e.reps,
-      }));
       payload['exerciseDurationMin'] = tpl.estimatedMinutes;
     }
 
