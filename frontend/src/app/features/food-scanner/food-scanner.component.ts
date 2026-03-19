@@ -19,6 +19,7 @@ type ScannerTab = 'search' | 'scanner' | 'custom';
 export class FoodScannerComponent implements OnDestroy {
   private foodSvc = inject(FoodService);
   private router  = inject(Router);
+  protected readonly Math = Math;
 
   // ── State ─────────────────────────────────────────────────────────────
   activeTab     = signal<ScannerTab>('search');
