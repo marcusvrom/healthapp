@@ -2,7 +2,10 @@
       <div class="overlay" [class.visible]="isMobileMenuOpen()" (click)="toggleMobileMenu()"></div>
 
       <aside class="sidebar" [class.open]="isMobileMenuOpen()">
-        <div class="mobile-handle"></div>
+        <div class="mobile-handle-row">
+          <div class="mobile-handle"></div>
+          <button class="sidebar-close-btn" (click)="toggleMobileMenu()" type="button" aria-label="Fechar menu">✕</button>
+        </div>
 
         <div class="brand">
           <img class="brand-logo" src="assets/brand/airafit-logo-2000.png" alt="AiraFit logo" />
@@ -73,11 +76,13 @@
                 <span class="notif-badge">{{ notifSvc.unreadCount() > 9 ? '9+' : notifSvc.unreadCount() }}</span>
               }
             </button>
-            <button class="mtb-btn mtb-menu-btn" (click)="toggleMobileMenu()" title="Menu" [class.active]="isMobileMenuOpen()">
-              <span class="hamburger-icon" [class.open]="isMobileMenuOpen()">
-                <span></span><span></span><span></span>
-              </span>
-            </button>
+            @if (!isMobileMenuOpen()) {
+              <button class="mtb-btn mtb-menu-btn" (click)="toggleMobileMenu()" title="Menu">
+                <span class="hamburger-icon">
+                  <span></span><span></span><span></span>
+                </span>
+              </button>
+            }
           </div>
         </div>
         <router-outlet />
