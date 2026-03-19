@@ -4,10 +4,12 @@ import { AppDataSource } from "../config/typeorm.config";
 import { WorkoutSheet } from "../entities/WorkoutSheet";
 import { WorkoutSheetExercise } from "../entities/WorkoutSheetExercise";
 import { RoutineBlock, BlockType } from "../entities/RoutineBlock";
+import { ExerciseLog } from "../entities/ExerciseLog";
 
 function sheetRepo() { return AppDataSource.getRepository(WorkoutSheet); }
 function exerciseRepo() { return AppDataSource.getRepository(WorkoutSheetExercise); }
 function routineRepo() { return AppDataSource.getRepository(RoutineBlock); }
+function logRepo() { return AppDataSource.getRepository(ExerciseLog); }
 
 // ── Workout Templates ─────────────────────────────────────────────────────────
 export interface TemplateExercise {
@@ -577,6 +579,114 @@ export class WorkoutController {
 
       const saved = await routineRepo().save(block);
       res.status(201).json(saved);
+    } catch (err) { next(err); }
+  }
+
+  // ── Exercise Logs (progression tracking) ──────────────────────────────────
+
+  /**
+   * POST /workouts/:sheetId/log — log a set for an exercise
+   * Body: { exerciseName, logDate?, sets, reps, weightKg, notes? }
+   */
+  static async logExercise(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const sheet = await sheetRepo().findOneBy({ id: req.params["sheetId"]!, userId: req.userId });
+      if (!sheet) { res.status(404).json({ message: "Ficha nao encontrada." }); return; }
+
+      const { exerciseName, logDate, sets, reps, weightKg, notes } = req.body as {
+        exerciseName: string; logDate?: string; sets: number; reps: string; weightKg: number; notes?: string;
+      };
+
+      if (!exerciseName || sets == null || !reps) {
+        res.status(400).json({ message: "exerciseName, sets e reps sao obrigatorios." });
+        return;
+      }
+
+      const log = logRepo().create({
+        userId: req.userId,
+        sheetId: sheet.id,
+        exerciseName: exerciseName.trim(),
+        logDate: logDate ?? new Date().toISOString().slice(0, 10),
+        sets,
+        reps,
+        weightKg: weightKg ?? 0,
+        notes: notes?.trim(),
+      });
+
+      const saved = await logRepo().save(log);
+      res.status(201).json(saved);
+    } catch (err) { next(err); }
+  }
+
+  /**
+   * GET /workouts/:sheetId/logs — list exercise logs for a sheet
+   * Query: ?exerciseName=&from=&to=
+   */
+  static async listLogs(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const sheet = await sheetRepo().findOneBy({ id: req.params["sheetId"]!, userId: req.userId });
+      if (!sheet) { res.status(404).json({ message: "Ficha nao encontrada." }); return; }
+
+      const { exerciseName, from, to } = req.query as { exerciseName?: string; from?: string; to?: string };
+
+      let qb = logRepo().createQueryBuilder("log")
+        .where("log.userId = :userId", { userId: req.userId })
+        .andWhere("log.sheetId = :sheetId", { sheetId: sheet.id })
+        .orderBy("log.logDate", "DESC")
+        .addOrderBy("log.createdAt", "DESC");
+
+      if (exerciseName) qb = qb.andWhere("log.exerciseName = :exerciseName", { exerciseName });
+      if (from) qb = qb.andWhere("log.logDate >= :from", { from });
+      if (to) qb = qb.andWhere("log.logDate <= :to", { to });
+
+      const logs = await qb.getMany();
+      res.json(logs);
+    } catch (err) { next(err); }
+  }
+
+  /**
+   * GET /workouts/progression/:exerciseName — get progression data for a specific exercise
+   * Returns aggregated data per date (max weight, total volume)
+   */
+  static async exerciseProgression(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const exerciseName = decodeURIComponent(req.params["exerciseName"]!);
+
+      const rows = await logRepo().createQueryBuilder("log")
+        .select("log.logDate", "date")
+        .addSelect("MAX(log.weightKg)", "maxWeight")
+        .addSelect("SUM(log.sets * log.weightKg)", "totalVolume")
+        .addSelect("MAX(log.sets)", "maxSets")
+        .addSelect("MAX(log.reps)", "maxReps")
+        .where("log.userId = :userId", { userId: req.userId })
+        .andWhere("log.exerciseName = :exerciseName", { exerciseName })
+        .groupBy("log.logDate")
+        .orderBy("log.logDate", "ASC")
+        .getRawMany();
+
+      res.json({
+        exerciseName,
+        data: rows.map(r => ({
+          date: r.date,
+          maxWeight: Number(r.maxWeight),
+          totalVolume: Number(r.totalVolume),
+          maxSets: Number(r.maxSets),
+          maxReps: r.maxReps,
+        })),
+      });
+    } catch (err) { next(err); }
+  }
+
+  /**
+   * DELETE /workouts/logs/:logId — remove an exercise log entry
+   */
+  static async removeLog(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const log = await logRepo().findOneBy({ id: req.params["logId"]!, userId: req.userId });
+      if (!log) { res.status(404).json({ message: "Log nao encontrado." }); return; }
+
+      await logRepo().remove(log);
+      res.status(204).end();
     } catch (err) { next(err); }
   }
 }

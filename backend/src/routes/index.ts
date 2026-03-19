@@ -28,6 +28,8 @@ import { OnboardingController } from "../controllers/OnboardingController";
 import { NotificationController } from "../controllers/NotificationController";
 import { FoodController } from "../controllers/FoodController";
 import { WorkoutController } from "../controllers/WorkoutController";
+import { BadgeController } from "../controllers/BadgeController";
+import { ReportController } from "../controllers/ReportController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -226,6 +228,8 @@ router.get("/community/profile/:id",   ...auth(CommunityController.profile));
 // NOTE: static sub-paths must come BEFORE parameterized routes
 router.get("/workouts/templates",                        ...auth(WorkoutController.listTemplates));
 router.post("/workouts/from-template",                   ...auth(WorkoutController.createFromTemplate));
+router.get("/workouts/progression/:exerciseName",        ...auth(WorkoutController.exerciseProgression));
+router.delete("/workouts/logs/:logId",                   ...auth(WorkoutController.removeLog));
 router.get("/workouts",                                  ...auth(WorkoutController.list));
 router.post("/workouts",                                 ...auth(WorkoutController.create));
 router.get("/workouts/:id",                              ...auth(WorkoutController.detail));
@@ -235,6 +239,15 @@ router.post("/workouts/:id/schedule",                    ...auth(WorkoutControll
 router.post("/workouts/:id/exercises",                   ...auth(WorkoutController.addExercise));
 router.patch("/workouts/:sheetId/exercises/:exId",       ...auth(WorkoutController.updateExercise));
 router.delete("/workouts/:sheetId/exercises/:exId",      ...auth(WorkoutController.removeExercise));
+router.post("/workouts/:sheetId/log",                    ...auth(WorkoutController.logExercise));
+router.get("/workouts/:sheetId/logs",                    ...auth(WorkoutController.listLogs));
+
+// ── Badges / Conquistas ─────────────────────────────────────────────────────
+router.get("/badges",        ...auth(BadgeController.list));
+router.post("/badges/check", ...auth(BadgeController.check));
+
+// ── Reports / PDF ───────────────────────────────────────────────────────────
+router.get("/reports/progress", ...auth(ReportController.progressReport));
 
 // ── Onboarding ───────────────────────────────────────────────────────────────
 router.post("/onboarding/complete",    ...auth(OnboardingController.complete));

@@ -45,6 +45,7 @@ export class NavShellComponent implements OnInit {
         { route: '/dashboard', icon: '📅', label: 'Dashboard' },
         { route: '/planning', icon: '📋', label: 'Planejamento' },
         { route: '/workouts', icon: '🏋️', label: 'Treinos' },
+        { route: '/progression', icon: '📈', label: 'Progressão' },
         { route: '/progress', icon: '📊', label: 'Progresso' },
         { route: '/check-in', icon: '📸', label: 'Check-in' },
       ],
@@ -65,6 +66,7 @@ export class NavShellComponent implements OnInit {
       title: 'Comunidade',
       items: [
         { route: '/feed', icon: '🌐', label: 'Feed Social' },
+        { route: '/badges', icon: '🎖️', label: 'Conquistas' },
         { route: '/challenges', icon: '🏆', label: 'Desafios' },
         { route: '/leaderboard', icon: '🥇', label: 'Ranking' },
         { route: '/groups', icon: '👥', label: 'Grupos' },

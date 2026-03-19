@@ -1,0 +1,53 @@
+<div class="badges-page">
+  <header class="page-header">
+    <h1>Conquistas</h1>
+    <p class="subtitle">{{ unlockedCount() }} de {{ totalCount() }} desbloqueadas</p>
+  </header>
+
+  <div class="progress-bar-wrapper">
+    <div class="progress-bar">
+      @if (totalCount() > 0) {
+        <div class="progress-fill" [style.width.%]="(unlockedCount() / totalCount()) * 100"></div>
+      }
+    </div>
+  </div>
+
+  <div class="actions-row">
+    <button class="btn-check" (click)="checkBadges()" [disabled]="checking()">
+      @if (checking()) { Verificando... } @else { Verificar novas conquistas }
+    </button>
+  </div>
+
+  <div class="category-filters">
+    <button class="filter-chip" [class.active]="activeCategory() === null" (click)="setCategory(null)">
+      Todas
+    </button>
+    @for (cat of categories(); track cat) {
+      <button class="filter-chip" [class.active]="activeCategory() === cat" (click)="setCategory(cat)">
+        {{ categoryLabels[cat] || cat }}
+      </button>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading">Carregando conquistas...</div>
+  } @else {
+    <div class="badges-grid">
+      @for (badge of filteredBadges(); track badge.slug) {
+        <div class="badge-card" [class.unlocked]="badge.unlockedAt" [class]="tierClass(badge.tier)">
+          <div class="badge-emoji">{{ badge.emoji }}</div>
+          <div class="badge-info">
+            <h3>{{ badge.name }}</h3>
+            <p>{{ badge.description }}</p>
+            @if (badge.unlockedAt) {
+              <span class="badge-date">{{ badge.unlockedAt | date:'dd/MM/yyyy' }}</span>
+            } @else {
+              <span class="badge-locked">Bloqueada</span>
+            }
+          </div>
+          <div class="badge-tier">{{ badge.tier }}</div>
+        </div>
+      }
+    </div>
+  }
+</div>
