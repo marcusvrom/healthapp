@@ -343,7 +343,7 @@ export class OnboardingService {
         if (exerciseBlock) {
           exerciseBlock.metadata = {
             workoutSheetId: savedSheet.id,
-            exercises: sheetExercises.map(e => ({ name: e.name, sets: e.sets, reps: e.reps })),
+            exercises: sheetExercises.map(e => ({ name: e.name, sets: e.sets, reps: e.reps, restSeconds: (e.restSeconds as number | undefined) ?? 60 })),
           };
         }
       }

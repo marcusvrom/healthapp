@@ -173,7 +173,12 @@
           </label>
           <label class="field">
             <span>Categoria</span>
-            <input type="text" [(ngModel)]="formCategory" placeholder="Ex: PPL, ABC, Full Body" maxlength="40">
+            <select [(ngModel)]="formCategory">
+              <option value="">Selecione ou deixe em branco</option>
+              @for (cat of categoryOptions; track cat) {
+                <option [value]="cat">{{ categoryIcon(cat) }} {{ cat }}</option>
+              }
+            </select>
           </label>
           <label class="field">
             <span>Duracao estimada (min)</span>
@@ -244,7 +249,9 @@
 
           @if ((selectedSheet()!.exercises ?? []).length === 0) {
             <div class="detail-ex-empty">
-              <p>Nenhum exercicio adicionado ainda.</p>
+              <div class="empty-ex-icon">🏋️</div>
+              <p>Nenhum exercício adicionado ainda.</p>
+              <button class="btn-primary" (click)="openAddExercise()">+ Adicionar primeiro exercício</button>
             </div>
           } @else {
             <div class="exercise-list">
@@ -284,38 +291,87 @@
   <!-- Add Exercise Modal -->
   @if (modal() === 'add-exercise') {
     <div class="modal-overlay" (click)="backToDetail()">
-      <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal modal-add-ex" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h2>Adicionar Exercicio</h2>
+          <h2>➕ Adicionar Exercício</h2>
           <button class="modal-close" (click)="backToDetail()">✕</button>
         </div>
         <div class="modal-body">
-          <label class="field">
-            <span>Nome do exercicio *</span>
-            <input type="text" [(ngModel)]="exName" placeholder="Ex: Supino reto com barra" maxlength="100">
-          </label>
-          <div class="field-row">
+
+          <!-- Nome com sugestões -->
+          <div class="field ex-name-field">
+            <span>Nome do exercício *</span>
+            <input
+              type="text"
+              [(ngModel)]="exName"
+              (ngModelChange)="showSuggestions.set(exName.trim().length >= 2)"
+              (blur)="showSuggestions.set(false)"
+              placeholder="Ex: Supino reto com barra"
+              maxlength="100"
+              autocomplete="off">
+            @if (showSuggestions() && exNameSuggestions.length > 0) {
+              <div class="suggestions-list">
+                @for (s of exNameSuggestions; track s) {
+                  <button type="button" class="suggestion-item" (mousedown)="selectSuggestion(s)">{{ s }}</button>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Séries + Repetições -->
+          <div class="ex-form-row">
             <label class="field">
-              <span>Series</span>
-              <input type="number" [(ngModel)]="exSets" min="1" max="20">
+              <span>Séries</span>
+              <div class="counter-input">
+                <button type="button" (click)="exSets = exSets > 1 ? exSets - 1 : 1">−</button>
+                <input type="number" [(ngModel)]="exSets" min="1" max="20">
+                <button type="button" (click)="exSets = exSets < 20 ? exSets + 1 : 20">+</button>
+              </div>
             </label>
-            <label class="field">
-              <span>Repeticoes</span>
+            <label class="field reps-field">
+              <span>Repetições</span>
               <input type="text" [(ngModel)]="exReps" placeholder="8-12" maxlength="20">
-            </label>
-            <label class="field">
-              <span>Descanso (s)</span>
-              <input type="number" [(ngModel)]="exRest" min="0" max="600">
+              <div class="reps-presets">
+                @for (p of repsPresets; track p) {
+                  <button type="button" class="preset-chip" [class.active]="exReps === p" (click)="exReps = p">{{ p }}</button>
+                }
+              </div>
             </label>
           </div>
+
+          <!-- Descanso -->
+          <div class="field">
+            <span>Tempo de descanso</span>
+            <div class="rest-options">
+              @for (opt of restPresets; track opt.value) {
+                <button type="button" class="rest-chip" [class.active]="!exRestCustom && exRest === opt.value" (click)="selectRest(opt.value)">
+                  {{ opt.label }}
+                </button>
+              }
+              <button type="button" class="rest-chip rest-chip-custom" [class.active]="exRestCustom" (click)="enableCustomRest()">
+                Outro
+              </button>
+            </div>
+            @if (exRestCustom) {
+              <div class="custom-rest-input">
+                <input type="number" [(ngModel)]="exRest" min="0" max="600" placeholder="segundos">
+                <span class="rest-unit">segundos</span>
+              </div>
+            }
+          </div>
+
+          <!-- Observações -->
           <label class="field">
-            <span>Observacoes</span>
-            <input type="text" [(ngModel)]="exNotes" placeholder="Ex: ate a falha, drop set..." maxlength="200">
+            <span>Observações <em class="optional">(opcional)</em></span>
+            <input type="text" [(ngModel)]="exNotes" placeholder="Ex: até a falha, drop set, foco na excêntrica…" maxlength="200">
           </label>
+
         </div>
         <div class="modal-footer">
           <button class="btn-outline" (click)="backToDetail()">Cancelar</button>
-          <button class="btn-primary" [disabled]="!exName.trim()" (click)="submitAddExercise()">Adicionar</button>
+          <button class="btn-primary" [disabled]="!exName.trim()" (click)="submitAddExercise()">
+            ✓ Adicionar exercício
+          </button>
         </div>
       </div>
     </div>

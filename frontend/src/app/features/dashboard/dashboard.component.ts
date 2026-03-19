@@ -830,7 +830,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   blockExercises(block: RoutineBlock): Array<{ name: string; sets: number; reps: string; restSeconds: number; notes?: string }> {
     const meta = block.metadata as any;
-    return meta?.exercises ?? [];
+    return (meta?.exercises ?? []).map((e: any) => ({ ...e, restSeconds: e.restSeconds ?? 60 }));
   }
 
   hasLinkedWorkout(block: RoutineBlock): boolean {

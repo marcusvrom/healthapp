@@ -23,6 +23,32 @@ const CATEGORY_META: Record<string, { icon: string; color: string }> = {
   Ciclismo:     { icon: '🚴', color: '#f59e0b' },
 };
 
+export const CATEGORY_OPTIONS = Object.keys(CATEGORY_META);
+
+export const REST_PRESETS: Array<{ label: string; value: number }> = [
+  { label: '30s',  value: 30  },
+  { label: '45s',  value: 45  },
+  { label: '1min', value: 60  },
+  { label: '1:30', value: 90  },
+  { label: '2min', value: 120 },
+  { label: '3min', value: 180 },
+];
+
+export const REPS_PRESETS = ['6-8', '8-10', '10-12', '12-15', '15-20', 'até a falha', '30s', '1min'];
+
+const EXERCISE_SUGGESTIONS: Record<string, string[]> = {
+  peito:     ['Supino reto com barra', 'Supino inclinado', 'Supino declinado', 'Crucifixo', 'Crossover', 'Flexão de braço'],
+  costas:    ['Barra fixa', 'Remada curvada', 'Puxada frontal', 'Remada unilateral', 'Remada cavalinho', 'Face pull', 'Pullover'],
+  ombros:    ['Desenvolvimento militar', 'Elevação lateral', 'Elevação frontal', 'Desenvolvimento Arnold', 'Encolhimento de ombros'],
+  biceps:    ['Rosca direta', 'Rosca martelo', 'Rosca alternada', 'Rosca concentrada', 'Rosca scott'],
+  triceps:   ['Tríceps corda', 'Tríceps testa', 'Tríceps francês', 'Mergulho', 'Extensão no pulley'],
+  pernas:    ['Agachamento livre', 'Leg press', 'Cadeira extensora', 'Mesa flexora', 'Stiff', 'Avanço', 'Hip thrust', 'Panturrilha em pé'],
+  abdomen:   ['Abdominal crunch', 'Prancha', 'Abdominal oblíquo', 'Elevação de pernas', 'Bicicleta', 'Abdominal infra'],
+  cardio:    ['Corrida esteira', 'Bicicleta ergométrica', 'Elíptico', 'Escada', 'Pular corda', 'Burpee', 'Mountain climber'],
+};
+
+const ALL_EXERCISES = Object.values(EXERCISE_SUGGESTIONS).flat();
+
 @Component({
   selector: 'app-workouts',
   standalone: true,
@@ -60,7 +86,9 @@ export class WorkoutsComponent implements OnInit {
   exSets = 3;
   exReps = '8-12';
   exRest = 60;
+  exRestCustom = false;
   exNotes = '';
+  showSuggestions = signal(false);
 
   // Schedule form
   schedStartTime = '07:00';
@@ -175,7 +203,9 @@ export class WorkoutsComponent implements OnInit {
     this.exSets = 3;
     this.exReps = '8-12';
     this.exRest = 60;
+    this.exRestCustom = false;
     this.exNotes = '';
+    this.showSuggestions.set(false);
     this.modal.set('add-exercise');
   }
 
@@ -289,6 +319,10 @@ export class WorkoutsComponent implements OnInit {
 
   // ── Helpers ─────────────────────────────────────────────────────────
 
+  readonly categoryOptions = CATEGORY_OPTIONS;
+  readonly restPresets      = REST_PRESETS;
+  readonly repsPresets      = REPS_PRESETS;
+
   dayLabel(d: number): string { return DAY_LABELS[d] ?? '?'; }
 
   daysText(days: number[]): string {
@@ -303,7 +337,29 @@ export class WorkoutsComponent implements OnInit {
     return (sheet.exercises ?? []).reduce((sum, e) => sum + e.sets, 0);
   }
 
-  formatRest(seconds: number): string {
-    return seconds >= 60 ? `${Math.floor(seconds / 60)}min` : `${seconds}s`;
+  formatRest(seconds: number | undefined | null): string {
+    const s = seconds ?? 60;
+    return s >= 60 ? `${Math.floor(s / 60)}min` : `${s}s`;
+  }
+
+  get exNameSuggestions(): string[] {
+    const q = this.exName.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return ALL_EXERCISES.filter(e => e.toLowerCase().includes(q)).slice(0, 6);
+  }
+
+  selectSuggestion(name: string): void {
+    this.exName = name;
+    this.showSuggestions.set(false);
+  }
+
+  selectRest(value: number): void {
+    this.exRest = value;
+    this.exRestCustom = false;
+  }
+
+  enableCustomRest(): void {
+    this.exRestCustom = true;
+    this.exRest = 0;
   }
 }
