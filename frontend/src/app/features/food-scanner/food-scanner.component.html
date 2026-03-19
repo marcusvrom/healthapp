@@ -1,0 +1,245 @@
+<div class="page">
+  <div class="page-header">
+    <h2>Buscar Alimentos</h2>
+    <p>Pesquise por nome, escaneie codigos de barra ou cadastre alimentos personalizados.</p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab" [class.active]="activeTab() === 'search'" (click)="switchTab('search')">
+      <span class="tab-icon">🔍</span> Buscar
+    </button>
+    <button class="tab" [class.active]="activeTab() === 'scanner'" (click)="switchTab('scanner')">
+      <span class="tab-icon">📷</span> Scanner
+    </button>
+    <button class="tab" [class.active]="activeTab() === 'custom'" (click)="switchTab('custom')">
+      <span class="tab-icon">✏️</span> Cadastrar
+    </button>
+  </div>
+
+  <!-- ── Search Tab ─────────────────────────────────────────── -->
+  @if (activeTab() === 'search') {
+    <div class="search-section">
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text"
+          placeholder="Ex: arroz, frango, banana..."
+          [value]="searchQuery()"
+          (input)="onSearchInput($any($event.target).value)"
+          autocomplete="off" />
+        @if (searching()) {
+          <div class="search-spinner"></div>
+        }
+      </div>
+
+      @if (searchResults().length > 0) {
+        <div class="results-list">
+          @for (food of searchResults(); track food.id) {
+            <div class="food-result" [class.selected]="selectedFood()?.id === food.id"
+              (click)="selectFood(food)">
+              <div class="fr-info">
+                <div class="fr-name">{{ food.name }}</div>
+                <div class="fr-meta">
+                  <span class="fr-cal">{{ food.calories }} kcal</span>
+                  <span class="fr-sep">·</span>
+                  <span>P: {{ food.protein }}g</span>
+                  <span class="fr-sep">·</span>
+                  <span>C: {{ food.carbs }}g</span>
+                  <span class="fr-sep">·</span>
+                  <span>G: {{ food.fat }}g</span>
+                </div>
+                <div class="fr-source">
+                  {{ sourceLabel(food.source) }}
+                  @if (food.householdMeasure) {
+                    · {{ food.householdMeasure }}
+                  }
+                </div>
+              </div>
+              @if (selectedFood()?.id === food.id) {
+                <span class="fr-check">✓</span>
+              }
+            </div>
+          }
+        </div>
+      } @else if (searchQuery().length >= 2 && !searching()) {
+        <div class="empty-results">
+          <span class="empty-icon">🍽️</span>
+          <p>Nenhum alimento encontrado para "{{ searchQuery() }}".</p>
+          <p class="hint">Tente outro termo ou cadastre um alimento personalizado.</p>
+        </div>
+      } @else if (searchQuery().length === 0) {
+        <div class="search-hint">
+          <span class="hint-icon">💡</span>
+          <p>Digite o nome de um alimento para buscar na base TACO, TBCA e Open Food Facts.</p>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ── Scanner Tab ────────────────────────────────────────── -->
+  @if (activeTab() === 'scanner') {
+    <div class="scanner-section">
+      @if (scannerError()) {
+        <div class="scanner-error">
+          <span class="error-icon">⚠️</span>
+          <p>{{ scannerError() }}</p>
+          <button class="btn btn-outline" (click)="scannerError.set(''); startScanner()">Tentar novamente</button>
+        </div>
+      }
+
+      @if (scannerLoading()) {
+        <div class="scanner-loading">
+          <div class="spinner"></div>
+          <p>Buscando alimento pelo codigo de barras...</p>
+        </div>
+      }
+
+      <div class="scanner-viewport-wrapper" [class.hidden]="!scannerActive()">
+        <div id="scanner-viewport"></div>
+        <div class="scanner-guide">
+          <div class="guide-frame"></div>
+          <p>Aponte a camera para o codigo de barras do produto</p>
+        </div>
+      </div>
+
+      @if (!scannerActive() && !scannerError() && !scannerLoading()) {
+        <div class="scanner-start">
+          <span class="camera-icon">📷</span>
+          <p>Use a camera para escanear o codigo de barras de um produto alimenticio.</p>
+          <button class="btn btn-primary" (click)="startScanner()">Abrir Camera</button>
+        </div>
+      }
+
+      @if (scannerActive()) {
+        <button class="btn btn-outline scanner-stop-btn" (click)="stopScanner()">Parar Camera</button>
+      }
+
+      @if (scannedFood()) {
+        <div class="scanned-result">
+          <div class="sr-badge">Encontrado via codigo de barras</div>
+          <div class="sr-name">{{ scannedFood()!.name }}</div>
+          <div class="sr-macros">
+            <span class="macro cal">{{ scannedFood()!.calories }} kcal</span>
+            <span class="macro prot">P: {{ scannedFood()!.protein }}g</span>
+            <span class="macro carb">C: {{ scannedFood()!.carbs }}g</span>
+            <span class="macro fat">G: {{ scannedFood()!.fat }}g</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ── Custom Food Tab ────────────────────────────────────── -->
+  @if (activeTab() === 'custom') {
+    <div class="custom-section">
+      <div class="custom-form">
+        <div class="field">
+          <label>Nome do alimento *</label>
+          <input type="text" [(ngModel)]="customFood.name" placeholder="Ex: Bolo de cenoura caseiro" />
+        </div>
+
+        <div class="field">
+          <label>Medida caseira</label>
+          <input type="text" [(ngModel)]="customFood.householdMeasure" placeholder="Ex: 1 fatia (80g)" />
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Referencia (g)</label>
+            <input type="number" [(ngModel)]="customFood.gramsReference" min="1" />
+          </div>
+          <div class="field">
+            <label>Calorias (kcal) *</label>
+            <input type="number" [(ngModel)]="customFood.calories" min="0" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Proteina (g)</label>
+            <input type="number" [(ngModel)]="customFood.protein" min="0" step="0.1" />
+          </div>
+          <div class="field">
+            <label>Carboidratos (g)</label>
+            <input type="number" [(ngModel)]="customFood.carbs" min="0" step="0.1" />
+          </div>
+          <div class="field">
+            <label>Gordura (g)</label>
+            <input type="number" [(ngModel)]="customFood.fat" min="0" step="0.1" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Fibra (g)</label>
+            <input type="number" [(ngModel)]="customFood.fiber" min="0" step="0.1" />
+          </div>
+          <div class="field">
+            <label>Sodio (mg)</label>
+            <input type="number" [(ngModel)]="customFood.sodium" min="0" step="0.1" />
+          </div>
+        </div>
+
+        <p class="custom-hint">Valores nutricionais por 100g do alimento.</p>
+
+        <button class="btn btn-primary btn-full" (click)="saveCustomFood()"
+          [disabled]="!customFood.name?.trim() || savingCustom()">
+          {{ savingCustom() ? 'Salvando...' : 'Cadastrar Alimento' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Selected Food Detail ──────────────────────────────── -->
+  @if (selectedFood()) {
+    <div class="food-detail">
+      <div class="fd-header">
+        <div>
+          <h3>{{ selectedFood()!.name }}</h3>
+          <span class="fd-source">{{ sourceLabel(selectedFood()!.source) }}</span>
+          @if (selectedFood()!.barcode) {
+            <span class="fd-barcode">EAN: {{ selectedFood()!.barcode }}</span>
+          }
+        </div>
+        <button class="fd-close" (click)="clearSelection()">✕</button>
+      </div>
+
+      <div class="fd-quantity">
+        <label>Quantidade (g):</label>
+        <div class="qty-controls">
+          <button class="qty-btn" (click)="quantityG.set(Math.max(1, quantityG() - 10))">−</button>
+          <input type="number" [ngModel]="quantityG()" (ngModelChange)="quantityG.set($event)" min="1" />
+          <button class="qty-btn" (click)="quantityG.set(quantityG() + 10)">+</button>
+        </div>
+        @if (selectedFood()!.householdMeasure) {
+          <span class="qty-ref">{{ selectedFood()!.householdMeasure }} = {{ selectedFood()!.gramsReference }}g</span>
+        }
+      </div>
+
+      @if (computedMacros()) {
+        <div class="fd-macros">
+          <div class="macro-card cal">
+            <span class="mc-value">{{ computedMacros()!.calories }}</span>
+            <span class="mc-label">kcal</span>
+          </div>
+          <div class="macro-card prot">
+            <span class="mc-value">{{ computedMacros()!.protein }}</span>
+            <span class="mc-label">Proteina</span>
+          </div>
+          <div class="macro-card carb">
+            <span class="mc-value">{{ computedMacros()!.carbs }}</span>
+            <span class="mc-label">Carbs</span>
+          </div>
+          <div class="macro-card fat">
+            <span class="mc-value">{{ computedMacros()!.fat }}</span>
+            <span class="mc-label">Gordura</span>
+          </div>
+          <div class="macro-card fib">
+            <span class="mc-value">{{ computedMacros()!.fiber }}</span>
+            <span class="mc-label">Fibra</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

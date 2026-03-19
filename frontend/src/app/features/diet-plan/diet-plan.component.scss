@@ -13,6 +13,12 @@
   display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem; flex-wrap: wrap;
   input[type=date] { border: 1.5px solid var(--color-border); border-radius: var(--radius-sm);
     padding: .45rem .75rem; font-size: .875rem; background: var(--color-surface); color: var(--color-text); }
+  .btn-scanner { border: 1.5px solid var(--color-primary); color: var(--color-primary);
+    background: transparent; border-radius: var(--radius-sm); padding: .45rem .85rem;
+    font-size: .82rem; font-weight: 600; text-decoration: none; display: inline-flex;
+    align-items: center; gap: .35rem; transition: .15s;
+    &:hover { background: var(--color-primary); color: #fff; }
+  }
 }
 
 /* Goal + caloric target banner */

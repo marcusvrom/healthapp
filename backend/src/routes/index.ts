@@ -26,6 +26,7 @@ import { CommunityController } from "../controllers/CommunityController";
 import { DailyMissionController } from "../controllers/DailyMissionController";
 import { OnboardingController } from "../controllers/OnboardingController";
 import { NotificationController } from "../controllers/NotificationController";
+import { FoodController } from "../controllers/FoodController";
 import { WorkoutController } from "../controllers/WorkoutController";
 import { authMiddleware, AuthenticatedRequest } from "../middleware/auth.middleware";
 
@@ -77,6 +78,13 @@ router.post("/routine/blocks",                    ...auth(RoutineController.crea
 router.patch("/routine/blocks/:id",               ...auth(RoutineController.updateBlock));
 router.patch("/routine/blocks/:id/complete",      ...auth(RoutineController.completeBlock));
 router.delete("/routine/blocks/:id",              ...auth(RoutineController.deleteBlock));
+
+// ── Foods (search & barcode) ──────────────────────────────────────────────────
+// NOTE: /foods/search and /foods/barcode must come BEFORE /foods/:id
+router.get("/foods/search",           ...auth(FoodController.search));
+router.get("/foods/barcode/:barcode", ...auth(FoodController.byBarcode));
+router.get("/foods/:id",              ...auth(FoodController.getOne));
+router.post("/foods",                 ...auth(FoodController.create));
 
 // ── Meals ─────────────────────────────────────────────────────────────────────
 router.get("/meals", ...auth(MealController.list));

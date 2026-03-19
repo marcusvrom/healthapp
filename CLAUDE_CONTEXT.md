@@ -189,9 +189,32 @@ Routes → Controllers → Services → TypeORM Repositories → PostgreSQL
 | 1-2      | Segurança (HttpOnly, rate limit, CORS, headers)           | ✅ Concluído |
 | 3-4      | BlockCompletion + NotificationScheduler + Web Push        | ✅ Concluído |
 | 5-6      | Mobile UX + PWA completa                                  | ✅ Concluído |
-| 7-8      | Copilot IA generativa + scanner alimentos (barcode/OCR)   | ⏳ Pendente |
+| 7-8      | Scanner alimentos (barcode/busca/cadastro)                | ✅ Concluído |
 | 9-10     | Badges/conquistas + progressão treino + relatórios PDF    | ⏳ Pendente |
 | 11-12    | Testes automatizados + LGPD compliance (retenção, RIPD)   | ⏳ Pendente |
+| 13-14    | Modelo Freemium: planos, paywall, Stripe/assinaturas      | ⏳ Pendente |
+| 15-16    | Copilot IA generativa (Claude API, resumos, sugestões)    | ⏳ Pendente |
+
+### Detalhamento Sprint 13-14: Modelo Freemium
+
+**Backend:**
+- Entidade `Subscription` (userId, plan, status, stripeCustomerId, stripeSubscriptionId, currentPeriodEnd)
+- Entidade `Plan` (slug, name, price, interval, features JSON, limits)
+- Middleware `planGuard` que verifica plano ativo antes de features premium
+- Integração Stripe: webhooks para subscription.created/updated/deleted/invoice.paid
+- Controller `SubscriptionController` (createCheckout, portal, webhook, status)
+- Limites por plano: scanner barcode (free: 5/dia, premium: ilimitado), receitas (free: 3, premium: ilimitado), relatórios PDF (premium only), IA copilot (premium only)
+
+**Frontend:**
+- Página de Planos/Pricing com comparação Free vs Premium
+- Modal paywall quando usuário atinge limite de feature gratuita
+- Badge "PRO" no menu/perfil para assinantes
+- Integração Stripe Checkout (redirect) + Customer Portal (gerenciar assinatura)
+- Guard de rota para features premium bloqueadas
+
+**Planos sugeridos:**
+- **Free**: Dashboard, rotina básica, 3 receitas, 5 scans barcode/dia, comunidade
+- **Premium** (R$29,90/mês): Scanner ilimitado, receitas ilimitadas, relatórios PDF, IA copilot, badges exclusivos, suporte prioritário
 
 ---
 

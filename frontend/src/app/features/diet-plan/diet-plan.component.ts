@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe, DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { DietPlanService } from '../../core/services/diet-plan.service';
 import { ProfileService } from '../../core/services/profile.service';
 import { FoodService } from '../../core/services/food.service';
@@ -45,7 +46,7 @@ function toMinutes(time: string): number {
 @Component({
   selector: 'app-diet-plan',
   standalone: true,
-  imports: [FormsModule, DecimalPipe, DatePipe],
+  imports: [FormsModule, DecimalPipe, DatePipe, RouterLink],
   styleUrls: ['./diet-plan.component.scss'],
   templateUrl: './diet-plan.component.html',
 })

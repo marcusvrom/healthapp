@@ -54,6 +54,7 @@ export class NavShellComponent implements OnInit {
       title: 'Nutrição e Saúde',
       items: [
         { route: '/diet', icon: '🍽️', label: 'Dieta' },
+        { route: '/foods', icon: '📷', label: 'Alimentos' },
         { route: '/recipes', icon: '📖', label: 'Receitas' },
         { route: '/protocols', icon: '💊', label: 'Protocolos' },
         { route: '/hormones', icon: '💉', label: 'Hormônios' },
