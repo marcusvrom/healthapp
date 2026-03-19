@@ -298,32 +298,17 @@ export class OnboardingComponent {
       waterIntervalMin:   this.routineBase.waterReminders ? this.routineBase.waterIntervalMin : undefined,
     };
 
-    // Pass only duration so the backend can size the exercise block correctly,
-    // but do NOT send exercises — the worksheet is created via createFromTemplate below.
+    // Pass template slug so the backend creates the workout sheet AND links it
+    // to the exercise routine block in a single transaction.
     if (tpl) {
+      payload['templateSlug'] = tpl.slug;
       payload['exerciseDurationMin'] = tpl.estimatedMinutes;
     }
 
-    // Complete onboarding first
     this.apiSvc.post('/onboarding/complete', payload).subscribe({
       next: () => {
-        // If user chose a template, create the workout sheet from it
-        if (tpl) {
-          this.workoutSvc.createFromTemplate(tpl.slug).subscribe({
-            next: () => {
-              this.authSvc.markOnboarded();
-              this.router.navigate(['/dashboard']);
-            },
-            error: () => {
-              // Onboarding completed successfully, just navigate even if template creation fails
-              this.authSvc.markOnboarded();
-              this.router.navigate(['/dashboard']);
-            },
-          });
-        } else {
-          this.authSvc.markOnboarded();
-          this.router.navigate(['/dashboard']);
-        }
+        this.authSvc.markOnboarded();
+        this.router.navigate(['/dashboard']);
       },
       error: () => {
         this.errorMsg.set('Erro ao finalizar onboarding. Tente novamente.');

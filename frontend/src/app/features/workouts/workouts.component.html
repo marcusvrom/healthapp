@@ -278,11 +278,15 @@
           }
         </div>
 
-        <div class="modal-footer">
-          <button class="btn-outline btn-danger" (click)="deleteSheet(selectedSheet()!)">Excluir ficha</button>
-          <button class="btn-outline" (click)="openEdit(selectedSheet()!)">Editar</button>
-          <button class="btn-primary" (click)="openSchedule()">📅 Agendar na Rotina</button>
-          <button class="btn-outline" (click)="closeModal()">Fechar</button>
+        <div class="modal-footer-detail">
+          <div class="footer-left">
+            <button class="btn-outline btn-danger" (click)="deleteSheet(selectedSheet()!)">Excluir</button>
+            <button class="btn-outline" (click)="openEdit(selectedSheet()!)">Editar</button>
+            <button class="btn-outline" (click)="closeModal()">Fechar</button>
+          </div>
+          <div class="footer-right">
+            <button class="btn-primary" (click)="openSchedule()">📅 Agendar na Rotina</button>
+          </div>
         </div>
       </div>
     </div>

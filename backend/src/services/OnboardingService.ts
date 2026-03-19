@@ -7,6 +7,7 @@ import { WorkoutSheet } from "../entities/WorkoutSheet";
 import { WorkoutSheetExercise } from "../entities/WorkoutSheetExercise";
 import { CalculationService } from "./CalculationService";
 import { ExerciseCalcInput } from "../types/calculation.types";
+import { WORKOUT_TEMPLATES } from "../controllers/WorkoutController";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,7 @@ export interface CompleteOnboardingDto {
   exercises?:         OnboardingExerciseDto[];  // selected exercises to auto-create a workout sheet
   exerciseDaysOfWeek?: number[];                // days for the workout sheet (default [1,3,5])
   exerciseDurationMin?: number;                 // estimated duration in minutes (default 60)
+  templateSlug?:      string;   // workout template slug — creates sheet from template & links to exercise block
 }
 
 export class OnboardingService {
@@ -292,11 +294,38 @@ export class OnboardingService {
       }
     }
 
-    // ── 6. Auto-create workout sheet from onboarding exercises ──────────
+    // ── 6. Auto-create workout sheet from template or onboarding exercises ──
     let workoutSheet: WorkoutSheet | null = null;
     const sheetExercises: Partial<WorkoutSheetExercise>[] = [];
 
-    if (dto.exercises && dto.exercises.length > 0) {
+    // Prefer template-based creation (slug from frontend template picker)
+    const tpl = dto.templateSlug
+      ? WORKOUT_TEMPLATES.find(t => t.slug === dto.templateSlug)
+      : null;
+
+    if (tpl) {
+      workoutSheet = new WorkoutSheet();
+      workoutSheet.userId = userId;
+      workoutSheet.name = tpl.name;
+      workoutSheet.description = tpl.description;
+      workoutSheet.category = tpl.category;
+      workoutSheet.estimatedMinutes = tpl.estimatedMinutes;
+      workoutSheet.daysOfWeek = exerciseDays;
+      workoutSheet.isActive = true;
+      workoutSheet.fromTemplate = tpl.slug;
+
+      for (let i = 0; i < tpl.exercises.length; i++) {
+        const ex = tpl.exercises[i]!;
+        sheetExercises.push({
+          name: ex.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          restSeconds: ex.restSeconds ?? 60,
+          notes: ex.notes,
+          sortOrder: i,
+        });
+      }
+    } else if (dto.exercises && dto.exercises.length > 0) {
       const sheetDays = dto.exerciseDaysOfWeek ?? exerciseDays;
       const sheetDuration = dto.exerciseDurationMin ?? trainDuration;
 
