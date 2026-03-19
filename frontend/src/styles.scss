@@ -132,10 +132,10 @@ html, body {
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Ensure minimum 44×44px touch targets */
-  button:not(.compact), [role="button"]:not(.compact) {
-    min-height: 44px;
-  }
+  // /* Ensure minimum 44×44px touch targets */
+  // button:not(.compact, .toggle-switch), [role="button"]:not(.compact) {
+  //   min-height: 44px;
+  // }
 
   /* Better text sizing on mobile — prevents iOS auto-zoom on inputs */
   input, select, textarea {

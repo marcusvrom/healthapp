@@ -170,9 +170,11 @@ export class OnboardingComponent {
 
   readonly filteredTemplates = computed<WorkoutTemplate[]>(() => {
     const f = this.templateFilter();
-    const templates = this.workoutTemplates();
-    if (f === 'all') return templates;
-    return templates.filter(t => t.category === f);
+    // Garante que só templates com nome válido passem para a interface
+    const validTemplates = this.workoutTemplates().filter(t => t && t.name);
+    
+    if (f === 'all') return validTemplates;
+    return validTemplates.filter(t => t.category === f);
   });
 
   readonly templateCategories = computed<string[]>(() =>
@@ -291,7 +293,12 @@ export class OnboardingComponent {
     this.templateLoadError.set('');
     this.workoutSvc.getTemplates().subscribe({
       next: t => {
-        const normalized = (t ?? []).map((tpl) => this.normalizeTemplate(tpl));
+        // 1. Filtra lixos/nulos antes de normalizar
+        const validRawTemplates = (t ?? []).filter(tpl => !!tpl && !!tpl.name && tpl.name.trim() !== '');
+        
+        // 2. Normaliza apenas os válidos
+        const normalized = validRawTemplates.map((tpl) => this.normalizeTemplate(tpl));
+        
         this.workoutTemplates.set(normalized);
         this.templateLoading.set(false);
       },
