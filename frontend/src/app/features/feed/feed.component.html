@@ -137,7 +137,7 @@
                   <button
                     class="send-btn"
                     (click)="submitComment(post)"
-                    [disabled]="!commentDraft[post.id]?.trim() || sendingComment().has(post.id)">
+                    [disabled]="!(commentDraft[post.id] || '').trim() || sendingComment().has(post.id)">
                     Enviar
                   </button>
                 </div>

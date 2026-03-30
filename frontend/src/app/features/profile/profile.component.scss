@@ -16,7 +16,7 @@
 
 .metabolic-banner {
   background: linear-gradient(135deg, #064e3b, #10b981);
-  border-radius: var(--radius-md); padding: 1.5rem; color: #fff; margin-bottom: 1.5rem;
+  border-radius: var(--radius-md); padding: 1.5rem; color: var(--color-white, #fff); margin-bottom: 1.5rem;
   display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem;
 
   .metric { text-align: center;
@@ -57,7 +57,7 @@
   .day-btn { padding: .25rem .6rem; border-radius: 99px; border: 1.5px solid var(--color-border);
     background: var(--color-surface); cursor: pointer; font-size: .75rem; font-weight: 600;
     transition: .15s;
-    &.selected { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+    &.selected { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-white, #fff); }
   }
 }
 
@@ -114,7 +114,7 @@
     .edit-overlay {
       position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,.45);
       display: flex; align-items: center; justify-content: center; opacity: 0;
-      transition: opacity .2s; color: #fff; font-size: .875rem; font-weight: 600;
+      transition: opacity .2s; color: var(--color-white, #fff); font-size: .875rem; font-weight: 600;
     }
     &:hover .edit-overlay { opacity: 1; }
   }
@@ -170,7 +170,7 @@
 
 .btn-danger {
   background: var(--color-danger);
-  color: #fff;
+  color: var(--color-white, #fff);
   border: none;
   border-radius: var(--radius-sm);
   padding: 0.6rem 1.2rem;

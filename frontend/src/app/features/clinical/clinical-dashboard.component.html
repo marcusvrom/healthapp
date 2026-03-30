@@ -217,7 +217,7 @@
       <!-- No marker selected: show full-width snapshot for the tab -->
       @if (snapshotItems().length > 0) {
         <div class="tab-summary-card">
-          <h4>🔬 Último Exame — {{ activeTabDef()?.label }}
+          <h4>🔬 Último Exame — {{ activeTabDef().label }}
             <span style="font-size:.75rem;color:var(--color-text-muted);font-weight:400;margin-left:.5rem">
               {{ lastExamDate() | date:'dd/MM/yyyy' }}
             </span>

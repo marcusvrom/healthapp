@@ -231,7 +231,7 @@
           <p class="detail-desc">{{ selectedSheet()!.description }}</p>
         }
 
-        @if (selectedSheet()!.daysOfWeek?.length) {
+        @if (selectedSheet()!.daysOfWeek.length) {
           <div class="detail-days">
             @for (d of [0,1,2,3,4,5,6]; track d) {
               <span class="day-chip" [class.active]="selectedSheet()!.daysOfWeek.includes(d)">

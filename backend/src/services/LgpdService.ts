@@ -12,6 +12,23 @@ import { WaterLog } from "../entities/WaterLog";
 import { WeeklyCheckIn } from "../entities/WeeklyCheckIn";
 import { ScheduledMeal } from "../entities/ScheduledMeal";
 import { Notification } from "../entities/Notification";
+import { BlockPost } from "../entities/BlockPost";
+import { BlockLike } from "../entities/BlockLike";
+import { BlockComment } from "../entities/BlockComment";
+import { Recipe } from "../entities/Recipe";
+import { RecipeReview } from "../entities/RecipeReview";
+import { RecipeSchedule } from "../entities/RecipeSchedule";
+import { ChallengeParticipant } from "../entities/ChallengeParticipant";
+import { DailyMission } from "../entities/DailyMission";
+import { GroupMember } from "../entities/GroupMember";
+import { ClinicalProtocol } from "../entities/ClinicalProtocol";
+import { ClinicalProtocolLog } from "../entities/ClinicalProtocolLog";
+import { Meal } from "../entities/Meal";
+import { Medication } from "../entities/Medication";
+import { MedicationLog } from "../entities/MedicationLog";
+import { HormoneLog } from "../entities/HormoneLog";
+import { PushSubscription } from "../entities/PushSubscription";
+import { WeightLog } from "../entities/WeightLog";
 
 /**
  * LgpdService — LGPD (Lei Geral de Proteção de Dados) compliance service.
@@ -116,28 +133,48 @@ export class LgpdService {
   static async deleteUserAccount(userId: string): Promise<void> {
     await AppDataSource.transaction(async (manager) => {
       // Delete in order to respect foreign key constraints (children first)
-      await manager.getRepository(Notification).delete({ userId });
-      await manager.getRepository(BlockCompletion).delete({ userId });
-      await manager.getRepository(ExerciseLog).delete({ userId });
+
+      // Social & community
+      await manager.getRepository(BlockComment).delete({ userId });
+      await manager.getRepository(BlockLike).delete({ userId });
+      await manager.getRepository(BlockPost).delete({ userId });
+      await manager.getRepository(GroupMember).delete({ userId });
+
+      // Gamification
+      await manager.getRepository(ChallengeParticipant).delete({ userId });
+      await manager.getRepository(DailyMission).delete({ userId });
       await manager.getRepository(UserBadge).delete({ userId });
       await manager.getRepository(XpLog).delete({ userId });
-      await manager.getRepository(WaterLog).delete({ userId });
-      await manager.getRepository(WeeklyCheckIn).delete({ userId });
+
+      // Notifications & push
+      await manager.getRepository(Notification).delete({ userId });
+      await manager.getRepository(PushSubscription).delete({ userId });
+
+      // Nutrition & meals
+      const meals = await manager.getRepository(Meal).find({ where: { userId } });
+      if (meals.length > 0) await manager.getRepository(Meal).remove(meals);
       await manager.getRepository(ScheduledMeal).delete({ userId });
+      await manager.getRepository(RecipeReview).delete({ userId });
+      await manager.getRepository(RecipeSchedule).delete({ userId });
+      await manager.getRepository(Recipe).delete({ authorId: userId });
+      await manager.getRepository(WaterLog).delete({ userId });
+      await manager.getRepository(WeightLog).delete({ userId });
 
-      // Delete workout sheets (cascades to exercises)
+      // Workouts & exercise
+      await manager.getRepository(BlockCompletion).delete({ userId });
+      await manager.getRepository(ExerciseLog).delete({ userId });
       const sheets = await manager.getRepository(WorkoutSheet).find({ where: { userId } });
-      if (sheets.length > 0) {
-        await manager.getRepository(WorkoutSheet).remove(sheets);
-      }
-
-      // Delete routine blocks
+      if (sheets.length > 0) await manager.getRepository(WorkoutSheet).remove(sheets);
       await manager.getRepository(RoutineBlock).delete({ userId });
 
-      // Delete blood tests
+      // Clinical & health
+      await manager.getRepository(ClinicalProtocolLog).delete({ userId });
+      await manager.getRepository(ClinicalProtocol).delete({ userId });
+      await manager.getRepository(MedicationLog).delete({ userId });
+      await manager.getRepository(Medication).delete({ userId });
+      await manager.getRepository(HormoneLog).delete({ userId });
+      await manager.getRepository(WeeklyCheckIn).delete({ userId });
       await manager.getRepository(BloodTest).delete({ userId });
-
-      // Delete health profile
       await manager.getRepository(HealthProfile).delete({ userId });
 
       // Finally delete the user
